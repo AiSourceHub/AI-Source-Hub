@@ -1,0 +1,25 @@
+{
+  "name": "AI Source Hub",
+  "short_name": "AI Source Hub",
+  "description": "Focused AI decision engines for real business problems.",
+  "start_url": "/pages/Home/index.html",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f6f4ef",
+  "theme_color": "#0f766e",
+  "icons": [
+    {
+      "src": "/assets/brand/app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/brand/maskable-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
+

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="AI Source Hub social preview">
+  <rect width="1200" height="630" fill="#f6f4ef"/>
+  <rect x="72" y="72" width="1056" height="486" rx="28" fill="#ffffff" stroke="#d9ded7"/>
+  <rect x="112" y="112" width="88" height="88" rx="20" fill="#0f766e"/>
+  <text x="156" y="172" text-anchor="middle" font-family="Arial, sans-serif" font-size="44" font-weight="800" fill="#ffffff">AI</text>
+  <text x="112" y="268" font-family="Arial, sans-serif" font-size="76" font-weight="800" fill="#1f2523">AI Source Hub</text>
+  <text x="112" y="342" font-family="Arial, sans-serif" font-size="34" fill="#68716d">Focused AI decision engines for real business problems.</text>
+  <text x="112" y="444" font-family="Arial, sans-serif" font-size="30" font-weight="700" fill="#0f766e">Business Idea Validator · Startup Risk Scanner</text>
+</svg>
+

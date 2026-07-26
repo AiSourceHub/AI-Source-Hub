@@ -1,0 +1,1420 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Business Idea Validator</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f6f4ef;
+        --panel: #ffffff;
+        --ink: #1f2523;
+        --muted: #68716d;
+        --line: #d9ded7;
+        --field: #fbfcfa;
+        --accent: #0f766e;
+        --accent-dark: #0a5d56;
+        --amber: #b7791f;
+        --rose: #b4233c;
+        --green-soft: #e5f3ef;
+        --amber-soft: #fff4dc;
+        --shadow: 0 18px 55px rgba(31, 37, 35, 0.08);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--bg);
+        color: var(--ink);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
+      }
+
+      main {
+        width: min(1120px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 32px 0;
+      }
+
+      .shell {
+        display: grid;
+        grid-template-columns: minmax(0, 0.9fr) minmax(360px, 1.1fr);
+        gap: 20px;
+        align-items: start;
+      }
+
+      .intro {
+        padding: 8px 0 16px;
+      }
+
+      .brand {
+        margin: 0 0 12px;
+        color: var(--accent-dark);
+        font-size: 0.78rem;
+        font-weight: 800;
+        letter-spacing: 0;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        margin: 0;
+        max-width: 620px;
+        font-size: clamp(2rem, 5vw, 4.25rem);
+        line-height: 0.98;
+        letter-spacing: 0;
+      }
+
+      .lede {
+        margin: 18px 0 0;
+        max-width: 520px;
+        color: var(--muted);
+        font-size: 1.05rem;
+        line-height: 1.6;
+      }
+
+      .summary-strip {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 28px;
+        max-width: 560px;
+      }
+
+      .metric {
+        min-height: 84px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.62);
+        padding: 14px;
+      }
+
+      .metric strong {
+        display: block;
+        font-size: 1.35rem;
+        line-height: 1;
+      }
+
+      .metric span {
+        display: block;
+        margin-top: 8px;
+        color: var(--muted);
+        font-size: 0.84rem;
+        line-height: 1.35;
+      }
+
+      .workbench {
+        display: grid;
+        gap: 16px;
+      }
+
+      .panel {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel);
+        box-shadow: var(--shadow);
+      }
+
+      .form-panel {
+        padding: 22px;
+      }
+
+      .form-grid {
+        display: grid;
+        gap: 16px;
+      }
+
+      label {
+        display: grid;
+        gap: 8px;
+        color: var(--ink);
+        font-size: 0.93rem;
+        font-weight: 750;
+      }
+
+      textarea {
+        width: 100%;
+        min-height: 96px;
+        resize: vertical;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--field);
+        color: var(--ink);
+        font: inherit;
+        line-height: 1.45;
+        padding: 13px 14px;
+        outline: none;
+        transition:
+          border-color 160ms ease,
+          box-shadow 160ms ease,
+          background 160ms ease;
+      }
+
+      textarea:focus {
+        border-color: var(--accent);
+        background: #ffffff;
+        box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.14);
+      }
+
+      button {
+        width: 100%;
+        min-height: 52px;
+        border: 0;
+        border-radius: 8px;
+        background: var(--accent);
+        color: #ffffff;
+        cursor: pointer;
+        font: inherit;
+        font-weight: 800;
+        transition:
+          background 160ms ease,
+          transform 160ms ease;
+      }
+
+      button:hover {
+        background: var(--accent-dark);
+      }
+
+      button:active {
+        transform: translateY(1px);
+      }
+
+      .result {
+        display: none;
+        overflow: hidden;
+      }
+
+      .result.is-visible {
+        display: block;
+      }
+
+      .result-head {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 12px;
+        align-items: center;
+        padding: 20px 22px;
+        border-bottom: 1px solid var(--line);
+        background: var(--green-soft);
+      }
+
+      .verdict-label {
+        margin: 0 0 4px;
+        color: var(--muted);
+        font-size: 0.78rem;
+        font-weight: 800;
+        letter-spacing: 0;
+        text-transform: uppercase;
+      }
+
+      .verdict {
+        margin: 0;
+        font-size: 2rem;
+        line-height: 1;
+      }
+
+      .score-ring {
+        display: grid;
+        place-items: center;
+        width: 86px;
+        height: 86px;
+        border: 8px solid var(--accent);
+        border-radius: 50%;
+        background: #ffffff;
+        font-weight: 900;
+      }
+
+      .score-block {
+        display: grid;
+        justify-items: center;
+        gap: 8px;
+      }
+
+      .score-label {
+        color: var(--muted);
+        font-size: 0.78rem;
+        font-weight: 800;
+        letter-spacing: 0;
+        text-transform: uppercase;
+      }
+
+      .score-ring span {
+        font-size: 1.15rem;
+      }
+
+      .result-body {
+        display: grid;
+        gap: 18px;
+        padding: 22px;
+      }
+
+      .section-title {
+        margin: 0 0 10px;
+        font-size: 0.88rem;
+        letter-spacing: 0;
+        text-transform: uppercase;
+      }
+
+      .scores {
+        display: grid;
+        gap: 10px;
+      }
+
+      .score-row {
+        display: grid;
+        grid-template-columns: 144px 1fr 48px;
+        gap: 12px;
+        align-items: center;
+        min-height: 34px;
+      }
+
+      .score-name {
+        color: var(--ink);
+        font-size: 0.92rem;
+        font-weight: 750;
+      }
+
+      .bar {
+        height: 10px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: #e8ece7;
+      }
+
+      .bar span {
+        display: block;
+        height: 100%;
+        border-radius: inherit;
+        background: var(--accent);
+      }
+
+      .score-value {
+        color: var(--muted);
+        font-size: 0.88rem;
+        font-weight: 750;
+        text-align: right;
+      }
+
+      .insight-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+
+      .insight {
+        min-height: 132px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 15px;
+        background: #ffffff;
+      }
+
+      .insight.risk {
+        border-color: #ecd7a6;
+        background: var(--amber-soft);
+      }
+
+      .insight h3 {
+        margin: 0 0 8px;
+        color: var(--muted);
+        font-size: 0.78rem;
+        letter-spacing: 0;
+        text-transform: uppercase;
+      }
+
+      .insight p {
+        margin: 0;
+        line-height: 1.5;
+      }
+
+      .idea-box {
+        border-left: 4px solid var(--accent);
+        border-radius: 8px;
+        background: #f8fbf9;
+        padding: 16px;
+        line-height: 1.55;
+      }
+
+      .result[dir="rtl"] {
+        text-align: right;
+      }
+
+      .result[dir="rtl"] .idea-box {
+        border-right: 4px solid var(--accent);
+        border-left: 0;
+      }
+
+      .result[dir="rtl"] .score-value {
+        text-align: left;
+      }
+
+      .empty-state {
+        padding: 22px;
+        color: var(--muted);
+        line-height: 1.55;
+      }
+
+      @media (max-width: 860px) {
+        main {
+          width: min(100% - 24px, 680px);
+          padding: 20px 0;
+        }
+
+        .shell {
+          grid-template-columns: 1fr;
+        }
+
+        .intro {
+          padding-top: 0;
+        }
+
+        .summary-strip {
+          grid-template-columns: 1fr;
+        }
+
+        .result-head {
+          grid-template-columns: 1fr;
+        }
+
+        .score-ring {
+          width: 74px;
+          height: 74px;
+          border-width: 7px;
+        }
+
+        .score-row {
+          grid-template-columns: 1fr;
+          gap: 7px;
+        }
+
+        .score-value {
+          text-align: left;
+        }
+
+        .insight-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="shell" aria-labelledby="page-title">
+        <div class="intro">
+          <p class="brand">AI Source Hub</p>
+          <h1 id="page-title">Business Idea Validator</h1>
+          <p class="lede">
+            Evaluate one idea, see the biggest weakness, and leave with a
+            practical next step.
+          </p>
+
+          <div class="summary-strip" aria-label="Product standards">
+            <div class="metric">
+              <strong>4</strong>
+              <span>Inputs</span>
+            </div>
+            <div class="metric">
+              <strong>5</strong>
+              <span>Score categories</span>
+            </div>
+            <div class="metric">
+              <strong>1</strong>
+              <span>Next action</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="workbench">
+          <form class="panel form-panel" id="validator-form">
+            <div class="form-grid">
+              <label>
+                Business Idea
+                <textarea
+                  id="business-idea"
+                  name="businessIdea"
+                  placeholder="Example: A meal planning app for busy professionals."
+                ></textarea>
+              </label>
+
+              <label>
+                Target Customer
+                <textarea
+                  id="target-customer"
+                  name="targetCustomer"
+                  placeholder="Example: Working parents with limited time to cook."
+                ></textarea>
+              </label>
+
+              <label>
+                Problem Being Solved
+                <textarea
+                  id="problem"
+                  name="problem"
+                  placeholder="Example: They want healthy dinners but do not have time to plan meals."
+                ></textarea>
+              </label>
+
+              <label>
+                Monetization
+                <textarea
+                  id="monetization"
+                  name="monetization"
+                  placeholder="Example: Monthly subscription."
+                ></textarea>
+              </label>
+
+              <button type="submit">Validate Idea</button>
+            </div>
+          </form>
+
+          <section class="panel result" id="result" aria-live="polite">
+            <div class="result-head">
+              <div>
+                <p class="verdict-label" id="verdict-label">Verdict</p>
+                <h2 class="verdict" id="verdict">Improve</h2>
+              </div>
+              <div class="score-block">
+                <div class="score-label" id="score-label">Total Score</div>
+                <div class="score-ring" aria-label="Total score">
+                  <span id="total-score">68</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="result-body">
+              <div>
+                <h3 class="section-title" id="score-categories-label">Score Categories</h3>
+                <div class="scores" id="score-list"></div>
+              </div>
+
+              <div class="insight-grid">
+                <div class="insight risk">
+                  <h3 id="risk-label">Biggest Risk</h3>
+                  <p id="biggest-risk">
+                    The customer group is still broad, which makes the idea
+                    harder to position and validate.
+                  </p>
+                </div>
+                <div class="insight">
+                  <h3 id="action-label">Next Action</h3>
+                  <p id="next-action">
+                    Narrow the target customer to one specific segment and test
+                    whether the problem is urgent.
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <h3 class="section-title" id="improved-idea-label">Improved Idea</h3>
+                <div class="idea-box" id="improved-idea">
+                  A focused product for a specific customer segment that solves
+                  one clear problem through a simple paid model.
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel empty-state" id="empty-state">
+            Enter an idea and press Validate Idea to view the validation
+            report.
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const form = document.querySelector("#validator-form");
+      const result = document.querySelector("#result");
+      const emptyState = document.querySelector("#empty-state");
+      const scoreList = document.querySelector("#score-list");
+      const improvedIdea = document.querySelector("#improved-idea");
+
+      const verdict = document.querySelector("#verdict");
+      const totalScore = document.querySelector("#total-score");
+      const biggestRisk = document.querySelector("#biggest-risk");
+      const nextAction = document.querySelector("#next-action");
+      const verdictLabel = document.querySelector("#verdict-label");
+      const scoreLabel = document.querySelector("#score-label");
+      const scoreCategoriesLabel = document.querySelector("#score-categories-label");
+      const riskLabel = document.querySelector("#risk-label");
+      const actionLabel = document.querySelector("#action-label");
+      const improvedIdeaLabel = document.querySelector("#improved-idea-label");
+      const scoreRing = document.querySelector(".score-ring");
+
+      const criteriaOrder = [
+        "Problem Clarity",
+        "Customer Clarity",
+        "Pain Level",
+        "Monetization",
+        "Differentiation",
+      ];
+
+      const languagePacks = {
+        en: {
+          dir: "ltr",
+          labels: {
+            verdict: "Verdict",
+            totalScore: "Total Score",
+            scoreCategories: "Score Categories",
+            biggestRisk: "Biggest Risk",
+            nextAction: "Next Action",
+            improvedIdea: "Improved Idea",
+          },
+          verdicts: {
+            Pursue: "Pursue",
+            Improve: "Improve",
+            Pause: "Pause",
+          },
+          categories: {
+            "Problem Clarity": "Problem Clarity",
+            "Customer Clarity": "Customer Clarity",
+            "Pain Level": "Pain Level",
+            Monetization: "Monetization",
+            Differentiation: "Differentiation",
+          },
+          errors: {
+            missingIdea:
+              "I need at least a basic business idea to validate. Add one sentence describing what you want to build or sell.",
+          },
+          ideaFallbacks: {
+            idea: "A focused product",
+            customer: "a clearly defined customer segment",
+            problem: "a specific customer problem",
+            monetization: "a simple revenue model that still needs to be chosen",
+          },
+        },
+        ar: {
+          dir: "rtl",
+          labels: {
+            verdict: "القرار",
+            totalScore: "الدرجة الكلية",
+            scoreCategories: "معايير التقييم",
+            biggestRisk: "أكبر مخاطرة",
+            nextAction: "الخطوة التالية المقترحة",
+            improvedIdea: "الصياغة المقترحة للفكرة",
+          },
+          verdicts: {
+            Pursue: "انطلق",
+            Improve: "طوّر",
+            Pause: "توقّف",
+          },
+          categories: {
+            "Problem Clarity": "وضوح المشكلة",
+            "Customer Clarity": "وضوح العميل المستهدف",
+            "Pain Level": "مستوى الحاجة",
+            Monetization: "نموذج الإيرادات",
+            Differentiation: "التميز",
+          },
+          errors: {
+            missingIdea:
+              "أحتاج إلى وصف مختصر للفكرة حتى أتمكن من تقييمها. اكتب جملة واحدة توضّح ما تريد بناءه أو بيعه.",
+          },
+          risks: {
+            "Problem Clarity":
+              "المشكلة غير واضحة بما يكفي، وهذا يجعل التحقق من الفكرة صعباً.",
+            "Customer Clarity":
+              "العميل المستهدف غير محدد بما يكفي، مما يجعل توجيه العرض أكثر صعوبة.",
+            "Pain Level":
+              "مستوى الحاجة غير واضح أو ليس قوياً بما يكفي لدفع العميل إلى التصرف.",
+            Monetization:
+              "نموذج الإيرادات غير واضح بما يكفي، لذلك من غير المؤكد من سيدفع ولماذا.",
+            Differentiation:
+              "الفكرة لا توضّح بعد سبباً قوياً يجعل العملاء يختارونها بدلاً من البدائل.",
+            scope:
+              "الفكرة واسعة جداً، وتحتاج إلى تضييقها حول عميل واحد ومشكلة واحدة.",
+          },
+          actions: {
+            pursue:
+              "تحدث مع خمسة عملاء مستهدفين قبل البناء للتأكد من أن المشكلة مهمة بما يكفي.",
+            "Problem Clarity":
+              "أعد صياغة الفكرة حول مشكلة واحدة واضحة لعميل محدد.",
+            "Customer Clarity":
+              "ضيّق العميل المستهدف إلى شريحة محددة يمكن الوصول إليها بوضوح.",
+            "Pain Level":
+              "تحدث مع عملاء محتملين للتأكد من أن المشكلة عاجلة أو متكررة أو مكلفة.",
+            Monetization:
+              "اختر نموذج إيرادات بسيطاً وحدد بوضوح من سيدفع مقابل الحل.",
+            Differentiation:
+              "حدد لماذا سيكون الحل أسرع أو أسهل أو أقل تكلفة أو أكثر تخصصاً.",
+            scope:
+              "ضيّق الفكرة إلى عميل واحد ومشكلة واحدة وحالة استخدام أولى قبل اختبار الطلب.",
+          },
+          ideaFallbacks: {
+            idea: "منتج مركز",
+            customer: "شريحة عملاء محددة بوضوح",
+            problem: "مشكلة محددة لدى العميل",
+            monetization: "نموذج إيرادات بسيط يحتاج إلى تحديد",
+          },
+        },
+      };
+
+      const stopWords = new Set([
+        "a",
+        "an",
+        "and",
+        "are",
+        "as",
+        "at",
+        "be",
+        "by",
+        "for",
+        "from",
+        "help",
+        "in",
+        "is",
+        "it",
+        "of",
+        "on",
+        "or",
+        "that",
+        "the",
+        "their",
+        "they",
+        "this",
+        "to",
+        "with",
+        "who",
+      ]);
+
+      const phraseGroups = {
+        uncertain: [
+          "not sure",
+          "unsure",
+          "don't know",
+          "do not know",
+          "no idea",
+          "unknown",
+          "tbd",
+        ],
+        broadCustomer: [
+          "everyone",
+          "anyone",
+          "all people",
+          "all users",
+          "all businesses",
+          "businesses",
+          "people",
+          "consumers",
+          "customers",
+        ],
+        pain: [
+          "waste",
+          "cost",
+          "expensive",
+          "slow",
+          "manual",
+          "hard",
+          "difficult",
+          "struggle",
+          "problem",
+          "pain",
+          "risk",
+          "urgent",
+          "delay",
+          "lost",
+          "loss",
+          "churn",
+          "compliance",
+          "errors",
+          "inefficient",
+          "frustrating",
+          "time",
+          "money",
+          "revenue",
+        ],
+        frequency: [
+          "daily",
+          "weekly",
+          "monthly",
+          "often",
+          "repeated",
+          "recurring",
+          "every day",
+          "every week",
+        ],
+        monetization: [
+          "subscription",
+          "monthly",
+          "annual",
+          "license",
+          "fee",
+          "commission",
+          "transaction",
+          "paid",
+          "freemium",
+          "tier",
+          "per user",
+          "per seat",
+          "consulting",
+          "service",
+          "marketplace",
+          "affiliate",
+          "sponsorship",
+          "ads",
+          "one-time",
+        ],
+        differentiation: [
+          "faster",
+          "cheaper",
+          "easier",
+          "simpler",
+          "automated",
+          "personalized",
+          "specialized",
+          "niche",
+          "local",
+          "premium",
+          "affordable",
+          "integrated",
+          "ai",
+          "industry-specific",
+        ],
+        vague: [
+          "platform",
+          "solution",
+          "tool",
+          "app",
+          "system",
+          "service",
+          "better",
+          "improve",
+          "optimize",
+        ],
+        tooBroadScope: [
+          "all-in-one",
+          "everything",
+          "every problem",
+          "any problem",
+          "all needs",
+        ],
+        unsupportedClaims: [
+          "no competitors",
+          "everyone will pay",
+          "guaranteed",
+          "the best",
+          "revolutionary",
+          "disrupt",
+        ],
+      };
+
+      function getValue(selector) {
+        return document.querySelector(selector).value.trim();
+      }
+
+      function detectLanguage(raw) {
+        const combined = `${raw.idea} ${raw.customer} ${raw.problem} ${raw.monetization}`;
+        const arabicCount = (combined.match(/[\u0600-\u06FF]/g) || []).length;
+        const englishCount = (combined.match(/[A-Za-z]/g) || []).length;
+
+        return arabicCount > englishCount ? "ar" : "en";
+      }
+
+      function hasArabic(text) {
+        return /[\u0600-\u06FF]/.test(text);
+      }
+
+      function hasEnglish(text) {
+        return /[A-Za-z]/.test(text);
+      }
+
+      function stripOtherLanguage(text, language) {
+        if (language === "ar") {
+          return text
+            .replace(/[A-Za-z]+(?:[-'][A-Za-z]+)*/g, "")
+            .replace(/\s+/g, " ")
+            .trim();
+        }
+
+        return text
+          .replace(/[\u0600-\u06FF]+/g, "")
+          .replace(/\s+/g, " ")
+          .trim();
+      }
+
+      function safeLanguageFragment(text, language, fallback) {
+        const cleaned = cleanFragment(text, fallback);
+        const hasTargetLanguage = language === "ar" ? hasArabic(cleaned) : hasEnglish(cleaned);
+        const hasOtherLanguage = language === "ar" ? hasEnglish(cleaned) : hasArabic(cleaned);
+
+        if (!hasTargetLanguage) {
+          return fallback;
+        }
+
+        if (!hasOtherLanguage) {
+          return cleaned;
+        }
+
+        const stripped = stripOtherLanguage(cleaned, language);
+        return stripped || fallback;
+      }
+
+      function normalize(text) {
+        return text.toLowerCase().replace(/\s+/g, " ").trim();
+      }
+
+      function words(text) {
+        return normalize(text)
+          .split(/[^a-z0-9]+/)
+          .filter(Boolean);
+      }
+
+      function countWords(text) {
+        return words(text).length;
+      }
+
+      function hasAny(text, phrases) {
+        const normalized = normalize(text);
+        return phrases.some((phrase) => normalized.includes(phrase));
+      }
+
+      function countMatches(text, phrases) {
+        const normalized = normalize(text);
+        return phrases.reduce((count, phrase) => {
+          return normalized.includes(phrase) ? count + 1 : count;
+        }, 0);
+      }
+
+      function keywordSet(text) {
+        return new Set(words(text).filter((word) => word.length > 2 && !stopWords.has(word)));
+      }
+
+      function overlapScore(primary, secondary) {
+        const first = keywordSet(primary);
+        const second = keywordSet(secondary);
+
+        if (!first.size || !second.size) {
+          return 0;
+        }
+
+        let overlap = 0;
+        first.forEach((word) => {
+          if (second.has(word)) {
+            overlap += 1;
+          }
+        });
+
+        return overlap;
+      }
+
+      function clampScore(score) {
+        return Math.max(0, Math.min(20, Math.round(score)));
+      }
+
+      function hasSpecificity(text) {
+        return (
+          countWords(text) >= 5 ||
+          /\d/.test(text) ||
+          /\b(who|with|for|in|that|aged|owners|teams|founders|freelancers|restaurants|clinics|students|parents|professionals)\b/i.test(
+            text
+          )
+        );
+      }
+
+      function isMissing(text) {
+        return !normalize(text);
+      }
+
+      function isUncertain(text) {
+        return hasAny(text, phraseGroups.uncertain);
+      }
+
+      function isBroadCustomer(text) {
+        const normalized = normalize(text);
+        return phraseGroups.broadCustomer.some((phrase) => normalized === phrase);
+      }
+
+      function isVague(text) {
+        return countWords(text) <= 3 && hasAny(text, phraseGroups.vague);
+      }
+
+      function processInputs(raw) {
+        const flags = {
+          missingBusinessIdea: isMissing(raw.idea),
+          missingCustomer: isMissing(raw.customer),
+          missingProblem: isMissing(raw.problem),
+          missingMonetization: isMissing(raw.monetization),
+          uncertainCustomer: isUncertain(raw.customer),
+          uncertainProblem: isUncertain(raw.problem),
+          uncertainMonetization: isUncertain(raw.monetization),
+          broadCustomer: isBroadCustomer(raw.customer),
+          vagueProblem: isVague(raw.problem),
+          vagueBusinessIdea: isVague(raw.idea),
+        };
+
+        return { ...raw, flags };
+      }
+
+      function scoreProblemClarity(input) {
+        if (input.flags.missingProblem) {
+          return { name: "Problem Clarity", score: 2 };
+        }
+
+        if (input.flags.uncertainProblem) {
+          return { name: "Problem Clarity", score: 4 };
+        }
+
+        let score = 7;
+        score += Math.min(4, countWords(input.problem) / 2);
+        score += hasSpecificity(input.problem) ? 3 : 0;
+        score += countMatches(input.problem, phraseGroups.pain) > 0 ? 3 : 0;
+        score += overlapScore(input.idea, input.problem) > 0 ? 2 : 0;
+        score -= input.flags.vagueProblem ? 4 : 0;
+
+        return { name: "Problem Clarity", score: clampScore(score) };
+      }
+
+      function scoreCustomerClarity(input) {
+        if (input.flags.missingCustomer) {
+          return { name: "Customer Clarity", score: 2 };
+        }
+
+        if (input.flags.uncertainCustomer) {
+          return { name: "Customer Clarity", score: 4 };
+        }
+
+        let score = input.flags.broadCustomer ? 7 : 8;
+        score += Math.min(4, countWords(input.customer) / 2);
+        score += hasSpecificity(input.customer) ? 4 : 0;
+        score += /\b(small|independent|early-stage|local|enterprise|solo|busy|working|first-time|b2b|b2c)\b/i.test(
+          input.customer
+        )
+          ? 2
+          : 0;
+        score -= input.flags.broadCustomer ? 5 : 0;
+
+        return { name: "Customer Clarity", score: clampScore(score) };
+      }
+
+      function scorePainLevel(input) {
+        if (input.flags.missingProblem || input.flags.uncertainProblem) {
+          return { name: "Pain Level", score: 4 };
+        }
+
+        const painMatches = countMatches(input.problem, phraseGroups.pain);
+        const frequencyMatches = countMatches(input.problem, phraseGroups.frequency);
+
+        let score = 5;
+        score += Math.min(8, painMatches * 2.5);
+        score += Math.min(3, frequencyMatches * 2);
+        score += countWords(input.problem) >= 8 ? 2 : 0;
+        score += hasAny(input.problem, ["time", "money", "revenue", "cost", "risk", "urgent"])
+          ? 2
+          : 0;
+        score += input.flags.missingCustomer || input.flags.broadCustomer ? 0 : 1;
+
+        return { name: "Pain Level", score: clampScore(score) };
+      }
+
+      function scoreMonetization(input) {
+        if (input.flags.missingMonetization) {
+          return { name: "Monetization", score: 2 };
+        }
+
+        if (input.flags.uncertainMonetization) {
+          return { name: "Monetization", score: 4 };
+        }
+
+        const revenueSignals = countMatches(input.monetization, phraseGroups.monetization);
+        let score = 6;
+        score += revenueSignals ? 6 : 0;
+        score += Math.min(4, revenueSignals * 1.5);
+        score += countWords(input.monetization) >= 3 ? 2 : 0;
+        score += input.flags.missingCustomer || input.flags.uncertainCustomer ? 0 : 2;
+        score -= isVague(input.monetization) ? 3 : 0;
+
+        return { name: "Monetization", score: clampScore(score) };
+      }
+
+      function scoreDifferentiation(input) {
+        const combined = `${input.idea} ${input.customer} ${input.problem}`;
+        const differentiationSignals = countMatches(combined, phraseGroups.differentiation);
+
+        let score = 5;
+        score += differentiationSignals ? Math.min(5, differentiationSignals * 2) : 0;
+        score += hasSpecificity(input.customer) ? 3 : 0;
+        score += hasSpecificity(input.problem) ? 2 : 0;
+        score += overlapScore(input.idea, input.customer) > 0 ? 2 : 0;
+        score += overlapScore(input.idea, input.problem) > 0 ? 2 : 0;
+        score -= hasAny(combined, phraseGroups.tooBroadScope) ? 4 : 0;
+
+        return { name: "Differentiation", score: clampScore(score) };
+      }
+
+      function detectContradictions(input) {
+        const contradictions = [];
+        const ideaProblemOverlap = overlapScore(input.idea, input.problem);
+        const customerProblemOverlap = overlapScore(input.customer, input.problem);
+
+        if (
+          countWords(input.idea) >= 5 &&
+          countWords(input.problem) >= 5 &&
+          ideaProblemOverlap === 0
+        ) {
+          contradictions.push({
+            type: "Idea-problem mismatch",
+            severity: "medium",
+            message:
+              "The idea and problem do not clearly connect, so the evaluation is less reliable.",
+          });
+        }
+
+        if (
+          countWords(input.customer) >= 4 &&
+          countWords(input.problem) >= 6 &&
+          customerProblemOverlap === 0 &&
+          !input.flags.broadCustomer
+        ) {
+          contradictions.push({
+            type: "Customer-problem mismatch",
+            severity: "medium",
+            message:
+              "The customer and problem may not be specific enough to prove they belong together.",
+          });
+        }
+
+        if (hasAny(`${input.idea} ${input.problem}`, phraseGroups.tooBroadScope)) {
+          contradictions.push({
+            type: "Scope mismatch",
+            severity: "high",
+            message:
+              "The idea is too broad for a clear first validation test.",
+          });
+        }
+
+        if (hasAny(`${input.idea} ${input.problem}`, phraseGroups.unsupportedClaims)) {
+          contradictions.push({
+            type: "Claim without support",
+            severity: "low",
+            message:
+              "The idea includes a strong claim that should be validated with evidence.",
+          });
+        }
+
+        return contradictions;
+      }
+
+      function calculateConfidence(input, contradictions) {
+        let confidence = 100;
+
+        if (input.flags.vagueBusinessIdea) confidence -= 10;
+        if (input.flags.broadCustomer) confidence -= 15;
+        if (input.flags.uncertainCustomer) confidence -= 20;
+        if (input.flags.vagueProblem) confidence -= 15;
+        if (input.flags.uncertainProblem) confidence -= 20;
+        if (input.flags.uncertainMonetization) confidence -= 15;
+        if (isVague(input.monetization)) confidence -= 10;
+        if (countWords(`${input.idea} ${input.customer} ${input.problem} ${input.monetization}`) < 12) {
+          confidence -= 10;
+        }
+
+        const severeContradictions = contradictions.filter(
+          (item) => item.severity === "high" || item.severity === "medium"
+        ).length;
+        confidence -= severeContradictions > 1 ? 20 : severeContradictions * 10;
+
+        return Math.max(20, Math.min(100, Math.round(confidence)));
+      }
+
+      function getVerdict(score) {
+        if (score >= 75) return "Pursue";
+        if (score >= 50) return "Improve";
+        return "Pause";
+      }
+
+      function getWeakestCriterion(scores) {
+        return [...scores].sort((a, b) => {
+          if (a.score === b.score) {
+            return criteriaOrder.indexOf(a.name) - criteriaOrder.indexOf(b.name);
+          }
+
+          return a.score - b.score;
+        })[0];
+      }
+
+      function buildRisk(weakest, input, contradictions) {
+        const highContradiction = contradictions.find((item) => item.severity === "high");
+
+        if (highContradiction) {
+          return highContradiction.message;
+        }
+
+        const risks = {
+          "Problem Clarity":
+            "The problem is not clear enough yet, which makes the idea difficult to validate.",
+          "Customer Clarity":
+            "The target customer is too broad or unclear, which makes the offer hard to position.",
+          "Pain Level":
+            "The problem may not be urgent or costly enough to motivate action.",
+          Monetization:
+            "The revenue path is not believable enough yet, so it is unclear who pays and why.",
+          Differentiation:
+            "The idea does not yet show a strong reason customers would choose it over alternatives.",
+        };
+
+        if (input.flags.uncertainProblem) {
+          return "The problem is uncertain, so the rest of the validation is only directional.";
+        }
+
+        if (input.flags.broadCustomer || input.flags.uncertainCustomer) {
+          return "The target customer is not specific enough to validate demand confidently.";
+        }
+
+        return risks[weakest.name];
+      }
+
+      function buildNextAction(weakest, verdictText, contradictions) {
+        const highContradiction = contradictions.find((item) => item.severity === "high");
+
+        if (highContradiction) {
+          return "Narrow the idea to one customer, one problem, and one first use case before testing demand.";
+        }
+
+        if (verdictText === "Pursue") {
+          return "Interview five target customers before building to confirm the problem is painful enough.";
+        }
+
+        const actions = {
+          "Problem Clarity":
+            "Rewrite the idea around one specific customer problem before evaluating the solution.",
+          "Customer Clarity":
+            "Narrow the target customer to one specific segment you can clearly identify and reach.",
+          "Pain Level":
+            "Talk to potential customers to confirm whether the problem is urgent, frequent, or costly.",
+          Monetization:
+            "Choose one simple revenue model and define exactly who pays for the solution.",
+          Differentiation:
+            "Define why this solution is faster, easier, cheaper, more specialized, or more convenient.",
+        };
+
+        return actions[weakest.name];
+      }
+
+      function cleanFragment(text, fallback) {
+        const cleaned = text.replace(/[.?!]+$/g, "").trim();
+        return cleaned || fallback;
+      }
+
+      function lowerFirst(text) {
+        if (!text) {
+          return text;
+        }
+
+        return text.charAt(0).toLowerCase() + text.slice(1);
+      }
+
+      function normalizeProblemFragment(text) {
+        return lowerFirst(text)
+          .replace(/^they\s+/i, "")
+          .replace(/^their\s+/i, "")
+          .replace(/^customers\s+/i, "")
+          .trim();
+      }
+
+      function buildImprovedIdea(input) {
+        const idea = cleanFragment(input.idea, "a focused product");
+        const customer = input.flags.missingCustomer || input.flags.uncertainCustomer || input.flags.broadCustomer
+          ? "a clearly defined customer segment"
+          : lowerFirst(cleanFragment(input.customer, "a clearly defined customer segment"));
+        const problem = input.flags.missingProblem || input.flags.uncertainProblem
+          ? "a specific customer problem"
+          : normalizeProblemFragment(cleanFragment(input.problem, "a specific customer problem"));
+        const monetization = input.flags.missingMonetization || input.flags.uncertainMonetization
+          ? "a simple revenue model that still needs to be chosen"
+          : lowerFirst(cleanFragment(input.monetization, "a simple revenue model"));
+
+        return `${idea}; focus it on ${customer}, addressing ${problem}, and earning revenue through ${monetization}.`;
+      }
+
+      function buildLocalizedRisk(evaluation, language) {
+        if (language === "en") {
+          return evaluation.biggestRisk;
+        }
+
+        const pack = languagePacks.ar;
+        const hasHighContradiction = evaluation.contradictions.some(
+          (item) => item.severity === "high"
+        );
+
+        if (hasHighContradiction) {
+          return pack.risks.scope;
+        }
+
+        return pack.risks[evaluation.weakest.name];
+      }
+
+      function buildLocalizedNextAction(evaluation, language) {
+        if (language === "en") {
+          return evaluation.nextAction;
+        }
+
+        const pack = languagePacks.ar;
+        const hasHighContradiction = evaluation.contradictions.some(
+          (item) => item.severity === "high"
+        );
+
+        if (hasHighContradiction) {
+          return pack.actions.scope;
+        }
+
+        if (evaluation.verdict === "Pursue") {
+          return pack.actions.pursue;
+        }
+
+        return pack.actions[evaluation.weakest.name];
+      }
+
+      function buildLocalizedImprovedIdea(evaluation, language) {
+        if (language === "en") {
+          const fallback = languagePacks.en.ideaFallbacks;
+          const input = evaluation.input;
+          const idea = safeLanguageFragment(input.idea, "en", fallback.idea);
+          const customer = input.flags.missingCustomer || input.flags.uncertainCustomer || input.flags.broadCustomer
+            ? fallback.customer
+            : lowerFirst(safeLanguageFragment(input.customer, "en", fallback.customer));
+          const problem = input.flags.missingProblem || input.flags.uncertainProblem
+            ? fallback.problem
+            : normalizeProblemFragment(safeLanguageFragment(input.problem, "en", fallback.problem));
+          const monetization = input.flags.missingMonetization || input.flags.uncertainMonetization
+            ? fallback.monetization
+            : lowerFirst(safeLanguageFragment(input.monetization, "en", fallback.monetization));
+
+          return `${idea}; focus it on ${customer}, addressing ${problem}, and earning revenue through ${monetization}.`;
+        }
+
+        const fallback = languagePacks.ar.ideaFallbacks;
+        const input = evaluation.input;
+        const idea = safeLanguageFragment(input.idea, "ar", fallback.idea);
+        const customer = input.flags.missingCustomer || input.flags.uncertainCustomer || input.flags.broadCustomer
+          ? fallback.customer
+          : safeLanguageFragment(input.customer, "ar", fallback.customer);
+        const problem = input.flags.missingProblem || input.flags.uncertainProblem
+          ? fallback.problem
+          : safeLanguageFragment(input.problem, "ar", fallback.problem);
+        const monetization = input.flags.missingMonetization || input.flags.uncertainMonetization
+          ? fallback.monetization
+          : safeLanguageFragment(input.monetization, "ar", fallback.monetization);
+
+        return `${idea} موجّه إلى ${customer} لمساعدتهم على معالجة تحدٍ واضح لديهم: ${problem}، مع الاعتماد على ${monetization} كنموذج للإيرادات.`;
+      }
+
+      function applyResultLanguage(language) {
+        const pack = languagePacks[language];
+
+        result.dir = pack.dir;
+        result.lang = language;
+        emptyState.dir = pack.dir;
+        emptyState.lang = language;
+        verdictLabel.textContent = pack.labels.verdict;
+        scoreLabel.textContent = pack.labels.totalScore;
+        scoreCategoriesLabel.textContent = pack.labels.scoreCategories;
+        riskLabel.textContent = pack.labels.biggestRisk;
+        actionLabel.textContent = pack.labels.nextAction;
+        improvedIdeaLabel.textContent = pack.labels.improvedIdea;
+        scoreRing.setAttribute("aria-label", pack.labels.totalScore);
+      }
+
+      function evaluateIdea(raw) {
+        const input = processInputs(raw);
+
+        if (input.flags.missingBusinessIdea) {
+          return {
+            error:
+              "I need at least a basic business idea to validate. Add one sentence describing what you want to build or sell.",
+          };
+        }
+
+        const contradictions = detectContradictions(input);
+        const scores = [
+          scoreProblemClarity(input),
+          scoreCustomerClarity(input),
+          scorePainLevel(input),
+          scoreMonetization(input),
+          scoreDifferentiation(input),
+        ];
+        const score = scores.reduce((total, item) => total + item.score, 0);
+        const verdictText = getVerdict(score);
+        const weakest = getWeakestCriterion(scores);
+        const confidence = calculateConfidence(input, contradictions);
+
+        return {
+          input,
+          verdict: verdictText,
+          totalScore: score,
+          confidence,
+          scores,
+          weakest,
+          contradictions,
+          biggestRisk: buildRisk(weakest, input, contradictions),
+          nextAction: buildNextAction(weakest, verdictText, contradictions),
+          improvedIdea: buildImprovedIdea(input),
+        };
+      }
+
+      function renderScores(scores, language) {
+        const pack = languagePacks[language];
+        scoreList.innerHTML = "";
+
+        scores.forEach((item) => {
+          const row = document.createElement("div");
+          row.className = "score-row";
+
+          const name = document.createElement("div");
+          name.className = "score-name";
+          name.textContent = pack.categories[item.name];
+
+          const bar = document.createElement("div");
+          bar.className = "bar";
+
+          const fill = document.createElement("span");
+          fill.style.width = `${(item.score / 20) * 100}%`;
+          bar.appendChild(fill);
+
+          const value = document.createElement("div");
+          value.className = "score-value";
+          value.textContent = `${item.score}/20`;
+
+          row.append(name, bar, value);
+          scoreList.appendChild(row);
+        });
+      }
+
+      form.addEventListener("submit", (event) => {
+        event.preventDefault();
+
+        const rawInput = {
+          idea: getValue("#business-idea"),
+          customer: getValue("#target-customer"),
+          problem: getValue("#problem"),
+          monetization: getValue("#monetization"),
+        };
+        const language = detectLanguage(rawInput);
+        const pack = languagePacks[language];
+        const evaluation = evaluateIdea(rawInput);
+
+        applyResultLanguage(language);
+
+        if (evaluation.error) {
+          result.classList.remove("is-visible");
+          emptyState.style.display = "block";
+          emptyState.textContent = pack.errors.missingIdea;
+          return;
+        }
+
+        verdict.textContent = pack.verdicts[evaluation.verdict];
+        totalScore.textContent = evaluation.totalScore;
+        biggestRisk.textContent = buildLocalizedRisk(evaluation, language);
+        nextAction.textContent = buildLocalizedNextAction(evaluation, language);
+        improvedIdea.textContent = buildLocalizedImprovedIdea(evaluation, language);
+        renderScores(evaluation.scores, language);
+
+        emptyState.style.display = "none";
+        result.classList.add("is-visible");
+      });
+    </script>
+  </body>
+</html>

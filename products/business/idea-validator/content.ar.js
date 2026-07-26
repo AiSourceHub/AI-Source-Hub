@@ -1,0 +1,80 @@
+export const contentAr = {
+  language: "ar",
+  direction: "rtl",
+  header: {
+    brand: "AI Source Hub",
+    tagline: "محركات قرار",
+    navigationLabel: "التنقل الرئيسي",
+    nav: [
+      { label: "الرئيسية", href: "../../../pages/Home/index.html" },
+      { label: "المنتجات", href: "../../../pages/Home/index.html#products" },
+      { label: "الأسئلة", href: "../../../pages/Home/index.html#faq" },
+    ],
+  },
+  footer: {
+    brand: "AI Source Hub",
+    version: "النسخة المهاجرة من مقيّم فكرة العمل",
+  },
+  breadcrumbLabel: "مسار الصفحة",
+  homeLabel: "الرئيسية",
+  homeHref: "../../../pages/Home/index.html",
+  eyebrow: "محرك قرار للأعمال",
+  title: "مقيّم فكرة العمل",
+  description:
+    "قيّم فكرة عمل واحدة، وافهم أكبر مخاطرة، واحصل على خطوة عملية تالية.",
+  formTitle: "فكرتك",
+  buttonLabel: "قيّم الفكرة",
+  processing: "جارٍ تحليل الفكرة...",
+  states: {
+    idle: "أدخل المعلومات الأربع لتقييم الفكرة.",
+    input: "اجعل الإجابات قصيرة ومحددة.",
+    invalid: "بعض المدخلات المطلوبة تحتاج إلى مراجعة.",
+    ready: "جاهز للتحليل.",
+    success: "اكتمل التقييم.",
+    partial: "اكتمل التقييم مع مستوى ثقة محدود.",
+    error: "تعذر إكمال التقييم. راجع المدخلات.",
+    reset: "ابدأ من جديد.",
+  },
+  labels: {
+    verdict: "القرار",
+    totalScore: "الدرجة الكلية",
+    scoreBreakdown: "تفصيل الدرجات",
+    confidence: "مستوى الثقة",
+    biggestRisk: "أكبر مخاطرة",
+    nextAction: "الخطوة العملية التالية",
+    improvedIdea: "الصياغة المحسّنة للفكرة",
+    copyReport: "نسخ التقرير",
+    downloadReport: "تحميل التقرير",
+    startAgain: "ابدأ من جديد",
+    relatedProducts: "منتجات ذات صلة",
+    originalInputs: "المدخلات الأصلية",
+  },
+  categories: {
+    problemClarity: "وضوح المشكلة",
+    customerClarity: "وضوح العميل المستهدف",
+    marketNeed: "حاجة السوق",
+    monetizationClarity: "وضوح نموذج الإيرادات",
+    feasibility: "قابلية التنفيذ",
+  },
+  verdicts: {
+    weak: "فكرة ضعيفة وتحتاج إلى مراجعة كبيرة",
+    unclear: "فكرة واعدة لكنها غير واضحة",
+    good: "فكرة جيدة تستحق الاختبار",
+    strong: "فكرة قوية ذات إمكانات واضحة",
+  },
+  confidence: {
+    low: "منخفض",
+    medium: "متوسط",
+    high: "مرتفع",
+  },
+  report: {
+    copied: "تم نسخ التقرير.",
+    copyFailed: "تعذر النسخ. يمكنك تحديد التقرير ونسخه يدوياً.",
+    disclaimer:
+      "هذه النتيجة تقييم مساعد على اتخاذ القرار وليست ضماناً لنجاح السوق.",
+  },
+  emptyState: "ستظهر النتائج هنا بعد التقييم.",
+  relatedProductsPlaceholder: "ستظهر هنا أدوات قرار أعمال أخرى بعد ترحيلها إلى المنصة.",
+};
+
+export default contentAr;

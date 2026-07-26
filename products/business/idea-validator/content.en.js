@@ -1,0 +1,80 @@
+export const contentEn = {
+  language: "en",
+  direction: "ltr",
+  header: {
+    brand: "AI Source Hub",
+    tagline: "Decision engines",
+    navigationLabel: "Primary navigation",
+    nav: [
+      { label: "Home", href: "../../../pages/Home/index.html" },
+      { label: "Products", href: "../../../pages/Home/index.html#products" },
+      { label: "FAQ", href: "../../../pages/Home/index.html#faq" },
+    ],
+  },
+  footer: {
+    brand: "AI Source Hub",
+    version: "Business Idea Validator migrated MVP",
+  },
+  breadcrumbLabel: "Breadcrumb",
+  homeLabel: "Home",
+  homeHref: "../../../pages/Home/index.html",
+  eyebrow: "Business decision engine",
+  title: "Business Idea Validator",
+  description:
+    "Evaluate one business idea, understand the biggest risk, and leave with a practical next action.",
+  formTitle: "Your idea",
+  buttonLabel: "Validate Idea",
+  processing: "Analyzing the idea...",
+  states: {
+    idle: "Enter the four inputs to validate an idea.",
+    input: "Keep answers short and specific.",
+    invalid: "Some required inputs need attention.",
+    ready: "Ready to analyze.",
+    success: "Validation complete.",
+    partial: "Validation complete with limited confidence.",
+    error: "The validation could not be completed. Please review the inputs.",
+    reset: "Start again.",
+  },
+  labels: {
+    verdict: "Verdict",
+    totalScore: "Total Score",
+    scoreBreakdown: "Score Breakdown",
+    confidence: "Confidence",
+    biggestRisk: "Biggest Risk",
+    nextAction: "Practical Next Action",
+    improvedIdea: "Improved Idea",
+    copyReport: "Copy Report",
+    downloadReport: "Download Report",
+    startAgain: "Start Again",
+    relatedProducts: "Related Products",
+    originalInputs: "Original Inputs",
+  },
+  categories: {
+    problemClarity: "Problem Clarity",
+    customerClarity: "Customer Clarity",
+    marketNeed: "Market Need",
+    monetizationClarity: "Monetization Clarity",
+    feasibility: "Feasibility",
+  },
+  verdicts: {
+    weak: "Weak idea / needs major revision",
+    unclear: "Promising but unclear",
+    good: "Good idea worth testing",
+    strong: "Strong idea with clear potential",
+  },
+  confidence: {
+    low: "Low",
+    medium: "Medium",
+    high: "High",
+  },
+  report: {
+    copied: "Report copied.",
+    copyFailed: "Copy failed. Select and copy the report manually.",
+    disclaimer:
+      "This result is a decision-support assessment, not a guarantee of market success.",
+  },
+  emptyState: "Results will appear here after validation.",
+  relatedProductsPlaceholder: "More business decision tools will appear here as they are migrated.",
+};
+
+export default contentEn;
