@@ -72,6 +72,14 @@ export const contentEn = {
     copyFailed: "Copy failed. Select and copy the report manually.",
     disclaimer:
       "This result is a decision-support assessment, not a guarantee of market success.",
+    sections: {
+      executiveSummary: "Executive Summary",
+      keyFindings: "Key Findings",
+      opportunities: "Opportunities",
+      risks: "Risks",
+      actionPlan: "Action Plan",
+      nextActions: "Next Actions",
+    },
   },
   emptyState: "Results will appear here after validation.",
   relatedProductsPlaceholder: "More business decision tools will appear here as they are migrated.",

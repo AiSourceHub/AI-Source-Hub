@@ -72,6 +72,14 @@ export const contentAr = {
     copyFailed: "تعذر النسخ. يمكنك تحديد التقرير ونسخه يدوياً.",
     disclaimer:
       "هذه النتيجة تقييم مساعد على اتخاذ القرار وليست ضماناً لنجاح السوق.",
+    sections: {
+      executiveSummary: "ملخص تنفيذي",
+      keyFindings: "أهم النتائج",
+      opportunities: "الفرص",
+      risks: "المخاطر",
+      actionPlan: "خطة العمل",
+      nextActions: "الخطوات التالية",
+    },
   },
   emptyState: "ستظهر النتائج هنا بعد التقييم.",
   relatedProductsPlaceholder: "ستظهر هنا أدوات قرار أعمال أخرى بعد ترحيلها إلى المنصة.",

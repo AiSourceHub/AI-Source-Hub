@@ -5,8 +5,9 @@ const path = require("path");
 
 const rootDir = path.resolve(__dirname, "..");
 const defaultTargets = [
-  "products/template",
+  "products/startup-risk-scanner",
   "products/business/idea-validator",
+  "products/template",
 ];
 
 const productTargets = process.argv.slice(2);

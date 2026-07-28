@@ -17,47 +17,49 @@ export const content = {
       ],
     },
     hero: {
-      eyebrow: "AI products, not prompt packs",
-      title: "Focused AI decision engines for real business problems.",
+      eyebrow: "Decision products, not prompt packs",
+      title: "We sell decisions, not prompts.",
       copy:
-        "AI Source Hub helps founders and operators move from uncertainty to a clear next action with small, practical AI products.",
-      primaryAction: "Explore products",
+        "AI Source Hub helps founders and operators move from uncertainty to a clear next action with focused products that make better thinking easier.",
+      primaryAction: "Explore Business Idea Validator",
+      primaryHref: "/products/business-idea-validator",
       secondaryAction: "See how it works",
-      panelLabel: "Platform quality preview",
+      secondaryHref: "#how",
+      panelLabel: "Product quality snapshot",
       panelRows: [
-        { label: "Decision clarity", value: 88 },
-        { label: "Time saved", value: 76 },
-        { label: "Actionability", value: 92 },
+        { label: "Decision clarity", value: 90 },
+        { label: "Time saved", value: 82 },
+        { label: "Actionability", value: 94 },
       ],
       stats: [
-        { value: "1", label: "problem per product" },
-        { value: "2m", label: "to start" },
-        { value: "10m", label: "to decide" },
+        { value: "1", label: "decision per product" },
+        { value: "5m", label: "to begin" },
+        { value: "10m", label: "to act" },
       ],
     },
     products: {
-      eyebrow: "Product showcase",
-      title: "A library prepared for many focused AI products.",
+      eyebrow: "Featured products",
+      title: "A focused library for decisive action.",
       copy:
-        "Each product is designed around one business decision, one simple flow, and one useful output.",
+        "Business Idea Validator leads the experience with a clear scorecard, a practical next step, and a calmer decision process.",
       openLabel: "Open product",
       products: [],
     },
     why: {
       eyebrow: "Why AI Source Hub",
-      title: "Built for decisions, not endless generation.",
+      title: "Built for better decisions, not endless generation.",
       reasons: [
         {
-          title: "Focused by design",
-          copy: "Every product solves one problem and avoids unnecessary complexity.",
+          title: "Clear focus",
+          copy: "Each product addresses one decision and removes noise so the next move feels obvious.",
         },
         {
-          title: "Useful fast",
-          copy: "Users can start quickly and receive a structured result in minutes.",
+          title: "Fast to use",
+          copy: "Users can begin quickly and receive a structured result in minutes.",
         },
         {
-          title: "Action over explanation",
-          copy: "Outputs are designed to help users choose the next practical move.",
+          title: "Action oriented",
+          copy: "Every output ends with a practical next step instead of a wall of explanation.",
         },
       ],
     },
@@ -66,16 +68,16 @@ export const content = {
       title: "A simple pattern every product can reuse.",
       steps: [
         {
-          title: "Enter focused input",
-          copy: "The product asks only for information that improves the result.",
+          title: "Share focused input",
+          copy: "The product asks only for the information that improves the result.",
         },
         {
           title: "Run the decision engine",
           copy: "Inputs are evaluated with a defined framework and consistent logic.",
         },
         {
-          title: "Get one next action",
-          copy: "The report ends with a practical recommendation the user can act on.",
+          title: "Receive one next action",
+          copy: "The report ends with a clear recommendation the user can act on.",
         },
       ],
     },
@@ -133,17 +135,17 @@ export const content = {
         {
           question: "Is AI Source Hub a prompt library?",
           answer:
-            "No. AI Source Hub is built around practical AI products that solve specific business problems.",
+            "No. AI Source Hub is a platform of practical decision products designed for real business problems.",
         },
         {
           question: "Will every product use the same interface?",
           answer:
-            "No. Products can have different flows, but they should reuse the same design system and platform rules.",
+            "Not necessarily. Products can vary in flow, but they should still rely on the same design system and platform standards.",
         },
         {
           question: "Does this landing page include backend services?",
           answer:
-            "No. This platform landing experience is fully static and does not include authentication, payments, databases, or APIs.",
+            "No. This experience is fully static and does not include authentication, payments, databases, or APIs.",
         },
       ],
     },
@@ -161,13 +163,13 @@ export const content = {
   },
   ar: {
     meta: {
-      title: "AI Source Hub | منتجات ذكاء اصطناعي عملية لقرارات الأعمال",
+      title: "AI Source Hub | حلول ذكاء اصطناعي عملية لقرارات أفضل",
       description:
-        "منصة متقدمة لمحركات قرار مركزة تساعد رواد الأعمال وفرق التشغيل على اتخاذ قرارات أوضح.",
+        "منصة تجمع منتجات ذكاء اصطناعي عملية تساعد الأفراد ورواد الأعمال والشركات على اتخاذ قرارات أوضح وتقليل المخاطر.",
     },
     header: {
       brand: "AI Source Hub",
-      tagline: "محركات قرار",
+      tagline: "مركز مصادر الذكاء الاصطناعي",
       navigationLabel: "التنقل الرئيسي",
       nav: [
         { label: "المنتجات", href: "#products" },
@@ -177,139 +179,138 @@ export const content = {
       ],
     },
     hero: {
-      eyebrow: "منتجات ذكاء اصطناعي وليست حزم أوامر",
-      title: "محركات قرار مركزة لمشكلات أعمال حقيقية.",
+      eyebrow: "مرحبًا بك في AI Source Hub",
+      title: "اتخذ قرارات أفضل بمساعدة الذكاء الاصطناعي",
       copy:
-        "تساعد AI Source Hub رواد الأعمال وفرق التشغيل على الانتقال من الغموض إلى خطوة عملية واضحة عبر منتجات ذكاء اصطناعي صغيرة ومركزة.",
+        "نحن في AI Source Hub نؤمن بأن الذكاء الاصطناعي لا ينبغي أن يكون معقدًا أو حكرًا على المتخصصين، بل يجب أن يكون أداة سهلة ومفيدة تساعد الجميع على حل المشكلات واتخاذ القرارات بثقة. تجمع منصتنا بين مجموعة من المنتجات الذكية التي تحول البيانات والأفكار إلى تحليلات وتوصيات عملية.",
       primaryAction: "استكشف المنتجات",
+      primaryHref: "/products/business-idea-validator",
       secondaryAction: "شاهد آلية العمل",
-      panelLabel: "لمحة عن جودة المنصة",
+      secondaryHref: "#how",
+      panelLabel: "لمحة سريعة عن جودة المنتج",
       panelRows: [
-        { label: "وضوح القرار", value: 88 },
-        { label: "توفير الوقت", value: 76 },
-        { label: "قابلية التنفيذ", value: 92 },
+        { label: "وضوح القرار", value: 90 },
+        { label: "توفير الوقت", value: 82 },
+        { label: "قابلية التنفيذ", value: 94 },
       ],
       stats: [
-        { value: "1", label: "مشكلة لكل منتج" },
-        { value: "2د", label: "لبدء الاستخدام" },
-        { value: "10د", label: "للوصول إلى قرار" },
+        { value: "1", label: "قرار لكل منتج" },
+        { value: "5د", label: "لبدء الاستخدام" },
+        { value: "10د", label: "للتنفيذ" },
       ],
     },
     products: {
-      eyebrow: "عرض المنتجات",
-      title: "مكتبة جاهزة لاستيعاب منتجات ذكاء اصطناعي مركزة.",
+      eyebrow: "المنتجات المميزة",
+      title: "منتجات موجهة لحل مشاكل واضحة.",
       copy:
-        "كل منتج مصمم حول قرار أعمال واحد، وتدفق بسيط، ومخرج عملي قابل للاستخدام.",
+        "يضع Business Idea Validator معايير التجربة مع بطاقة تقييم واضحة وخطوة عملية تالية وتدفق بسيط لقرارات أكثر ثقة.",
       openLabel: "افتح المنتج",
       products: [],
     },
     why: {
       eyebrow: "لماذا AI Source Hub",
-      title: "مصممة للقرارات، لا للتوليد المفتوح.",
+      title: "لأننا نركز على حل المشكلات لا على عرض التقنيات.",
       reasons: [
         {
-          title: "تركيز من البداية",
-          copy: "كل منتج يحل مشكلة واحدة ويتجنب التعقيد غير الضروري.",
+          title: "تركيز واضح",
+          copy: "كل منتج يعالج قرارًا محددًا ويزيل الضوضاء حتى تبدو الخطوة التالية واضحة.",
         },
         {
-          title: "قيمة سريعة",
-          copy: "يمكن للمستخدم البدء بسرعة والحصول على نتيجة منظمة خلال دقائق.",
+          title: "مناسب لجميع المستخدمين",
+          copy: "لا يتطلب الاستخدام خبرة تقنية؛ يكفي اختيار المنتج وإدخال المعلومات الأساسية.",
         },
         {
-          title: "الفعل قبل الشرح",
-          copy: "المخرجات مصممة لمساعدة المستخدم على اختيار الخطوة العملية التالية.",
+          title: "نتائج عملية",
+          copy: "نهدف إلى ترك المستخدم بشيء ملموس: قرار أو خطة أو توصية قابلة للتنفيذ.",
         },
       ],
     },
     how: {
-      eyebrow: "آلية العمل",
-      title: "نمط بسيط يمكن لكل منتج إعادة استخدامه.",
+      eyebrow: "كيف تستفيد من المنصة",
+      title: "عملية بسيطة في ثلاث خطوات.",
       steps: [
         {
-          title: "أدخل معلومات مركزة",
-          copy: "يسأل المنتج فقط عن المعلومات التي تحسن جودة النتيجة.",
+          title: "اختر المنتج المناسب",
+          copy: "ابدأ باختيار الحل الأنسب لاحتياجك أو المشكلة التي تريد معالجتها.",
         },
         {
-          title: "تشغيل محرك القرار",
-          copy: "يتم تقييم المدخلات وفق إطار واضح ومنطق ثابت.",
+          title: "أدخل المعلومات المطلوبة",
+          copy: "يطلب المنتج فقط ما يساعده على تقديم تحليل أو تقييم أكثر دقة.",
         },
         {
-          title: "احصل على خطوة واحدة",
-          copy: "ينتهي التقرير بتوصية عملية يمكن للمستخدم تنفيذها.",
+          title: "استلم تقريرًا واضحًا",
+          copy: "تصل إلى نتائج وتوصيات عملية تساعدك على اتخاذ قرار أكثر ثقة.",
         },
       ],
     },
     features: {
-      eyebrow: "خصائص المنصة",
-      title: "أساسات قابلة لإعادة الاستخدام لكل منتج مستقبلي.",
+      eyebrow: "ماذا نقدم",
+      title: "مجموعة متنامية من الحلول العملية.",
       features: [
         {
           icon: "✓",
-          title: "نظام تصميم قابل لإعادة الاستخدام",
-          copy: "ألوان وخطوط ومسافات ومكونات وقواعد تخطيط مشتركة.",
+          title: "تقييم أفكار المشاريع قبل الاستثمار",
+          copy: "نساعدك على فهم فرص المشروع والمخاطر قبل الالتزام بالاستثمار.",
         },
         {
           icon: "↔",
-          title: "دعم العربية والإنجليزية",
-          copy: "مكونات جاهزة للاتجاهين من اليمين واليسار لتجارب ثنائية اللغة.",
+          title: "تحليل الفرص التجارية",
+          copy: "نوفر تحليلات وتقييمات تساعدك على اختيار الاتجاه الأنسب.",
         },
         {
           icon: "◐",
-          title: "جاهزية الوضع الداكن",
-          copy: "ألوان مبنية على رموز مشتركة لتسهيل إطلاق الواجهات الداكنة لاحقاً.",
+          title: "تقارير عملية لاتخاذ القرار",
+          copy: "نحوّل الأفكار إلى معلومات واضحة مع توصيات قابلة للتنفيذ.",
         },
         {
           icon: "◎",
-          title: "جاهزية الوصول",
-          copy: "بنية دلالية ودعم لوحة المفاتيح وحالات تركيز وتباين مقروء.",
+          title: "دعم عربي وإنجليزي",
+          copy: "تجربة ثنائية اللغة مصممة لتناسب المستخدمين في مختلف البيئات.",
         },
       ],
     },
     testimonials: {
-      eyebrow: "مبادئ المنتج",
-      title: "مبنية حول نتائج عملية لرواد الأعمال.",
+      eyebrow: "قيمنا",
+      title: "نؤمن بالبساطة والدقة والاعتماد على احتياجات المستخدم.",
       items: [
         {
-          quote:
-            "يجب أن يجعل منتج القرار الافتراض الأضعف واضحاً بسرعة.",
-          name: "مبدأ تصميم",
+          quote: "البساطة تجعل التقنية مفيدة للجميع.",
+          name: "الوضوح",
         },
         {
-          quote:
-            "يجب أن تنتهي النتيجة بخطوة واحدة يمكن للمستخدم البدء بها دون أدوات إضافية.",
-          name: "مبدأ منتج",
+          quote: "الدقة تبني الثقة في كل تحليل وتوصية.",
+          name: "الاعتمادية",
         },
         {
-          quote:
-            "يجب أن يقلل كل تقييم الغموض دون الادعاء بضمان النجاح.",
-          name: "مبدأ جودة",
+          quote: "التطوير المستمر يضمن أن تواكب المنصة احتياجات المستخدمين.",
+          name: "الابتكار",
         },
       ],
     },
     faq: {
       eyebrow: "الأسئلة الشائعة",
-      title: "إجابات بسيطة عن المنصة.",
+      title: "إجابات واضحة عن المنصة.",
       items: [
         {
-          question: "هل AI Source Hub مكتبة أوامر؟",
+          question: "ما الذي يميز AI Source Hub؟",
           answer:
-            "لا. AI Source Hub مبنية حول منتجات ذكاء اصطناعي عملية تحل مشكلات أعمال محددة.",
+            "نركز على حل المشكلات العملية بدلاً من تقديم تقنيات أو أوامر جاهزة بدون سياق.",
         },
         {
-          question: "هل ستستخدم كل المنتجات الواجهة نفسها؟",
+          question: "هل المنصة مناسبة لرواد الأعمال؟",
           answer:
-            "لا. يمكن أن تختلف التدفقات، لكن يجب أن تعتمد المنتجات على نظام التصميم وقواعد المنصة نفسها.",
+            "نعم، صممت لتخدم رواد الأعمال والأفراد والشركات والطلاب والمستقلين.",
         },
         {
-          question: "هل تتضمن هذه الصفحة خدمات خلفية؟",
+          question: "هل توجد منتجات جديدة باستمرار؟",
           answer:
-            "لا. تجربة الصفحة الرئيسية ثابتة بالكامل ولا تتضمن تسجيل دخول أو مدفوعات أو قواعد بيانات أو واجهات برمجة تطبيقات.",
+            "نعم، نضيف منتجات جديدة لتلبية احتياجات المستخدمين وتطوير المنصة.",
         },
       ],
     },
     footer: {
       brand: "AI Source Hub",
-      version: "أساس المنصة v1.0",
+      version: "منصة AI Source Hub v1.0",
       linksLabel: "روابط التذييل",
       links: [
         { label: "الخصوصية", href: "../../privacy/" },

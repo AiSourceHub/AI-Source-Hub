@@ -16,7 +16,7 @@ export function renderHeader(content, language) {
     <header class="site-header">
       <div class="container site-header__inner">
         <a class="brand-lockup" href="#top" aria-label="${content.brand}">
-          <span class="brand-mark" aria-hidden="true">AI</span>
+          <span class="brand-mark" aria-hidden="true">✦</span>
           <span class="brand-text">
             <strong>${content.brand}</strong>
             <span>${content.tagline}</span>

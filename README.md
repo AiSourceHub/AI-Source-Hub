@@ -75,6 +75,12 @@ Validate product structure with:
 
 `node tools/validate-product.js`
 
+Validate public launch readiness with:
+
+`node tools/validate-launch.js`
+
+The launch validator is intentionally strict and will report unresolved production placeholders until the real domain, contact method, legal review state, and analytics decision are finalized.
+
 ## New Product Starter Template
 
 The reusable starter template lives at:
@@ -115,6 +121,7 @@ Future products should start from `products/template/`, keep product-specific lo
 - [Launch Checklist](LAUNCH_CHECKLIST.md)
 - [Deployment Guide](DEPLOYMENT_GUIDE.md)
 - [Changelog](CHANGELOG.md)
+- [Production Improvements Log](PRODUCTION_IMPROVEMENTS.md)
 - [New Product Starter Template](templates/new-product/README.md)
 - [AI Source Hub Homepage](pages/Home/index.html)
 - [Business Idea Validator Product Brief](products/business-idea-validator/PRODUCT_BRIEF.md)

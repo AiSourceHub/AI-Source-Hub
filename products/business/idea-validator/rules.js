@@ -556,3 +556,81 @@ export function buildImprovedIdea(input, language = "en") {
 }
 
 export { categoryKeys };
+
+export function getActionSteps(lowestCriterion, verdictKey, language = "en") {
+  const steps = {
+    problemClarity: [
+      [
+        "Rewrite the idea to state one clear problem in one sentence.",
+        "أعد صياغة الفكرة لتذكر مشكلة واحدة واضحة في جملة واحدة.",
+      ],
+      [
+        "List three example customers who experience this problem.",
+        "اكتب ثلاثة أمثلة لعملاء يواجهون هذه المشكلة.",
+      ],
+      [
+        "Ask two customers whether they would pay for a simple solution.",
+        "اسأل عميلين عمّا إن كانوا سيدفعون للحصول على حل بسيط.",
+      ],
+    ],
+    customerClarity: [
+      [
+        "Pick one customer segment and describe where to reach them.",
+        "اختر شريحة واحدة للعميل وصف أين يمكن الوصول إليهم.",
+      ],
+      [
+        "Write a one-sentence profile (role, size, pain).",
+        "اكتب وصفاً جملة واحدة (الدور، الحجم، المشكلة).",
+      ],
+      [
+        "Prepare a 2-question interview script to validate demand.",
+        "حضّر نص مقابلتين سريعتين للتحقق من الطلب.",
+      ],
+    ],
+    marketNeed: [
+      [
+        "Find evidence: price, frequency, or a measurable cost.",
+        "ابحث عن دليل: سعر، تكرار، أو تكلفة قابلة للقياس.",
+      ],
+      [
+        "Run one short customer interview to confirm urgency.",
+        "أجرِ مقابلة قصيرة مع عميل واحد لتأكيد الإلحاح.",
+      ],
+      [
+        "Map one common scenario where the problem occurs.",
+        "رسم سيناريو واحد شائع لحدوث المشكلة.",
+      ],
+    ],
+    monetizationClarity: [
+      [
+        "State who pays and how in one sentence.",
+        "ذكر من سيدفع وكيف بغملة واحدة.",
+      ],
+      [
+        "Price a simple offering and test willingness to pay.",
+        "حدّد سعر عرض بسيط واختبر استعداد الدفع.",
+      ],
+      [
+        "Define a minimum viable pricing model to test quickly.",
+        "حدد نموذج تسعير أولي لاختباره سريعاً.",
+      ],
+    ],
+    feasibility: [
+      [
+        "Identify one smallest test you can run in a week.",
+        "حدد أصغر اختبار يمكنك تنفيذه خلال أسبوع.",
+      ],
+      [
+        "List required resources and drop nonessential items.",
+        "اكتب الموارد المطلوبة وتخلّص من العناصر غير الضرورية.",
+      ],
+      [
+        "Commit to one measurable outcome for the test.",
+        "التزم بنتيجة قابلة للقياس للاختبار.",
+      ],
+    ],
+  };
+
+  const bundle = steps[lowestCriterion.key] || steps.problemClarity;
+  return bundle.map((pair) => (language === "ar" ? pair[1] : pair[0]));
+}

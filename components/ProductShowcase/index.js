@@ -12,9 +12,12 @@ export function renderProductShowcase(content) {
             .map((product) =>
               renderCard(
                 `
-                  <div class="product-card">
+                  <div class="product-card ${product.featured ? "product-card--featured" : ""}">
                     <div class="product-card__top">
-                      <h3>${product.name}</h3>
+                      <div>
+                        ${product.featured ? `<span class="badge badge--featured">${product.featuredLabel || content.featuredLabel || "Featured"}</span>` : ""}
+                        <h3>${product.name}</h3>
+                      </div>
                       <span class="badge">${product.status}</span>
                     </div>
                     <p>${product.description}</p>
@@ -32,11 +35,12 @@ export function renderProductShowcase(content) {
                     </div>
                     ${
                       product.route && product.route !== "#"
-                        ? `<a class="button button--secondary" href="../../${product.route}">${content.openLabel || "Open"}</a>`
+                        ? `<a class="button button--secondary" href="${product.route.startsWith('/') ? product.route : `../../${product.route}`}">${content.openLabel || "Open"}</a>`
                         : ""
                     }
                   </div>
-                `
+                `,
+                product.featured ? "featured-product-card" : ""
               )
             )
             .join("")}

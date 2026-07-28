@@ -18,10 +18,13 @@ Current v1.0 does not require a build step.
 Recommended validation before deployment:
 
 ```bash
-node tools/validate-product.js products/startup-risk-scanner products/business/idea-validator products/template
+node tools/validate-product.js
+node tools/validate-launch.js
 ```
 
 If Node.js is unavailable in the shell, run the same validation in an environment that has Node.js before deployment.
+
+`tools/validate-launch.js` is expected to fail until the production domain, official contact method, legal review state, and analytics decision are finalized.
 
 ## Deployment Steps
 
@@ -83,6 +86,6 @@ Do not send public traffic until:
 
 - Legal pages are reviewed.
 - Domain placeholders are replaced.
+- `node tools/validate-launch.js` passes.
 - Browser QA passes on the deployed HTTPS URL.
 - Analytics consent and privacy handling are approved.
-

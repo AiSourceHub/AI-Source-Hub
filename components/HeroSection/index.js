@@ -9,8 +9,8 @@ export function renderHeroSection(content) {
           <h1 id="hero-title">${content.title}</h1>
           <p class="hero__copy">${content.copy}</p>
           <div class="hero__actions">
-            ${renderButton({ label: content.primaryAction, href: "#products" })}
-            ${renderButton({ label: content.secondaryAction, href: "#how", variant: "secondary" })}
+            ${renderButton({ label: content.primaryAction, href: content.primaryHref || "#products" })}
+            ${renderButton({ label: content.secondaryAction, href: content.secondaryHref || "#how", variant: "secondary" })}
           </div>
         </div>
         <aside class="hero-panel" aria-label="${content.panelLabel}">

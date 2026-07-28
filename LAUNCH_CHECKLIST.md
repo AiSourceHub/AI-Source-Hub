@@ -73,6 +73,8 @@ Use this checklist before public launch or deployment preparation.
 - [ ] Empty-input scenario works.
 - [ ] Contradictory-input scenario works.
 - [ ] Business Idea Validator scoring remains unchanged.
+- [ ] `node tools/validate-product.js` passes.
+- [ ] `node tools/validate-launch.js` passes after production placeholders are replaced.
 
 ## Documentation
 
@@ -91,4 +93,4 @@ Use this checklist before public launch or deployment preparation.
 - [ ] No external APIs are required.
 - [ ] No unnecessary dependencies are introduced.
 - [ ] Browser QA limitations are documented if local file access is blocked.
-
+- [ ] Production launch blockers are resolved or explicitly accepted by the owner.
