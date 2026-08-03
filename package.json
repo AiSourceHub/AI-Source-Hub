@@ -2,6 +2,7 @@
   "name": "ai-source-hub",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "description": "Static AI Source Hub v1.0 decision-product platform.",
   "scripts": {
     "dev": "vite",

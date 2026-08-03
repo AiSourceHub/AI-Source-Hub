@@ -100,11 +100,17 @@ export function buildBusinessIdeaReportText({
   lines.push("");
 
   // Action Plan + Next Actions
+  const steps = getActionSteps(
+    result.criteria.reduce((min, c) => (c.score < min.score ? c : min), result.criteria[0]),
+    result.verdictKey,
+    language
+  );
+
   lines.push(content.report.sections.actionPlan + ":");
   lines.push(`- ${result.nextAction}`);
-  getActionSteps(result.criteria.reduce((min, c) => (c.score < min.score ? c : min), result.criteria[0]), result.verdictKey, language).forEach((step) =>
-    lines.push(`- ${step}`)
-  );
+  lines.push("");
+  lines.push(content.report.sections.nextActions + ":");
+  steps.forEach((step) => lines.push(`- ${step}`));
   lines.push("");
 
   lines.push(content.report.disclaimer);
