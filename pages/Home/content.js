@@ -22,7 +22,7 @@ export const content = {
       copy:
         "AI Source Hub helps founders and operators move from uncertainty to a clear next action with focused products that make better thinking easier.",
       primaryAction: "Explore Business Idea Validator",
-      primaryHref: "/products/business-idea-validator",
+      primaryHref: "#/products/business-idea-validator",
       secondaryAction: "See how it works",
       secondaryHref: "#how",
       panelLabel: "Product quality snapshot",
