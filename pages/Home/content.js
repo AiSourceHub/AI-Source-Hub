@@ -184,7 +184,7 @@ export const content = {
       copy:
         "نحن في AI Source Hub نؤمن بأن الذكاء الاصطناعي لا ينبغي أن يكون معقدًا أو حكرًا على المتخصصين، بل يجب أن يكون أداة سهلة ومفيدة تساعد الجميع على حل المشكلات واتخاذ القرارات بثقة. تجمع منصتنا بين مجموعة من المنتجات الذكية التي تحول البيانات والأفكار إلى تحليلات وتوصيات عملية.",
       primaryAction: "استكشف المنتجات",
-      primaryHref: "/products/business-idea-validator",
+      primaryHref: "#/products/business-idea-validator",
       secondaryAction: "شاهد آلية العمل",
       secondaryHref: "#how",
       panelLabel: "لمحة سريعة عن جودة المنتج",
