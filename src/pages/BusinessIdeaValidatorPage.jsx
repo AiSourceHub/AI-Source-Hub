@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { renderHeader } from '../../components/Header/index.js';
 import { renderFooter } from '../../components/Footer/index.js';
 import { validateForExecution } from '../../products/business/idea-validator/analyzer.js';
@@ -66,6 +66,12 @@ const defaultPageContent = {
     noStrengths: 'No strengths yet',
   },
   steps: ['Context', 'Problem & solution', 'Positioning & economics'],
+  signalValues: {
+    high: 'High',
+    medium: 'Medium',
+    low: 'Low',
+    moderate: 'Moderate',
+  },
   categories: {},
   verdicts: {},
   confidence: {},
@@ -83,12 +89,24 @@ const initialFormData = {
   stage: 'idea',
 };
 
-function buildEngineInput(formData) {
+function buildEngineInput(formData, language = 'en') {
+  const fieldPrefixes =
+    language === 'ar'
+      ? {
+          industry: 'القطاع',
+          currentSolution: 'الحل الحالي',
+          competitiveAdvantage: 'الميزة التنافسية',
+        }
+      : {
+          industry: 'Industry',
+          currentSolution: 'Current solution',
+          competitiveAdvantage: 'Competitive advantage',
+        };
   const businessIdea = [
     formData.businessName,
-    formData.industry ? `Industry: ${formData.industry}` : '',
-    formData.currentSolution ? `Current solution: ${formData.currentSolution}` : '',
-    formData.competitiveAdvantage ? `Competitive advantage: ${formData.competitiveAdvantage}` : '',
+    formData.industry ? `${fieldPrefixes.industry}: ${formData.industry}` : '',
+    formData.currentSolution ? `${fieldPrefixes.currentSolution}: ${formData.currentSolution}` : '',
+    formData.competitiveAdvantage ? `${fieldPrefixes.competitiveAdvantage}: ${formData.competitiveAdvantage}` : '',
   ]
     .filter(Boolean)
     .join(' • ');
@@ -107,10 +125,11 @@ function deriveReportSignals(result, formData, content) {
   const marketNeed = criteria.find((item) => item.key === 'marketNeed');
   const feasibility = criteria.find((item) => item.key === 'feasibility');
   const scoreTotal = result.score?.total || 0;
+  const signalValues = content.signalValues || defaultPageContent.signalValues;
 
-  const marketPotential = scoreTotal >= 75 ? 'High' : scoreTotal >= 55 ? 'Medium' : 'Low';
-  const executionDifficulty = feasibility?.score >= 14 ? 'Low' : feasibility?.score >= 10 ? 'Medium' : 'High';
-  const competitionLevel = formData.competitiveAdvantage && formData.competitiveAdvantage.length > 16 ? 'Moderate' : 'High';
+  const marketPotential = scoreTotal >= 75 ? signalValues.high : scoreTotal >= 55 ? signalValues.medium : signalValues.low;
+  const executionDifficulty = feasibility?.score >= 14 ? signalValues.low : feasibility?.score >= 10 ? signalValues.medium : signalValues.high;
+  const competitionLevel = formData.competitiveAdvantage && formData.competitiveAdvantage.length > 16 ? signalValues.moderate : signalValues.high;
   const strengths = criteria
     .filter((item) => item.score >= 12)
     .map((item) => content.categories[item.key] || item.key)
@@ -202,6 +221,7 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
       actions: { ...defaultPageContent.actions, ...(baseContent?.actions || {}) },
       labels: { ...defaultPageContent.labels, ...(baseContent?.labels || {}) },
       steps: baseContent?.steps || defaultPageContent.steps,
+      signalValues: { ...defaultPageContent.signalValues, ...(baseContent?.signalValues || {}) },
       categories: { ...defaultPageContent.categories, ...(baseContent?.categories || {}) },
       verdicts: { ...defaultPageContent.verdicts, ...(baseContent?.verdicts || {}) },
       confidence: { ...defaultPageContent.confidence, ...(baseContent?.confidence || {}) },
@@ -213,18 +233,68 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
   const [errors, setErrors] = useState({});
   const [status, setStatus] = useState({
     tone: 'info',
+    stateKey: 'idle',
     message: pageContent?.states?.idle || '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [result, setResult] = useState(null);
   const [reportText, setReportText] = useState('');
 
+  useEffect(() => {
+    document.documentElement.lang = language;
+    document.body.dir = language === 'ar' ? 'rtl' : 'ltr';
+    window.localStorage.setItem('ai-source-hub-language', language);
+  }, [language]);
+
+  useEffect(() => {
+    const buttons = document.querySelectorAll('[data-language]');
+    const handleClick = (event) => {
+      const newLang = event.currentTarget.dataset.language;
+      if (newLang && newLang !== language) {
+        locale.setLanguage(newLang);
+        window.localStorage.setItem('ai-source-hub-language', newLang);
+      }
+    };
+
+    buttons.forEach((button) => button.addEventListener('click', handleClick));
+    return () => buttons.forEach((button) => button.removeEventListener('click', handleClick));
+  }, [language, locale]);
+
+  useEffect(() => {
+    setStatus((current) => {
+      if (current.stateKey && pageContent.states[current.stateKey]) {
+        return { ...current, message: pageContent.states[current.stateKey] };
+      }
+
+      if (current.reportKey && pageContent.report[current.reportKey]) {
+        return { ...current, message: pageContent.report[current.reportKey] };
+      }
+
+      return current;
+    });
+  }, [pageContent]);
+
+  useEffect(() => {
+    if (!result) return;
+
+    const localizedResult = executeBusinessValidation(buildEngineInput(formData, language), language);
+    if (!localizedResult.ok) return;
+
+    setResult(localizedResult);
+    setReportText(buildBusinessIdeaReportText({
+      productConfig,
+      content: pageContent,
+      language,
+      result: localizedResult,
+    }));
+  }, [language]);
+
   const handleChange = (event) => {
     const { name, value } = event.target;
     setFormData((current) => ({ ...current, [name]: value }));
     setErrors((current) => ({ ...current, [name]: '' }));
     if (status.tone !== 'info' || status.message !== pageContent.states.idle) {
-      setStatus({ tone: 'info', message: pageContent.states.input });
+      setStatus({ tone: 'info', stateKey: 'input', message: pageContent.states.input });
     }
   };
 
@@ -235,7 +305,7 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
     setStatus({ tone: 'info', message: pageContent.processing });
 
     try {
-      const engineInput = buildEngineInput(formData);
+      const engineInput = buildEngineInput(formData, language);
       const validationResult = executeBusinessValidation(engineInput, language);
 
       if (!validationResult.ok) {
@@ -249,7 +319,7 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
         });
         setErrors(fieldErrors);
         setResult(null);
-        setStatus({ tone: 'error', message: pageContent.states.invalid });
+        setStatus({ tone: 'error', stateKey: 'invalid', message: pageContent.states.invalid });
         setIsSubmitting(false);
         return;
       }
@@ -262,10 +332,10 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
       });
       setReportText(nextReportText);
       setResult(validationResult);
-      setStatus({ tone: 'success', message: pageContent.states.success });
+      setStatus({ tone: 'success', stateKey: 'success', message: pageContent.states.success });
     } catch (error) {
       setResult(null);
-      setStatus({ tone: 'error', message: pageContent.states.error });
+      setStatus({ tone: 'error', stateKey: 'error', message: pageContent.states.error });
     } finally {
       setIsSubmitting(false);
     }
@@ -274,9 +344,9 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(reportText);
-      setStatus({ tone: 'success', message: pageContent.report.copied });
+      setStatus({ tone: 'success', reportKey: 'copied', message: pageContent.report.copied });
     } catch {
-      setStatus({ tone: 'error', message: pageContent.report.copyFailed });
+      setStatus({ tone: 'error', reportKey: 'copyFailed', message: pageContent.report.copyFailed });
     }
   };
 
@@ -295,7 +365,7 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
     setErrors({});
     setResult(null);
     setReportText('');
-    setStatus({ tone: 'info', message: pageContent.states.reset });
+    setStatus({ tone: 'info', stateKey: 'reset', message: pageContent.states.reset });
   };
 
   const reportSignals = result ? deriveReportSignals(result, formData, pageContent) : null;

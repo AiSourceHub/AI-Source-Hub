@@ -4,7 +4,7 @@ import { renderProductLayout } from '../../pages/ProductLayout/index.js';
 import { productRegistry } from '../../core/productRegistry.js';
 
 function ProductPage({ locale }) {
-  const { language } = locale;
+  const { language, setLanguage } = locale;
   const { productId } = useParams();
   const [product, setProduct] = useState(null);
 
@@ -21,16 +21,16 @@ function ProductPage({ locale }) {
   useEffect(() => {
     const buttons = document.querySelectorAll('[data-language]');
     const handleClick = (event) => {
-      const newLang = event.target.dataset.language;
+      const newLang = event.currentTarget.dataset.language;
       if (newLang && newLang !== language) {
         window.localStorage.setItem('ai-source-hub-language', newLang);
-        window.location.reload();
+        setLanguage(newLang);
       }
     };
 
     buttons.forEach((button) => button.addEventListener('click', handleClick));
     return () => buttons.forEach((button) => button.removeEventListener('click', handleClick));
-  }, [language]);
+  }, [language, setLanguage]);
 
   if (!product) {
     return <Navigate to="/" replace />;
