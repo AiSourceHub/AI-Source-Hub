@@ -8,6 +8,7 @@ export const contentEn = {
   form: {
     title: "Your inputs",
     description: "Answer the fields below to generate a focused result.",
+    steps: ["Context", "Inputs", "Results"],
     labels: {},
     helpText: {},
     validationMessages: {},

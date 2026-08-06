@@ -9,6 +9,7 @@ import { buildBusinessIdeaReport, buildBusinessIdeaReportText } from '../../prod
 import { buildBusinessIdeaRecommendation } from '../../products/business/idea-validator/recommendations.js';
 import { buildImprovedIdeaStatement, scoreBusinessIdea } from '../../products/business/idea-validator/scoring.js';
 import { inputSchema } from '../../products/business/idea-validator/questions.js';
+import { applyDocumentLocale, bindLanguageSwitcher } from '../../core/localization.js';
 
 const contentMap = { en: contentEn, ar: contentAr };
 
@@ -241,24 +242,12 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
   const [reportText, setReportText] = useState('');
 
   useEffect(() => {
-    document.documentElement.lang = language;
-    document.body.dir = language === 'ar' ? 'rtl' : 'ltr';
-    window.localStorage.setItem('ai-source-hub-language', language);
+    applyDocumentLocale(language);
   }, [language]);
 
   useEffect(() => {
-    const buttons = document.querySelectorAll('[data-language]');
-    const handleClick = (event) => {
-      const newLang = event.currentTarget.dataset.language;
-      if (newLang && newLang !== language) {
-        locale.setLanguage(newLang);
-        window.localStorage.setItem('ai-source-hub-language', newLang);
-      }
-    };
-
-    buttons.forEach((button) => button.addEventListener('click', handleClick));
-    return () => buttons.forEach((button) => button.removeEventListener('click', handleClick));
-  }, [language, locale]);
+    return bindLanguageSwitcher({ language, setLanguage: locale.setLanguage });
+  }, [language, locale.setLanguage]);
 
   useEffect(() => {
     setStatus((current) => {

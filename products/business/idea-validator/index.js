@@ -13,15 +13,19 @@ import { validateForExecution } from "./analyzer.js";
 import { buildBusinessIdeaReport, buildBusinessIdeaReportText } from "./report.js";
 import { buildBusinessIdeaRecommendation } from "./recommendations.js";
 import { buildImprovedIdeaStatement, scoreBusinessIdea } from "./scoring.js";
+import {
+  applyDocumentLocale,
+  bindLanguageSwitcher,
+  getInitialLanguage,
+} from "../../../core/localization.js";
 
 const contents = { en: contentEn, ar: contentAr };
 const app = typeof document !== "undefined" ? document.querySelector("#app") : null;
-let activeLanguage =
-  typeof localStorage !== "undefined" && localStorage.getItem("ai-source-hub-language") === "ar"
-    ? "ar"
-    : "en";
+let activeLanguage = getInitialLanguage();
 let currentReportText = "";
 let currentState = "idle";
+let currentInput = {};
+let currentResult = null;
 
 function getContent(language = activeLanguage) {
   return contents[language] || contents.en;
@@ -42,7 +46,7 @@ function renderForm(content, language) {
         <h2 id="form-title">${content.formTitle}</h2>
         <form class="product-form" id="idea-validator-form" novalidate>
           ${inputSchema
-            .map((field) => renderTextArea(field, getFieldContent(field, language)))
+            .map((field) => renderTextArea(field, getFieldContent(field, language), currentInput[field.id] || ""))
             .join("")}
           <button class="button button--primary" type="submit">${content.buttonLabel}</button>
         </form>
@@ -53,8 +57,7 @@ function renderForm(content, language) {
 
 function renderShell() {
   const content = getContent();
-  document.documentElement.lang = activeLanguage;
-  document.body.dir = content.direction;
+  applyDocumentLocale(activeLanguage);
   document.title = `${content.title} | AI Source Hub`;
 
   const main = `
@@ -79,6 +82,11 @@ function renderShell() {
   app.innerHTML = renderProductLayout({ content, language: activeLanguage, main });
   bindPageEvents();
   setState("idle");
+
+  if (currentResult) {
+    renderResult(currentResult);
+    setState(currentResult.state);
+  }
 }
 
 function setState(state, message) {
@@ -266,6 +274,8 @@ function bindReportActions() {
   document.querySelector("#start-again")?.addEventListener("click", () => {
     document.querySelector("#idea-validator-form")?.reset();
     document.querySelector(".result-card").hidden = true;
+    currentInput = {};
+    currentResult = null;
     currentReportText = "";
     clearErrors();
     setState("reset", getContent().states.reset);
@@ -273,16 +283,22 @@ function bindReportActions() {
 }
 
 function bindPageEvents() {
-  document.querySelectorAll("[data-language]").forEach((button) => {
-    button.addEventListener("click", () => {
-      activeLanguage = button.dataset.language;
-      localStorage.setItem("ai-source-hub-language", activeLanguage);
+  bindLanguageSwitcher({
+    language: activeLanguage,
+    setLanguage: (nextLanguage) => {
+      currentInput = collectInputs();
+      activeLanguage = nextLanguage;
+      if (currentResult) {
+        const nextResult = executeValidation(currentInput, activeLanguage);
+        currentResult = nextResult.ok ? nextResult : null;
+      }
       renderShell();
-    });
+    },
   });
 
   document.querySelectorAll(".field__control").forEach((field) => {
     field.addEventListener("input", () => {
+      currentInput = collectInputs();
       if (currentState !== "processing") {
         setState("input");
       }
@@ -293,9 +309,11 @@ function bindPageEvents() {
     event.preventDefault();
     clearErrors();
     const rawInput = collectInputs();
+    currentInput = rawInput;
     const { validation } = validateInputs(rawInput, activeLanguage);
 
     if (!validation.ok) {
+      currentResult = null;
       document.querySelector(".result-card").hidden = true;
       setState("invalid");
       return;
@@ -312,6 +330,7 @@ function bindPageEvents() {
     }
 
     renderResult(result);
+    currentResult = result;
     setState(result.state);
   });
 }

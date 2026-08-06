@@ -37,6 +37,23 @@ export const content = {
         { value: "10m", label: "to act" },
       ],
     },
+    about: {
+      eyebrow: "About AI Source Hub",
+      title: "What is AI Source Hub?",
+      copy:
+        "AI Source Hub provides practical AI-powered tools that help individuals, entrepreneurs, and business owners analyze ideas, understand opportunities and risks, and make better decisions.",
+      cards: ["Clear Analysis", "Opportunity and Risk Insights", "Practical Recommendations", "Better Decisions"],
+    },
+    featuredBusinessIdea: {
+      eyebrow: "Featured Product",
+      title: "Business Idea Validator",
+      badge: "Available",
+      copy: [
+        "Validate your business idea before investing time or money.",
+        "Understand strengths, weaknesses, opportunities, risks, and receive practical recommendations.",
+      ],
+      action: "Start Validation",
+    },
     products: {
       eyebrow: "Featured products",
       title: "A focused library for decisive action.",
@@ -198,6 +215,23 @@ export const content = {
         { value: "5د", label: "لبدء الاستخدام" },
         { value: "10د", label: "للتنفيذ" },
       ],
+    },
+    about: {
+      eyebrow: "عن AI Source Hub",
+      title: "ما هو مركز مصادر الذكاء الاصطناعي؟",
+      copy:
+        "مركز مصادر الذكاء الاصطناعي (AI Source Hub) منصة تقدم أدوات عملية مدعومة بالذكاء الاصطناعي، تساعد الأفراد ورواد الأعمال وأصحاب المشاريع على تحليل الأفكار، وفهم الفرص والمخاطر، واتخاذ قرارات أفضل.",
+      cards: ["تحليل واضح", "فهم الفرص والمخاطر", "توصيات عملية", "قرارات أفضل"],
+    },
+    featuredBusinessIdea: {
+      eyebrow: "منتج مميز",
+      title: "Business Idea Validator",
+      badge: "مُتاح",
+      copy: [
+        "تحقق من فكرة عملك قبل استثمار الوقت أو المال.",
+        "افهم النقاط القوية والضعف والفرص والمخاطر، واحصل على توصيات عملية.",
+      ],
+      action: "ابدأ التحقق",
     },
     products: {
       eyebrow: "المنتجات المميزة",

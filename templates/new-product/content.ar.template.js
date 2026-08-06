@@ -8,6 +8,7 @@ export const contentAr = {
   form: {
     title: "مدخلاتك",
     description: "أجب عن الحقول التالية لإنشاء نتيجة مركزة.",
+    steps: ["السياق", "المدخلات", "النتائج"],
     labels: {},
     helpText: {},
     validationMessages: {},

@@ -100,9 +100,19 @@ Test both languages before marking the product ready:
 
 - Arabic content uses RTL direction.
 - English content uses LTR direction.
+- Language switching uses `/core/localization.js` and never reloads the page.
+- Switching language preserves the current product route and local product state where applicable.
 - No bilingual sentences appear in generated output.
 - Labels, help text, validation, errors, buttons, and report headings are localized.
 - Copy and download report text matches the selected language.
+
+Run:
+
+```bash
+npm run validate:localization
+```
+
+The product must pass the shared localization contract before deployment.
 
 ## How To Avoid Duplicate Platform Code
 
@@ -113,5 +123,6 @@ Use shared assets first:
 - Layout from `/pages/ProductLayout`
 - Logic modules from `/core-engine`
 - Registry from `/platform/product-registry.js`
+- Localization helpers and contract from `/core/localization.js`
 
 Do not add backend services, authentication, databases, payments, or external APIs for starter products.

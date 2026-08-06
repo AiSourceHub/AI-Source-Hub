@@ -3,6 +3,7 @@ import startupRiskScanner from "../products/startup-risk-scanner/config.js";
 import { PRODUCT_CATEGORIES } from "./constants/categories.js";
 import { SUPPORTED_LANGUAGES } from "./constants/languages.js";
 import { PRODUCT_STATUS, PRODUCT_STATUS_LABELS } from "./constants/productStatus.js";
+import { getProductCardCopy } from "./localization.js";
 
 const activeProducts = [businessIdeaValidator, startupRiskScanner];
 
@@ -80,15 +81,7 @@ function getStatusLabel(status, language) {
 }
 
 function getProductPoints(product, language) {
-  if (product.id === "business-idea-validator") {
-    return language === "ar"
-      ? ["تقييم من خمسة معايير", "أكبر مخاطرة", "خطوة عملية تالية"]
-      : ["Five-part scorecard", "Biggest risk", "One practical next action"];
-  }
-
-  return language === "ar"
-    ? ["مبني على المنصة المشتركة", "ثنائي اللغة", "تقرير موحّد"]
-    : ["Built on the shared platform", "Bilingual", "Standard report"];
+  return getProductCardCopy(product, language).points;
 }
 
 export default productRegistry;

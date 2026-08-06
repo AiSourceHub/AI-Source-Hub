@@ -8,6 +8,7 @@
     "dev": "vite",
     "build": "vite build",
     "validate:products": "node tools/validate-product.js products/startup-risk-scanner products/business/idea-validator products/template",
+    "validate:localization": "node tools/validate-localization.js",
     "validate:launch": "node tools/validate-launch.js"
   },
   "dependencies": {

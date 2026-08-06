@@ -8,12 +8,14 @@ import { buildStartupRiskRecommendations } from "./recommendations.js";
 import { buildStartupRiskReport, buildStartupRiskReportText } from "./report.js";
 import { renderStartupRiskProductPage } from "./ProductPage.js";
 import { renderStartupRiskResultPage } from "./ResultPage.js";
+import {
+  applyDocumentLocale,
+  bindLanguageSwitcher,
+  getInitialLanguage,
+} from "../../core/localization.js";
 
 const app = typeof document !== "undefined" ? document.querySelector("#app") : null;
-let activeLanguage =
-  typeof localStorage !== "undefined" && localStorage.getItem("ai-source-hub-language") === "ar"
-    ? "ar"
-    : "en";
+let activeLanguage = getInitialLanguage();
 let currentState = {
   status: "idle",
   alertVariant: "info",
@@ -68,8 +70,7 @@ function renderShell() {
   if (!app) return;
 
   const pageContent = getContent();
-  document.documentElement.lang = activeLanguage;
-  document.body.dir = pageContent.direction;
+  applyDocumentLocale(activeLanguage);
   document.title = `${productConfig.title[activeLanguage]} | AI Source Hub`;
 
   app.innerHTML = renderProductLayout({
@@ -148,12 +149,20 @@ function renderResult(result) {
 }
 
 function bindPageEvents() {
-  document.querySelectorAll("[data-language]").forEach((button) => {
-    button.addEventListener("click", () => {
-      activeLanguage = button.dataset.language;
-      localStorage.setItem("ai-source-hub-language", activeLanguage);
+  bindLanguageSwitcher({
+    language: activeLanguage,
+    setLanguage: (nextLanguage) => {
+      currentState.input = collectInputs();
+      activeLanguage = nextLanguage;
+      if (currentState.result) {
+        currentState.result = executePreparedAssessment({
+          analysis: currentState.result.analysis,
+          validation: currentState.result.validation,
+          language: activeLanguage,
+        });
+      }
       renderShell();
-    });
+    },
   });
 
   document.querySelectorAll(".field__control, input[type='radio']").forEach((field) => {

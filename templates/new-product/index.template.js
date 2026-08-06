@@ -18,6 +18,11 @@ import {
   scoreCategory,
 } from "./rules.js";
 import { renderProductLayout } from "../../../pages/ProductLayout/index.js";
+import {
+  applyDocumentLocale,
+  bindLanguageSwitcher,
+  getInitialLanguage,
+} from "../../../core/localization.js";
 
 const contentByLanguage = {
   en: contentEn,
@@ -25,7 +30,7 @@ const contentByLanguage = {
 };
 
 const state = {
-  language: "en",
+  language: getInitialLanguage(),
   status: "idle",
   input: {},
   validation: null,
@@ -172,6 +177,7 @@ export function render() {
 
   app.dir = content.direction;
   app.lang = state.language;
+  applyDocumentLocale(state.language);
   app.innerHTML = renderProductLayout({
     content: {
       ...content,
@@ -300,8 +306,10 @@ function renderResult(content) {
 }
 
 function bindProductEvents(app) {
-  app.querySelectorAll("[data-language]").forEach((button) => {
-    button.addEventListener("click", () => setLanguage(button.dataset.language));
+  bindLanguageSwitcher({
+    language: state.language,
+    setLanguage,
+    root: app,
   });
 
   app.querySelector("[data-product-form]")?.addEventListener("submit", (event) => {

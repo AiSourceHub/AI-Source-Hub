@@ -75,6 +75,10 @@ Validate product structure with:
 
 `node tools/validate-product.js`
 
+Validate bilingual localization behavior with:
+
+`node tools/validate-localization.js`
+
 Validate public launch readiness with:
 
 `node tools/validate-launch.js`
@@ -118,6 +122,7 @@ Future products should start from `products/template/`, keep product-specific lo
 - [Product Platform Architecture](PRODUCT_PLATFORM_ARCHITECTURE.md)
 - [Product Template Workflow](PRODUCT_TEMPLATE.md)
 - [Product Registry](PRODUCT_REGISTRY.md)
+- [Localization Architecture](LOCALIZATION_ARCHITECTURE.md)
 - [Launch Checklist](LAUNCH_CHECKLIST.md)
 - [Deployment Guide](DEPLOYMENT_GUIDE.md)
 - [Changelog](CHANGELOG.md)

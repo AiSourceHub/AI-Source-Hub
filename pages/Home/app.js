@@ -9,10 +9,14 @@ import { renderTestimonials } from "../../components/Testimonials/index.js";
 import { renderFAQSection } from "../../components/FAQSection/index.js";
 import { content } from "./content.js";
 import { getLocalizedProductCards } from "../../core/productRegistry.js";
+import {
+  applyDocumentLocale,
+  bindLanguageSwitcher,
+  getInitialLanguage,
+} from "../../core/localization.js";
 
 const app = document.querySelector("#app");
-const savedLanguage = localStorage.getItem("ai-source-hub-language");
-let activeLanguage = savedLanguage === "ar" ? "ar" : "en";
+let activeLanguage = getInitialLanguage();
 
 function renderHome(language) {
   const page = content[language];
@@ -21,8 +25,7 @@ function renderHome(language) {
     products: getLocalizedProductCards(language),
   };
 
-  document.documentElement.lang = language;
-  document.body.dir = language === "ar" ? "rtl" : "ltr";
+  applyDocumentLocale(language);
   document.title = page.meta.title;
   document
     .querySelector('meta[name="description"]')
@@ -42,12 +45,12 @@ function renderHome(language) {
     ${renderFooter(page.footer)}
   `;
 
-  document.querySelectorAll("[data-language]").forEach((button) => {
-    button.addEventListener("click", () => {
-      activeLanguage = button.dataset.language;
-      localStorage.setItem("ai-source-hub-language", activeLanguage);
+  bindLanguageSwitcher({
+    language,
+    setLanguage: (nextLanguage) => {
+      activeLanguage = nextLanguage;
       renderHome(activeLanguage);
-    });
+    },
   });
 }
 

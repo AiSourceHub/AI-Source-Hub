@@ -6,8 +6,10 @@ export const Header = {
 };
 
 import { renderLanguageSwitcher } from "../LanguageSwitcher/index.js";
+import { getPlatformCopy } from "../../core/localization.js";
 
 export function renderHeader(content, language) {
+  const platformCopy = getPlatformCopy(language);
   const navItems = content.nav
     .map((item) => `<a href="${item.href}">${item.label}</a>`)
     .join("");
@@ -26,7 +28,7 @@ export function renderHeader(content, language) {
           ${navItems}
         </nav>
         <div class="header-actions">
-          ${renderLanguageSwitcher(language)}
+          ${renderLanguageSwitcher(language, { label: platformCopy.languageLabel })}
         </div>
       </div>
     </header>
