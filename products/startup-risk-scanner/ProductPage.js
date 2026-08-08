@@ -5,7 +5,7 @@ import { renderAlertBox } from "../../components/AlertBox/index.js";
 import { renderResultCard } from "../../components/ResultCard/index.js";
 import { inputSchema } from "./questions.js";
 
-export function renderStartupRiskProductPage({ content, language, state }) {
+export function renderStartupRiskProductPage({ content, language, state, resultHtml = null }) {
   const progress = calculateProgress(state.input);
 
   return `
@@ -24,11 +24,11 @@ export function renderStartupRiskProductPage({ content, language, state }) {
         </div>
       </section>
       <div class="grid">
-        ${renderAlertBox({ message: content.states[state.status] || content.states.idle, variant: state.alertVariant || "info" })}
+        ${renderAlertBox({ message: state.statusMessage || content.states[state.status] || content.states.idle, variant: state.alertVariant || "info" })}
         <div id="processing-region" hidden>
           ${renderProgressBar({ label: content.processing, value: 70 })}
         </div>
-        ${renderResultCard(`<p>${content.emptyState}</p>`)}
+        ${renderResultCard(resultHtml || `<p>${content.emptyState}</p>`, { hidden: !resultHtml })}
       </div>
     </div>
   `;
@@ -109,4 +109,3 @@ function calculateProgress(input = {}) {
 }
 
 export default renderStartupRiskProductPage;
-
