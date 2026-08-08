@@ -1,17 +1,19 @@
 export const analyticsConfig = {
+  enabledForInitialLaunch: false,
+  launchDecision: "disabled",
+  note: "Analytics are intentionally disabled for the initial public launch. No provider IDs are configured.",
   googleAnalytics: {
     enabled: false,
-    measurementId: "GA_MEASUREMENT_ID",
+    measurementId: null,
   },
   googleSearchConsole: {
     enabled: false,
-    verificationToken: "GOOGLE_SEARCH_CONSOLE_TOKEN",
+    verificationToken: null,
   },
   microsoftClarity: {
     enabled: false,
-    projectId: "MICROSOFT_CLARITY_PROJECT_ID",
+    projectId: null,
   },
 };
 
 export default analyticsConfig;
-

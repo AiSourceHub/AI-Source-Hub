@@ -24,14 +24,14 @@ node tools/validate-launch.js
 
 If Node.js is unavailable in the shell, run the same validation in an environment that has Node.js before deployment.
 
-`tools/validate-launch.js` is expected to fail until the production domain, official contact method, legal review state, and analytics decision are finalized.
+Analytics are intentionally disabled for the initial public launch. `tools/validate-launch.js` should pass once the deployed source matches this launch decision.
 
 ## Deployment Steps
 
-1. Replace `https://your-domain.example` in SEO files and HTML metadata with the real production domain.
-2. Replace the contact page template with the official public contact method.
-3. Review legal pages with qualified counsel.
-4. Configure analytics placeholders only after consent and privacy requirements are approved.
+1. Confirm SEO files and HTML metadata use the production domain `https://aisourcehq.com`.
+2. Confirm the public contact page uses `support@aisourcehq.com`.
+3. Confirm the legal pages are published with the approved general decision-support language.
+4. Keep analytics disabled for the initial launch; no tracking scripts, cookies, or analytics provider IDs are required.
 5. Upload the full static project or the selected public directory to the hosting provider.
 6. Confirm the homepage, products, legal pages, `robots.txt`, `sitemap.xml`, `manifest.json`, and brand assets are publicly reachable.
 7. Run manual desktop, tablet, mobile, English, and Arabic QA.
@@ -44,7 +44,7 @@ If Node.js is unavailable in the shell, run the same validation in an environmen
 - [ ] Sitemap URLs updated.
 - [ ] Open Graph URLs updated.
 - [ ] Manifest `start_url` confirmed for hosting path.
-- [ ] Contact page updated with real contact method.
+- [x] Contact page updated with `support@aisourcehq.com`.
 
 ## DNS Checklist
 
@@ -64,13 +64,13 @@ If Node.js is unavailable in the shell, run the same validation in an environmen
 
 No environment variables are required for the static v1.0 release.
 
-Reserved future configuration:
+Analytics configuration:
 
-- `GA_MEASUREMENT_ID`
-- `GOOGLE_SEARCH_CONSOLE_TOKEN`
-- `MICROSOFT_CLARITY_PROJECT_ID`
+- Analytics are disabled for the initial public launch.
+- No analytics provider IDs are required.
+- Future analytics may be enabled only after the provider, consent approach, and privacy handling are approved.
 
-These values must not be committed as real secrets.
+Do not add tracking scripts, cookies, or external analytics dependencies for the initial launch.
 
 ## Rollback Procedure
 
@@ -84,8 +84,8 @@ These values must not be committed as real secrets.
 
 Do not send public traffic until:
 
-- Legal pages are reviewed.
+- Legal pages use the approved general decision-support language.
 - Domain placeholders are replaced.
 - `node tools/validate-launch.js` passes.
 - Browser QA passes on the deployed HTTPS URL.
-- Analytics consent and privacy handling are approved.
+- Analytics remain disabled for the initial public launch.

@@ -35,11 +35,11 @@ Status:
 - Startup Risk Scanner is now active and registered through the product registry.
 - Startup Risk Scanner has received a launch-readiness quality pass covering clarity, accessibility, validation, result hierarchy, and documentation.
 - AI Source Hub is internally tagged as v1.0.0.
-- SEO files, legal templates, brand assets, analytics placeholders, and deployment documentation are prepared.
+- SEO files, legal templates, brand assets, disabled analytics configuration, and deployment documentation are prepared.
 
 Next implementation task:
 
-Replace launch placeholders with the real production domain, official contact method, and counsel-reviewed legal language, then deploy to a staging URL for browser QA.
+Deploy to a staging URL for browser QA.
 
 ## Product Routes
 
@@ -83,7 +83,7 @@ Validate public launch readiness with:
 
 `node tools/validate-launch.js`
 
-The launch validator is intentionally strict and will report unresolved production placeholders until the real domain, contact method, legal review state, and analytics decision are finalized.
+The launch validator is intentionally strict and should pass before public deployment. Analytics are intentionally disabled for the initial public launch. The official public support email is `support@aisourcehq.com`.
 
 ## New Product Starter Template
 
