@@ -14,7 +14,9 @@ export function renderFooter(content) {
         ${
           content.links?.length
             ? `<nav class="site-footer__links" aria-label="${content.linksLabel || "Footer links"}">
-                ${content.links.map((link) => `<a href="${link.href}">${link.label}</a>`).join("")}
+                <ul class="site-footer__links-list">
+                  ${content.links.map((link) => `<li><a href="${link.href}">${link.label}</a></li>`).join("")}
+                </ul>
               </nav>`
             : ""
         }

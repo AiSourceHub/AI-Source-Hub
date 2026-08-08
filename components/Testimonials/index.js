@@ -10,8 +10,8 @@ export function renderTestimonials(content) {
           ${content.items
             .map((item) =>
               renderCard(`
+                <strong class="testimonial__label">${item.name}</strong>
                 <p class="testimonial">${item.quote}</p>
-                <strong>${item.name}</strong>
               `)
             )
             .join("")}

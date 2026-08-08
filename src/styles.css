@@ -533,10 +533,80 @@ button:focus-visible,
   padding: var(--space-5);
 }
 
-.footer-links {
+.footer-links,
+.site-footer__links-list {
   display: flex;
   flex-wrap: wrap;
+  gap: var(--space-3) var(--space-4);
+}
+
+.site-footer__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.site-footer__links-list {
+  align-items: center;
+  justify-content: flex-end;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.site-footer__links a {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  color: var(--color-text-muted);
+  font-weight: 700;
+}
+
+.site-footer__links a:hover,
+.site-footer__links a:focus-visible {
+  color: var(--color-primary-strong);
+}
+
+.testimonial__label {
+  display: block;
+  margin-bottom: var(--space-3);
+  color: var(--color-text-muted);
+  font-size: 0.88rem;
+  line-height: 1.35;
+}
+
+.testimonial {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 1.02rem;
+  font-weight: 750;
+  line-height: 1.45;
+}
+
+.faq-item {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.faq-item summary {
+  cursor: pointer;
+  padding: var(--space-4) var(--space-5);
+  font-weight: 800;
+  line-height: 1.45;
+  list-style-position: outside;
+}
+
+.faq-item summary::marker {
+  color: var(--color-primary-strong);
+}
+
+.faq-item p {
+  margin: 0;
+  padding: 0 var(--space-5) var(--space-4);
+  color: var(--color-text-muted);
 }
 
 .site-footer {
@@ -799,5 +869,49 @@ body[dir='rtl'] .tag-list {
   .product-card {
     padding: var(--space-4);
   }
-}
 
+  .product-card__top {
+    flex-wrap: wrap;
+  }
+
+  .section {
+    padding-block: var(--space-12);
+  }
+
+  .section--compact {
+    padding-block: var(--space-10);
+  }
+
+  #testimonials {
+    padding-bottom: var(--space-8);
+  }
+
+  #faq {
+    padding-top: var(--space-8);
+  }
+
+  #faq .section-title {
+    font-size: 1.8rem;
+    line-height: 1.16;
+    max-width: 100%;
+  }
+
+  .faq-item summary {
+    padding: var(--space-4);
+    line-height: 1.5;
+  }
+
+  .faq-item p {
+    padding: 0 var(--space-4) var(--space-4);
+  }
+
+  .site-footer__inner {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .site-footer__links-list {
+    justify-content: flex-start;
+    gap: var(--space-2) var(--space-4);
+  }
+}
