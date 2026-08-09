@@ -32,10 +32,14 @@ const defaultPageContent = {
     industry: 'Industry',
     targetCustomer: 'Target customer',
     problemSolved: 'Problem solved',
-    currentSolution: 'Current solution',
+    currentSolution: 'Current customer workaround',
     competitiveAdvantage: 'Competitive advantage',
     revenueModel: 'Revenue model',
     stage: 'Stage',
+  },
+  helpText: {
+    problemSolved: 'Briefly describe the problem the customer has.',
+    currentSolution: 'Describe the customer’s current workaround or alternative.',
   },
   stageOptions: {
     idea: 'Idea',
@@ -95,12 +99,12 @@ function buildEngineInput(formData, language = 'en') {
     language === 'ar'
       ? {
           industry: 'القطاع',
-          currentSolution: 'الحل الحالي',
+          currentSolution: 'طريقة العميل الحالية',
           competitiveAdvantage: 'الميزة التنافسية',
         }
       : {
           industry: 'Industry',
-          currentSolution: 'Current solution',
+          currentSolution: 'Current customer workaround',
           competitiveAdvantage: 'Competitive advantage',
         };
   const businessIdea = [
@@ -175,6 +179,13 @@ function executeBusinessValidation(rawInput, language) {
     verdictKey,
     confidence,
     language,
+    input: {
+      ...ruleContext.input,
+      businessName: rawInput.businessName,
+      currentSolution: rawInput.currentSolution,
+      competitiveAdvantage: rawInput.competitiveAdvantage,
+    },
+    stage: rawInput.stage,
   });
 
   const improvedIdea = buildImprovedIdeaStatement(ruleContext.input, language);
@@ -218,6 +229,7 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
       ...baseContent,
       states: { ...defaultPageContent.states, ...(baseContent?.states || {}) },
       fields: { ...defaultPageContent.fields, ...(baseContent?.fields || {}) },
+      helpText: { ...defaultPageContent.helpText, ...(baseContent?.helpText || {}) },
       stageOptions: { ...defaultPageContent.stageOptions, ...(baseContent?.stageOptions || {}) },
       actions: { ...defaultPageContent.actions, ...(baseContent?.actions || {}) },
       labels: { ...defaultPageContent.labels, ...(baseContent?.labels || {}) },
@@ -425,6 +437,7 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
                 <div className="validator-step-grid">
                   <label className="field">
                     <span className="field__label">{pageContent?.fields?.problemSolved || 'Problem solved'}</span>
+                    <span className="field__help">{pageContent?.helpText?.problemSolved || ''}</span>
                     <textarea
                       className="field__control field__control--textarea"
                       name="problemSolved"
@@ -436,6 +449,7 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
                   </label>
                   <label className="field">
                     <span className="field__label">{pageContent?.fields?.currentSolution || 'Current solution'}</span>
+                    <span className="field__help">{pageContent?.helpText?.currentSolution || ''}</span>
                     <textarea
                       className="field__control field__control--textarea"
                       name="currentSolution"

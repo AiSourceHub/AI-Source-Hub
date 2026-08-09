@@ -473,7 +473,7 @@ export function getBiggestRisk(lowestCriterion, language = "en") {
     ],
     marketNeed: [
       "The market need may not be painful or frequent enough.",
-      "قد لا تكون حاجة السوق مؤلمة أو متكررة بما يكفي.",
+      "قد لا يرى العملاء أن المشكلة مهمة أو متكررة بما يكفي لاستخدام حل جديد أو الدفع مقابله.",
     ],
     monetizationClarity: [
       "The monetization path is not clear enough.",
@@ -500,7 +500,7 @@ export function getNextAction(lowestCriterion, verdictKey, language = "en") {
   const actions = {
     problemClarity: [
       "Rewrite the idea around one specific painful problem.",
-      "أعد صياغة الفكرة حول مشكلة واحدة مؤلمة ومحددة.",
+      "أعد صياغة الفكرة حول مشكلة واحدة واضحة ومهمة للعميل.",
     ],
     customerClarity: [
       "Narrow the target customer to one reachable segment.",

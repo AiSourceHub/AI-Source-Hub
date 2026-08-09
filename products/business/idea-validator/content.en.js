@@ -30,10 +30,14 @@ export const contentEn = {
     industry: "Industry",
     targetCustomer: "Target customer",
     problemSolved: "Problem solved",
-    currentSolution: "Current solution",
+    currentSolution: "Current customer workaround",
     competitiveAdvantage: "Competitive advantage",
     revenueModel: "Revenue model",
     stage: "Stage",
+  },
+  helpText: {
+    problemSolved: "Briefly describe the problem the customer has.",
+    currentSolution: "Example: they search manually, ask others, use another service, or do nothing.",
   },
   stageOptions: {
     idea: "Idea",

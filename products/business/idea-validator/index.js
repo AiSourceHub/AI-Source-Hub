@@ -155,6 +155,13 @@ export function executeValidation(rawInput, language = "en") {
     verdictKey,
     confidence,
     language,
+    input: {
+      ...ruleContext.input,
+      businessName: rawInput.businessName,
+      currentSolution: rawInput.currentSolution,
+      competitiveAdvantage: rawInput.competitiveAdvantage,
+    },
+    stage: rawInput.stage,
   });
   const improvedIdea = buildImprovedIdeaStatement(ruleContext.input, language);
   const status = confidence.level === "low" ? "partial" : "success";

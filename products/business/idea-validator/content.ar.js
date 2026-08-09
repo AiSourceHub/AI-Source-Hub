@@ -29,11 +29,15 @@ export const contentAr = {
     businessName: "اسم العمل",
     industry: "القطاع",
     targetCustomer: "العميل المستهدف",
-    problemSolved: "المشكلة التي يتم حلها",
-    currentSolution: "الحل الحالي",
+    problemSolved: "ما المشكلة التي تريد حلها؟",
+    currentSolution: "كيف يحل العميل هذه المشكلة حاليًا؟",
     competitiveAdvantage: "الميزة التنافسية",
     revenueModel: "نموذج الإيرادات",
     stage: "مرحلة المشروع",
+  },
+  helpText: {
+    problemSolved: "صف المشكلة التي يواجهها العميل باختصار.",
+    currentSolution: "مثال: يبحث بنفسه، يسأل الآخرين، يستخدم خدمة أخرى، أو لا يفعل شيئًا.",
   },
   stageOptions: {
     idea: "فكرة",

@@ -52,7 +52,7 @@ export const inputSchema = [
     type: "textarea",
     label: {
       en: "Problem Being Solved",
-      ar: "المشكلة التي يتم حلها",
+      ar: "ما المشكلة التي تريد حلها؟",
     },
     placeholder: {
       en: "Example: They waste money every week because inventory is overordered.",
@@ -60,14 +60,14 @@ export const inputSchema = [
     },
     helpText: {
       en: "Describe the painful, costly, or repeated problem.",
-      ar: "صف المشكلة المؤلمة أو المكلفة أو المتكررة.",
+      ar: "صف المشكلة التي يواجهها العميل باختصار.",
     },
     required: true,
     minLength: 8,
     maxLength: 500,
     validationMessage: {
       en: "Add the problem being solved.",
-      ar: "أضف المشكلة التي يتم حلها.",
+      ar: "أضف وصف المشكلة التي تريد حلها.",
     },
     direction: "auto",
   },
@@ -111,4 +111,3 @@ export default {
   inputSchema,
   outputSchema,
 };
-
