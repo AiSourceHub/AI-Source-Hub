@@ -45,6 +45,7 @@ Current platform capabilities:
 - Launch readiness checklist
 - Startup Risk Scanner quality and accessibility polish
 - SEO metadata, legal templates, brand assets, deployment guide, and v1.0 changelog
+- Deployed browser QA passed on `https://aisourcehq.com/` for desktop, mobile, English, Arabic/RTL, Business Idea Validator, and Startup Risk Scanner
 
 ## 3. Milestones
 
@@ -54,8 +55,8 @@ Current platform capabilities:
 | Milestone 2 - Core Engine | Create reusable product logic modules. | Analyzer, validation engine, scoring engine, recommendation engine, report builder, localization foundation. | Modules work with generic product configuration and contain no product-specific rules. | Platform foundation. | Completed foundation |
 | Milestone 3 - Product Platform | Define how products are registered, rendered, executed, and maintained. | Product architecture, product contracts, registry, migrated Business Idea Validator, reusable starter template. | Product Platform Architecture is documented, the first product migration passes available smoke tests, and future products can start from a reusable template. | Core engine. | Completed foundation |
 | Milestone 4 - Product Suite | Build the initial suite of focused AI products. | Migrated Business Idea Validator plus prioritized additional products. | Products use shared layout, shared engine modules, Arabic/English support, and standard reports. | Product platform. | Current |
-| Milestone 5 - Quality and Release Candidate | Stabilize the platform for public release. | Manual test checklist, accessibility checks, browser testing, copy/download tools, regression checks, launch documentation. | No console errors; product outputs are useful; Arabic and English work correctly. | Product suite. | Current |
-| Milestone 6 - Public Launch | Launch the first public version. | Release 0.1 or later public package, launch content, support process. | Public users can access the platform and complete core workflows. | Release candidate. | Pending |
+| Milestone 5 - Quality and Release Candidate | Stabilize the platform for public release. | Manual test checklist, accessibility checks, browser testing, copy/download tools, regression checks, launch documentation. | No console errors; product outputs are useful; Arabic and English work correctly. | Product suite. | Completed |
+| Milestone 6 - Public Launch | Launch the first public version. | Release 0.1 or later public package, launch content, support process. | Public users can access the platform and complete core workflows. | Release candidate. | Completed |
 
 ## 4. Product Suite
 
@@ -161,10 +162,7 @@ A product is complete only when:
 
 ### Now
 
-- Replace launch placeholders with the real production domain and official contact method.
-- Browser-test active products on a deployed staging URL.
-- Add full manual browser test checklist results.
-- Complete legal review before public traffic.
+- Public launch communication and post-launch monitoring preparation.
 
 ### Next
 
@@ -203,5 +201,5 @@ A product is complete only when:
 | Core Engine | Completed foundation | 100% | Use it in the first migrated product. |
 | Product Platform | Completed foundation | 90% | Use the starter template for the next product. |
 | Product Suite | Current | 35% | Stabilize active products before adding the next product. |
-| Quality and Release Candidate | Current | 55% | Replace launch placeholders and run deployed browser QA. |
-| Public Launch | Pending | 10% | Deploy staging, complete legal review, then publish. |
+| Quality and Release Candidate | Completed | 100% | Preserve regression checks while planning the next product. |
+| Public Launch | Completed | 100% | Prepare public launch communication and post-launch monitoring. |

@@ -16,7 +16,7 @@ AI Source Hub is a bilingual Arabic and English platform for practical AI decisi
 
 # Current Status
 
-AI Source Hub is currently a static v1.0 launch-preparation platform with a shared design system, bilingual landing experience, and two active products: Business Idea Validator and Startup Risk Scanner.
+AI Source Hub is currently a static v1.0 public launch-ready platform with a shared design system, bilingual landing experience, and two active products: Business Idea Validator and Startup Risk Scanner.
 
 # Completed
 
@@ -26,10 +26,11 @@ AI Source Hub is currently a static v1.0 launch-preparation platform with a shar
 - Startup Risk Scanner implemented and registered as an active product
 - Shared analyzer, scoring, recommendation, reporting, and localization foundation
 - Launch readiness documentation, SEO assets, legal templates, deployment guidance, and product registry
+- Deployed browser QA passed on `https://aisourcehq.com/` for desktop, mobile, English, Arabic/RTL, Business Idea Validator, and Startup Risk Scanner
 
 # Under Development
 
-- No major implementation work is explicitly documented as in progress beyond launch placeholder finalization and deployment preparation.
+- No major implementation work is currently in progress.
 
 # Planned
 
@@ -54,12 +55,11 @@ AI Source Hub is currently a static v1.0 launch-preparation platform with a shar
 - The migrated validator uses deterministic client-side rules rather than live AI calls.
 - Copy report depends on browser clipboard permission.
 - Download report creates a local text file.
-- Launch validation still flags unresolved production placeholders until final domain, contact, legal, and analytics decisions are completed.
 
 # Next Approved Sprint
 
-TBD by project owner.
+TBD by project owner. Recommended next step: public launch communication and post-launch monitoring preparation.
 
 # Last Updated
 
-Sprint 8.2
+2026-08-09

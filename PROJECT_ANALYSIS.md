@@ -265,10 +265,12 @@ The best next step is not to add more features first; it is to harden the platfo
 
 ### Phase 1 — Production readiness
 
-1. Replace placeholder domain and metadata values.
-2. Finalize legal copy and official contact information.
-3. Confirm SEO, social, and canonical URLs.
-4. Prepare staging deployment and browser QA.
+Status: Completed for v1.0 on 2026-08-09.
+
+1. Replace placeholder domain and metadata values. Completed.
+2. Finalize legal copy and official contact information. Completed.
+3. Confirm SEO, social, and canonical URLs. Completed.
+4. Prepare staging deployment and browser QA. Completed on `https://aisourcehq.com/`.
 
 ### Phase 2 — Standardize the product experience
 
@@ -300,4 +302,4 @@ The best next step is not to add more features first; it is to harden the platfo
 
 AI Source Hub is already a credible MVP platform with a strong architectural foundation. The project has good modular thinking, a reusable core engine, a shared component system, and a sensible product-platform direction. Its main weakness is not design or architecture; it is maturity. The platform needs production hardening, consistency, and quality automation before it can scale confidently.
 
-The current state suggests a healthy foundation for a small but growing product platform. The next priority should be disciplined execution: stabilize the live experience, standardize the product experience, and then expand the catalog carefully.
+The current state suggests a healthy foundation for a small but growing product platform. The live v1.0 browser QA pass is complete; the next priority should be disciplined execution after launch: monitor the live experience, standardize the product experience, and then expand the catalog carefully.

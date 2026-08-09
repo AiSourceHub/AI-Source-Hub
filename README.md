@@ -4,7 +4,7 @@ AI Source Hub creates practical AI products that solve real business problems.
 
 ## Current Status
 
-AI Source Hub is now prepared as a static v1.0 public launch candidate.
+AI Source Hub is now a static v1.0 public launch-ready platform.
 
 Completed:
 
@@ -36,10 +36,11 @@ Status:
 - Startup Risk Scanner has received a launch-readiness quality pass covering clarity, accessibility, validation, result hierarchy, and documentation.
 - AI Source Hub is internally tagged as v1.0.0.
 - SEO files, legal templates, brand assets, disabled analytics configuration, and deployment documentation are prepared.
+- Deployed browser QA passed on `https://aisourcehq.com/` for desktop, mobile, English, Arabic/RTL, Business Idea Validator, and Startup Risk Scanner.
 
 Next implementation task:
 
-Deploy to a staging URL for browser QA.
+Public launch communication and post-launch monitoring preparation.
 
 ## Product Routes
 
@@ -109,7 +110,6 @@ Future products should start from `products/template/`, keep product-specific lo
 
 - The migrated validator uses deterministic client-side rules, not live AI calls.
 - It does not perform market research.
-- Browser preview still needs a full manual pass.
 - Copy report depends on browser clipboard permission.
 - Download report creates a local text file.
 
