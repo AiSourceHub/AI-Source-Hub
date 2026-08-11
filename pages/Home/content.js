@@ -60,6 +60,9 @@ export const content = {
       copy:
         "Business Idea Validator leads the experience with a clear scorecard, a practical next step, and a calmer decision process.",
       openLabel: "Open product",
+      openToolLabel: "Open Tool",
+      selectorLabel: "Select a product",
+      unavailableLabel: "Coming Soon",
       products: [],
     },
     why: {
@@ -239,6 +242,9 @@ export const content = {
       copy:
         "يضع Business Idea Validator معايير التجربة مع بطاقة تقييم واضحة وخطوة عملية تالية وتدفق بسيط لقرارات أكثر ثقة.",
       openLabel: "افتح المنتج",
+      openToolLabel: "فتح الأداة",
+      selectorLabel: "اختر منتجاً",
+      unavailableLabel: "قريباً",
       products: [],
     },
     why: {

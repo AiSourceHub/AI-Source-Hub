@@ -55,6 +55,7 @@ AI Source Hub is currently a static v1.0 public launch-ready platform with a sha
 - The migrated validator uses deterministic client-side rules rather than live AI calls.
 - Copy report depends on browser clipboard permission.
 - Download report creates a local text file.
+- Deferred UX refinement: the homepage Products navigation should eventually keep the visitor at the top of the homepage and reveal a horizontal product selector directly beneath the main navigation instead of scrolling down to the Products section.
 
 # Next Approved Sprint
 

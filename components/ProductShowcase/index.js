@@ -1,28 +1,57 @@
 import { renderCard } from "../Card/index.js";
 
 export function renderProductShowcase(content) {
+  const products = content.products || [];
+  const selectedProduct = products.find((product) => product.id === content.selectedProductId) || products[0];
+  const selectedIndex = Math.max(0, products.findIndex((product) => product.id === selectedProduct?.id));
+
   return `
     <section class="section" id="products" aria-labelledby="products-title">
       <div class="container">
         <p class="eyebrow">${content.eyebrow}</p>
         <h2 class="section-title" id="products-title">${content.title}</h2>
         <p class="section-copy">${content.copy}</p>
-        <div class="grid grid--three section-grid">
-          ${content.products
+        <div class="product-selector" role="tablist" aria-label="${content.selectorLabel || content.title}">
+          ${products
             .map((product) =>
-              renderCard(
+              `
+                <button
+                  class="product-selector__tab ${product.id === selectedProduct?.id ? "is-active" : ""}"
+                  type="button"
+                  role="tab"
+                  id="product-tab-${product.id}"
+                  aria-selected="${product.id === selectedProduct?.id ? "true" : "false"}"
+                  aria-controls="product-preview-panel"
+                  tabindex="${product.id === selectedProduct?.id ? "0" : "-1"}"
+                  data-product-id="${product.id}"
+                >
+                  ${product.name}
+                </button>
+              `
+            )
+            .join("")}
+        </div>
+        ${
+          selectedProduct
+            ? renderCard(
                 `
-                  <div class="product-card ${product.featured ? "product-card--featured" : ""}">
+                  <div
+                    class="product-card product-preview ${selectedProduct.featured ? "product-card--featured" : ""}"
+                    role="tabpanel"
+                    id="product-preview-panel"
+                    aria-labelledby="product-tab-${selectedProduct.id}"
+                    data-selected-index="${selectedIndex}"
+                  >
                     <div class="product-card__top">
                       <div>
-                        ${product.featured ? `<span class="badge badge--featured">${product.featuredLabel || content.featuredLabel || "Featured"}</span>` : ""}
-                        <h3>${product.name}</h3>
+                        ${selectedProduct.featured ? `<span class="badge badge--featured">${selectedProduct.featuredLabel || content.featuredLabel || "Featured"}</span>` : ""}
+                        <h3>${selectedProduct.name}</h3>
                       </div>
-                      <span class="badge">${product.status}</span>
+                      <span class="badge">${selectedProduct.status}</span>
                     </div>
-                    <p>${product.description}</p>
+                    <p>${selectedProduct.description}</p>
                     <div class="feature-list">
-                      ${product.points
+                      ${(selectedProduct.points || [])
                         .map(
                           (point) => `
                             <div class="feature-item">
@@ -33,18 +62,19 @@ export function renderProductShowcase(content) {
                         )
                         .join("")}
                     </div>
-                    ${
-                      product.route && product.route !== "#"
-                        ? `<a class="button button--secondary" href="${product.route.startsWith('/') ? product.route : `../../${product.route}`}">${content.openLabel || "Open"}</a>`
-                        : ""
-                    }
+                    <div class="product-actions">
+                      ${
+                        selectedProduct.route && selectedProduct.route !== "#"
+                          ? `<a class="button button--secondary" href="${selectedProduct.route.startsWith("#") || selectedProduct.route.startsWith("/") ? selectedProduct.route : `../../${selectedProduct.route}`}">${content.openToolLabel || content.openLabel || "Open"}</a>`
+                          : `<span class="badge">${content.unavailableLabel || selectedProduct.status}</span>`
+                      }
+                    </div>
                   </div>
                 `,
-                product.featured ? "featured-product-card" : ""
+                selectedProduct.featured ? "featured-product-card" : ""
               )
-            )
-            .join("")}
-        </div>
+            : ""
+        }
       </div>
     </section>
   `;

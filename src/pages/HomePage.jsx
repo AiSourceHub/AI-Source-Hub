@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { renderHeader } from '../../components/Header/index.js';
 import { renderFooter } from '../../components/Footer/index.js';
 import { renderHeroSection } from '../../components/HeroSection/index.js';
@@ -18,6 +18,7 @@ import {
 
 function HomePage({ locale, products }) {
   const { language, setLanguage } = locale;
+  const [selectedProductId, setSelectedProductId] = useState('business-idea-validator');
 
   useEffect(() => {
     applyDocumentLocale(language);
@@ -26,6 +27,91 @@ function HomePage({ locale, products }) {
   useEffect(() => {
     return bindLanguageSwitcher({ language, setLanguage });
   }, [language, setLanguage]);
+
+  useEffect(() => {
+    const handleSectionLinkClick = (event) => {
+      const anchor = event.target.closest('a[href^="#"]');
+      if (!anchor) return;
+
+      const href = anchor.getAttribute('href');
+      if (!href || href === '#' || href.startsWith('#/')) return;
+
+      const target = document.querySelector(href);
+      if (!target) return;
+
+      event.preventDefault();
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
+
+    document.addEventListener('click', handleSectionLinkClick);
+
+    return () => {
+      document.removeEventListener('click', handleSectionLinkClick);
+    };
+  }, []);
+
+  useEffect(() => {
+    const getProductSection = () => document.querySelector('#products');
+    const getTabs = () => Array.from(getProductSection()?.querySelectorAll('[data-product-id]') || []);
+    const focusTab = (index) => {
+      const productSection = getProductSection();
+      if (!productSection) return;
+
+      const tabs = getTabs();
+      const nextTab = tabs[index];
+      if (!nextTab) return;
+      const nextProductId = nextTab.getAttribute('data-product-id');
+      setSelectedProductId(nextProductId);
+      window.requestAnimationFrame(() => {
+        getProductSection()?.querySelector(`[data-product-id="${nextProductId}"]`)?.focus();
+      });
+    };
+
+    const handleClick = (event) => {
+      const tab = event.target.closest('[data-product-id]');
+      const productSection = tab?.closest('#products');
+      if (!tab || !productSection || !productSection.contains(tab)) return;
+      setSelectedProductId(tab.getAttribute('data-product-id'));
+    };
+
+    const handleKeyDown = (event) => {
+      const tab = event.target.closest('[data-product-id]');
+      const productSection = tab?.closest('#products');
+      if (!tab || !productSection || !productSection.contains(tab)) return;
+
+      const tabs = getTabs();
+      const currentIndex = tabs.indexOf(tab);
+      if (currentIndex < 0) return;
+
+      if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+        event.preventDefault();
+        focusTab((currentIndex + 1) % tabs.length);
+      }
+
+      if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        focusTab((currentIndex - 1 + tabs.length) % tabs.length);
+      }
+
+      if (event.key === 'Home') {
+        event.preventDefault();
+        focusTab(0);
+      }
+
+      if (event.key === 'End') {
+        event.preventDefault();
+        focusTab(tabs.length - 1);
+      }
+    };
+
+    document.addEventListener('click', handleClick);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('click', handleClick);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
 
   const page = content[language];
 
@@ -49,8 +135,9 @@ function HomePage({ locale, products }) {
     return {
       ...page.products,
       products: cards,
+      selectedProductId,
     };
-  }, [language, page.products, products]);
+  }, [language, page.products, products, selectedProductId]);
 
   const headerHtml = renderHeader(page.header, language);
   const heroHtml = renderHeroSection(page.hero);

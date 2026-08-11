@@ -172,6 +172,7 @@ A product is complete only when:
 
 ### Later
 
+- Refine homepage product navigation so the Products control keeps the visitor at the top of the homepage and reveals a horizontal product selector directly beneath the main navigation instead of scrolling down to the Products section.
 - Build remaining initial product suite.
 - Add saved reports.
 - Add accounts.

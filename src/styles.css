@@ -426,6 +426,58 @@ button:focus-visible,
   margin: 0.4rem 0 0;
 }
 
+.product-selector {
+  display: flex;
+  gap: var(--space-2);
+  margin-block: var(--space-6) var(--space-4);
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  padding-block: var(--space-1);
+  scrollbar-width: thin;
+}
+
+.product-selector__tab {
+  flex: 0 0 auto;
+  min-height: 44px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 800;
+  padding: var(--space-2) var(--space-4);
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+  white-space: nowrap;
+}
+
+.product-selector__tab:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary-strong);
+  transform: translateY(-1px);
+}
+
+.product-selector__tab:focus-visible {
+  outline: 3px solid var(--color-primary);
+  outline-offset: 3px;
+}
+
+.product-selector__tab.is-active {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.product-preview {
+  margin-top: var(--space-4);
+}
+
 .badge {
   display: inline-flex;
   align-items: center;
@@ -868,6 +920,18 @@ body[dir='rtl'] .tag-list {
   .hero-panel,
   .product-card {
     padding: var(--space-4);
+  }
+
+  .product-selector {
+    margin-inline: calc(var(--space-4) * -1);
+    padding-inline: var(--space-4);
+    scroll-padding-inline: var(--space-4);
+  }
+
+  .product-selector__tab {
+    max-width: 82vw;
+    white-space: normal;
+    text-align: start;
   }
 
   .product-card__top {
