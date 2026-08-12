@@ -12,7 +12,7 @@ export function buildBusinessIdeaReport({
   verdictKey,
 }) {
   // Build structured report sections: Executive Summary, Key Findings, Opportunities, Risks, Action Plan
-  const executiveSummary = `${content.verdicts[verdictKey]} — ${recommendation.action}`;
+  const executiveSummary = recommendation.executiveSummary || content.verdicts[verdictKey];
 
   const keyFindings = criteria.map((c) => ({ title: content.categories[c.key], detail: c.reason }));
 
@@ -74,7 +74,7 @@ export function buildBusinessIdeaReportText({
 
   // Executive summary
   lines.push(content.report.sections.executiveSummary + ":");
-  lines.push(`${content.verdicts[result.verdictKey]} — ${result.nextAction}`);
+  lines.push(result.recommendation?.executiveSummary || content.verdicts[result.verdictKey]);
   lines.push("");
 
   // Key findings

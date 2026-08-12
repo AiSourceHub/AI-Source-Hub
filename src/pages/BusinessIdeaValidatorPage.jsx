@@ -6,10 +6,11 @@ import productConfig from '../../products/business/idea-validator/config.js';
 import contentEn from '../../products/business/idea-validator/content.en.js';
 import contentAr from '../../products/business/idea-validator/content.ar.js';
 import { buildBusinessIdeaReport, buildBusinessIdeaReportText } from '../../products/business/idea-validator/report.js';
-import { buildBusinessIdeaRecommendation } from '../../products/business/idea-validator/recommendations.js';
+import { buildBusinessIdeaRecommendation, refineBusinessIdeaCriteria } from '../../products/business/idea-validator/recommendations.js';
 import { buildImprovedIdeaStatement, scoreBusinessIdea } from '../../products/business/idea-validator/scoring.js';
 import { inputSchema } from '../../products/business/idea-validator/questions.js';
 import { applyDocumentLocale, bindLanguageSwitcher } from '../../core/localization.js';
+import { evaluateIdeaEligibility } from '../../core/eligibilityPolicy.js';
 
 const contentMap = { en: contentEn, ar: contentAr };
 
@@ -163,6 +164,22 @@ function executeBusinessValidation(rawInput, language) {
     };
   }
 
+  const eligibility = evaluateIdeaEligibility(rawInput, language);
+  if (eligibility.status !== 'eligible') {
+    return {
+      ok: true,
+      state: eligibility.status === 'ineligible' ? 'ineligible' : 'clarification',
+      evaluationStatus: eligibility.status,
+      analysis,
+      validation,
+      eligibility,
+      message: eligibility.message,
+      policyText: eligibility.policyText,
+      title: eligibility.title,
+      presentation: eligibility.presentation,
+    };
+  }
+
   const {
     ruleContext,
     score,
@@ -187,6 +204,7 @@ function executeBusinessValidation(rawInput, language) {
     },
     stage: rawInput.stage,
   });
+  const reportCriteria = refineBusinessIdeaCriteria(criteria, recommendation, language);
 
   const improvedIdea = buildImprovedIdeaStatement(ruleContext.input, language);
   const status = confidence.level === 'low' ? 'partial' : 'success';
@@ -195,7 +213,7 @@ function executeBusinessValidation(rawInput, language) {
     content: contentMap[language],
     language,
     score,
-    criteria,
+    criteria: reportCriteria,
     recommendation,
     verdictKey,
   });
@@ -205,9 +223,10 @@ function executeBusinessValidation(rawInput, language) {
   return {
     ok: true,
     state: status,
+    evaluationStatus: 'evaluated',
     analysis,
     validation,
-    criteria,
+    criteria: reportCriteria,
     score,
     verdictKey,
     confidence,
@@ -218,6 +237,20 @@ function executeBusinessValidation(rawInput, language) {
     report,
     contradictions: ruleContext.contradictions,
   };
+}
+
+function buildResultText(result, pageContent, language) {
+  if (result?.evaluationStatus && result.evaluationStatus !== 'evaluated') {
+    const presentation = result.presentation || {};
+    return [presentation.heading, presentation.body, presentation.policy, presentation.closing].filter(Boolean).join('\n\n');
+  }
+
+  return buildBusinessIdeaReportText({
+    productConfig,
+    content: pageContent,
+    language,
+    result,
+  });
 }
 
 function BusinessIdeaValidatorPage({ locale, product, content }) {
@@ -282,12 +315,7 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
     if (!localizedResult.ok) return;
 
     setResult(localizedResult);
-    setReportText(buildBusinessIdeaReportText({
-      productConfig,
-      content: pageContent,
-      language,
-      result: localizedResult,
-    }));
+    setReportText(buildResultText(localizedResult, pageContent, language));
   }, [language]);
 
   const handleChange = (event) => {
@@ -325,15 +353,13 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
         return;
       }
 
-      const nextReportText = buildBusinessIdeaReportText({
-        productConfig,
-        content: pageContent,
-        language,
-        result: validationResult,
-      });
-      setReportText(nextReportText);
+      setReportText(buildResultText(validationResult, pageContent, language));
       setResult(validationResult);
-      setStatus({ tone: 'success', stateKey: 'success', message: pageContent.states.success });
+      setStatus({
+        tone: validationResult.evaluationStatus === 'ineligible' ? 'error' : 'success',
+        stateKey: validationResult.evaluationStatus === 'evaluated' ? 'success' : undefined,
+        message: validationResult.message || pageContent.states.success,
+      });
     } catch (error) {
       setResult(null);
       setStatus({ tone: 'error', stateKey: 'error', message: pageContent.states.error });
@@ -369,7 +395,14 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
     setStatus({ tone: 'info', stateKey: 'reset', message: pageContent.states.reset });
   };
 
-  const reportSignals = result ? deriveReportSignals(result, formData, pageContent) : null;
+  const isEligibilityResult = result?.evaluationStatus && result.evaluationStatus !== 'evaluated';
+  const eligibilityPresentation = result?.presentation || {
+    heading: result?.title,
+    body: result?.message,
+    policy: result?.policyText,
+    closing: '',
+  };
+  const reportSignals = result?.evaluationStatus === 'evaluated' ? deriveReportSignals(result, formData, pageContent) : null;
 
   const main = (
     <div className="validator-shell">
@@ -522,16 +555,37 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
         </section>
 
         <aside className="validator-status-panel">
-          <section className="card" aria-live="polite">
-            <div className="card__body">
-              <p className="eyebrow">{pageContent.labels.status}</p>
-              <div className={`status-pill status-pill--${status.tone}`}>{status.message}</div>
-              <div className="validator-brief">
-                <p>{pageContent.labels.summary}</p>
-                <p>{pageContent.labels.guidance}</p>
+          {!isEligibilityResult ? (
+            <section className="card" aria-live="polite">
+              <div className="card__body">
+                <p className="eyebrow">{pageContent.labels.status}</p>
+                <div className={`status-pill status-pill--${status.tone}`}>{status.message}</div>
+                <div className="validator-brief">
+                  <p>{pageContent.labels.summary}</p>
+                  <p>{pageContent.labels.guidance}</p>
+                </div>
               </div>
-            </div>
-          </section>
+            </section>
+          ) : null}
+
+          {isEligibilityResult ? (
+            <section className="card" aria-labelledby="validator-policy-title">
+              <div className="card__body">
+                <p className="eyebrow">{result.evaluationStatus === 'ineligible' ? pageContent.labels.status : result.title}</p>
+                <h3 id="validator-policy-title">{eligibilityPresentation.heading}</h3>
+                <div className="report-section">
+                  <p>{eligibilityPresentation.body}</p>
+                  <p>{eligibilityPresentation.policy}</p>
+                  {eligibilityPresentation.closing ? <p>{eligibilityPresentation.closing}</p> : null}
+                </div>
+                <div className="report-actions">
+                  <button className="button button--secondary" type="button" onClick={handleReset}>
+                    {pageContent.labels.startAgain}
+                  </button>
+                </div>
+              </div>
+            </section>
+          ) : null}
 
           {result && reportSignals ? (
             <section className="card" aria-labelledby="validator-report-title">

@@ -598,7 +598,7 @@ export function getActionSteps(lowestCriterion, verdictKey, language = "en") {
       ],
       [
         "Map one common scenario where the problem occurs.",
-        "رسم سيناريو واحد شائع لحدوث المشكلة.",
+        "ارسم سيناريو واحداً شائعاً لحدوث المشكلة.",
       ],
     ],
     monetizationClarity: [

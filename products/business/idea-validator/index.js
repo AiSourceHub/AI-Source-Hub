@@ -11,13 +11,14 @@ import contentEn from "./content.en.js";
 import contentAr from "./content.ar.js";
 import { validateForExecution } from "./analyzer.js";
 import { buildBusinessIdeaReport, buildBusinessIdeaReportText } from "./report.js";
-import { buildBusinessIdeaRecommendation } from "./recommendations.js";
+import { buildBusinessIdeaRecommendation, refineBusinessIdeaCriteria } from "./recommendations.js";
 import { buildImprovedIdeaStatement, scoreBusinessIdea } from "./scoring.js";
 import {
   applyDocumentLocale,
   bindLanguageSwitcher,
   getInitialLanguage,
 } from "../../../core/localization.js";
+import { evaluateIdeaEligibility } from "../../../core/eligibilityPolicy.js";
 
 const contents = { en: contentEn, ar: contentAr };
 const app = typeof document !== "undefined" ? document.querySelector("#app") : null;
@@ -85,7 +86,7 @@ function renderShell() {
 
   if (currentResult) {
     renderResult(currentResult);
-    setState(currentResult.state);
+    setState(currentResult.state, currentResult.message);
   }
 }
 
@@ -96,7 +97,7 @@ function setState(state, message) {
   if (alert) {
     alert.hidden = false;
     alert.textContent = message || content.states[state] || "";
-    alert.className = `alert-box alert-box--${state === "invalid" || state === "error" ? "error" : "info"}`;
+    alert.className = `alert-box alert-box--${state === "invalid" || state === "error" || state === "ineligible" ? "error" : "info"}`;
   }
 }
 
@@ -140,6 +141,22 @@ export function executeValidation(rawInput, language = "en") {
     };
   }
 
+  const eligibility = evaluateIdeaEligibility(rawInput, language);
+  if (eligibility.status !== "eligible") {
+    return {
+      ok: true,
+      state: eligibility.status === "ineligible" ? "ineligible" : "clarification",
+      evaluationStatus: eligibility.status,
+      analysis,
+      validation,
+      eligibility,
+      message: eligibility.message,
+      policyText: eligibility.policyText,
+      title: eligibility.title,
+      presentation: eligibility.presentation,
+    };
+  }
+
   const {
     ruleContext,
     score,
@@ -163,6 +180,7 @@ export function executeValidation(rawInput, language = "en") {
     },
     stage: rawInput.stage,
   });
+  const reportCriteria = refineBusinessIdeaCriteria(criteria, recommendation, language);
   const improvedIdea = buildImprovedIdeaStatement(ruleContext.input, language);
   const status = confidence.level === "low" ? "partial" : "success";
   const report = buildBusinessIdeaReport({
@@ -170,7 +188,7 @@ export function executeValidation(rawInput, language = "en") {
     content: contents[language],
     language,
     score,
-    criteria,
+    criteria: reportCriteria,
     recommendation,
     verdictKey,
   });
@@ -179,9 +197,10 @@ export function executeValidation(rawInput, language = "en") {
   return {
     ok: true,
     state: status,
+    evaluationStatus: "evaluated",
     analysis,
     validation,
-    criteria,
+    criteria: reportCriteria,
     score,
     verdictKey,
     confidence,
@@ -197,6 +216,30 @@ export function executeValidation(rawInput, language = "en") {
 function renderResult(result) {
   const content = getContent();
   const resultCard = document.querySelector(".result-card");
+  if (result.evaluationStatus && result.evaluationStatus !== "evaluated") {
+    const presentation = result.presentation || {
+      heading: result.title,
+      body: result.message,
+      policy: result.policyText,
+      closing: "",
+    };
+    resultCard.innerHTML = `
+      <div class="result-highlight">
+        <h3>${presentation.heading}</h3>
+        <p>${presentation.body}</p>
+        <p>${presentation.policy}</p>
+        ${presentation.closing ? `<p>${presentation.closing}</p>` : ""}
+      </div>
+      <div class="report-actions">
+        <button class="button button--secondary" type="button" id="start-again">${content.labels.startAgain}</button>
+      </div>
+    `;
+    resultCard.hidden = false;
+    currentReportText = [presentation.heading, presentation.body, presentation.policy, presentation.closing].filter(Boolean).join("\n\n");
+    bindReportActions();
+    return;
+  }
+
   const verdict = content.verdicts[result.verdictKey];
   const confidence = content.confidence[result.confidence.level];
 
@@ -338,7 +381,7 @@ function bindPageEvents() {
 
     renderResult(result);
     currentResult = result;
-    setState(result.state);
+    setState(result.state, result.message);
   });
 }
 

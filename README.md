@@ -38,6 +38,16 @@ Status:
 - SEO files, legal templates, brand assets, disabled analytics configuration, and deployment documentation are prepared.
 - Deployed browser QA passed on `https://aisourcehq.com/` for desktop, mobile, English, Arabic/RTL, Business Idea Validator, and Startup Risk Scanner.
 
+## Ethical Eligibility Policy
+
+English:
+
+“AI Source Hub does not evaluate, guide, or support ideas or projects that clearly conflict with Islamic principles, disrespect revealed religions, violate human dignity, safety or rights, or contradict sound public morals.”
+
+Arabic:
+
+“تلتزم AI Source Hub بعدم تقديم تقييم أو إرشاد أو دعم لأي فكرة أو مشروع يتعارض بوضوح مع أحكام الشريعة الإسلامية، أو يسيء إلى الديانات السماوية، أو ينتهك الكرامة الإنسانية والسلامة والحقوق والأعراف العامة السوية.”
+
 Next implementation task:
 
 Public launch communication and post-launch monitoring preparation.
