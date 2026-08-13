@@ -449,8 +449,15 @@ function getMissingIndustrialFields(text = "", industrialDetails = {}) {
   return industrialClarificationFields.filter((field) => {
     if (!field.required) return false;
     const value = normalizeText(industrialDetails[field.id] || "");
+    if (field.id === "targetProductionCapacity" && value && !hasCapacityTimeBasis(value)) {
+      return true;
+    }
     return !value && !inferred[field.id];
   });
+}
+
+function hasCapacityTimeBasis(value = "") {
+  return /(?:per\s+(?:day|week|month|year)|daily|weekly|monthly|yearly|\/\s*(?:day|week|month|year)|يوم(?:ياً|يوميا)?|أسبوع(?:ياً|يا)?|اسبوع(?:ياً|يا)?|شهر(?:ياً|يا)?|سنة|سنوي(?:اً|ا)?|سنوياً|يومي|شهري|اسبوعي|أسبوعي)/iu.test(value);
 }
 
 function normalizeInput(input = {}) {

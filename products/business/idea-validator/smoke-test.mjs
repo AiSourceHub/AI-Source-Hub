@@ -601,7 +601,7 @@ const outputTexts = Object.fromEntries(
 const industrialAnalysisPassed =
   Object.values(outputPathResults).every((result) => result.evaluationStatus === "industrial_assessment" && result.industrialReport && !result.score && !result.report) &&
   outputTexts.sortedBaled.includes("Baling") &&
-  !outputTexts.sortedBaled.includes("Washing") &&
+  outputTexts.sortedBaled.includes("Later expansion") &&
   !outputTexts.sortedBaled.includes("wastewater") &&
   outputTexts.washedFlakes.includes("Washing") &&
   outputTexts.washedFlakes.includes("water, and wastewater") &&
@@ -635,6 +635,106 @@ console.log(
 );
 
 if (!industrialAnalysisPassed) {
+  process.exitCode = 1;
+}
+
+const manualQaPetMismatchDetails = {
+  plasticWasteType: "pet",
+  intendedOutput: "sorted_baled",
+  targetProductionCapacity: "1 ton per month",
+  availableBudgetSar: "SAR 20,000",
+  preferredCityRegion: "Jeddah",
+  existingPremises: "no",
+  wasteSourceQuantity: "هي تعتمد على العاملة لجمع العلب الفارغة من الحاويات او من الشارغ",
+  industrialExperienceTeam: "لا يوجد",
+  expectedBuyers: "مصانع تنتج أكياس نفايات أو أكياس تسوق أو منتجات بلاستيكية من البلاستيك المعاد تدويره",
+  salesScope: "both",
+};
+
+const manualQaPetMismatchResult = executeValidation(plasticRecyclingCase, "ar", manualQaPetMismatchDetails);
+const manualQaPetMismatchText = buildIndustrialReportText({
+  report: manualQaPetMismatchResult.industrialReport,
+  language: "ar",
+});
+
+const missingCapacityPeriodResult = executeValidation(plasticRecyclingCase, "ar", {
+  ...manualQaPetMismatchDetails,
+  targetProductionCapacity: "1 ton",
+});
+
+const capacityWithDayResult = executeValidation(plasticRecyclingCase, "en", {
+  ...manualQaPetMismatchDetails,
+  targetProductionCapacity: "1 ton per day",
+  wasteSourceQuantity: "Workers collect discarded bottles from bins and streets",
+  industrialExperienceTeam: "none",
+  expectedBuyers: "Factories producing garbage bags and shopping bags",
+});
+
+const compatiblePetBuyerResult = executeValidation(plasticRecyclingCase, "en", {
+  ...manualQaPetMismatchDetails,
+  targetProductionCapacity: "1 ton per month",
+  wasteSourceQuantity: "Supplier agreement for 8 tons monthly of PET bottles",
+  industrialExperienceTeam: "One trained sorting supervisor",
+  expectedBuyers: "PET bottle recyclers and PET flake producers that accept PET bales",
+  salesScope: "local",
+});
+const compatiblePetBuyerText = buildIndustrialReportText({
+  report: compatiblePetBuyerResult.industrialReport,
+  language: "en",
+});
+
+const manualQaIndustrialCorrectionPassed =
+  manualQaPetMismatchResult.evaluationStatus === "industrial_assessment" &&
+  manualQaPetMismatchResult.industrialReport?.decision?.key === "notReady" &&
+  manualQaPetMismatchText.includes("غير جاهز للاستثمار كمصنع بصورته الحالية") &&
+  manualQaPetMismatchText.includes("PET") &&
+  manualQaPetMismatchText.includes("أكياس النفايات أو التسوق") &&
+  manualQaPetMismatchText.includes("مصانع منتجات بلاستيكية مثل أكياس النفايات أو التسوق، ولم تُثبت بعد مواصفات قبول PET") &&
+  manualQaPetMismatchText.includes("المصدر المقترح حالياً هو جمع العبوات المستعملة بواسطة عمالة من الحاويات والأماكن العامة، دون اتفاقيات توريد موثقة") &&
+  manualQaPetMismatchText.includes("الكمية والاستمرارية والتلوث والسلامة والتخزين والنقل") &&
+  manualQaPetMismatchText.includes("لم يثبت أنها تغطي مقر التشغيل") &&
+  manualQaPetMismatchText.includes("تجربة جمع وفرز محدودة") &&
+  manualQaPetMismatchText.includes("اعتبر التصدير مساراً لاحقاً") &&
+  manualQaPetMismatchText.includes("حاويات الجمع واللوجستيات") &&
+  manualQaPetMismatchText.includes("السلامة الأساسية ومكافحة الحريق") &&
+  manualQaPetMismatchText.includes("الغسيل أو التقطيع") &&
+  manualQaPetMismatchText.includes("توسع لاحق") &&
+  !manualQaPetMismatchText.includes("هي تعتمد على العاملة لجمع العلب الفارغة") &&
+  !manualQaPetMismatchText.includes("الشارغ") &&
+  !manualQaPetMismatchText.includes("قد يكون مجدياً بشروط محددة") &&
+  !manualQaPetMismatchText.includes("أدلة غير كافية") &&
+  missingCapacityPeriodResult.evaluationStatus === "needs_clarification" &&
+  missingCapacityPeriodResult.requestAssessment?.missingFields?.includes("targetProductionCapacity") &&
+  !missingCapacityPeriodResult.score &&
+  !missingCapacityPeriodResult.report &&
+  capacityWithDayResult.evaluationStatus === "industrial_assessment" &&
+  compatiblePetBuyerResult.evaluationStatus === "industrial_assessment" &&
+  compatiblePetBuyerResult.industrialReport?.decision?.key !== "notReady" &&
+  !compatiblePetBuyerText.includes("garbage or shopping bag factories") &&
+  !compatiblePetBuyerText.includes("Mismatch requiring verification");
+
+console.log(
+  JSON.stringify(
+    {
+      manualQaIndustrialCorrectionPassed,
+      manualQaPetMismatch: {
+        status: manualQaPetMismatchResult.evaluationStatus,
+        decision: manualQaPetMismatchResult.industrialReport?.decision?.label,
+        hasScore: Boolean(manualQaPetMismatchResult.score),
+        hasGenericReport: Boolean(manualQaPetMismatchResult.report),
+      },
+      missingCapacityPeriod: {
+        status: missingCapacityPeriodResult.evaluationStatus,
+        missingFields: missingCapacityPeriodResult.requestAssessment?.missingFields,
+      },
+      compatiblePetBuyerDecision: compatiblePetBuyerResult.industrialReport?.decision?.label,
+    },
+    null,
+    2
+  )
+);
+
+if (!manualQaIndustrialCorrectionPassed) {
   process.exitCode = 1;
 }
 

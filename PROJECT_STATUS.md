@@ -38,6 +38,7 @@ AI Source Hub is currently a static v1.0 public launch-ready platform with a sha
 - Phase 1 now pauses industrial/manufacturing investment-assessment requests when essential project details are missing, instead of forcing a generic scored report.
 - Business Idea Validator v2 Phase 2 is implemented locally for the first supported industrial subtype: plastic recycling. After structured industrial details are completed, the validator now produces a preliminary industrial decision report instead of the temporary "ready for industrial analysis" message.
 - The new industrial report covers preliminary viability, location criteria, equipment pathway, operating skills, B2B marketing route, economics framework, scenarios, project-specific risks, go/no-go gates, and sequenced next actions.
+- A focused manual-QA correction is implemented locally for plastic-recycling readiness: incomplete capacity periods now trigger clarification, PET/buyer material mismatch is flagged, informal street/bin collection is not treated as verified feedstock, low budget plus no premises/team/quotations is treated as not ready for factory investment, and export is treated as a later route until volume, quality, logistics, and buyer requirements are established.
 
 # Planned
 
@@ -62,6 +63,7 @@ AI Source Hub is currently a static v1.0 public launch-ready platform with a sha
 - The migrated validator uses deterministic client-side rules rather than live AI calls.
 - Business Idea Validator report quality is improved but not fully solved for broad or ambiguous Arabic submissions.
 - Business Idea Validator v2 industrial analysis does not yet include sourced market research, verified supplier pricing, regulatory evidence, or certified feasibility calculations. Those remain future enhancements.
+- Business Idea Validator v2 industrial analysis remains deterministic. It can flag obvious readiness and configuration problems, but it does not replace a verified feasibility study, supplier quotations, buyer specifications, or site/regulatory review.
 - Copy report depends on browser clipboard permission.
 - Download report creates a local text file.
 - Deferred UX refinement: the homepage Products navigation should eventually keep the visitor at the top of the homepage and reveal a horizontal product selector directly beneath the main navigation instead of scrolling down to the Products section.
