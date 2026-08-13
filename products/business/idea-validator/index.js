@@ -131,7 +131,7 @@ function validateInputs(rawInput, language) {
   return { analysis, validation };
 }
 
-export function executeValidation(rawInput, language = "en") {
+export function executeValidation(rawInput, language = "en", industrialDetails = {}) {
   const { analysis, validation } = validateForExecution(rawInput, language);
   if (!validation.ok) {
     return {
@@ -158,7 +158,7 @@ export function executeValidation(rawInput, language = "en") {
     };
   }
 
-  const requestAssessment = assessBusinessIdeaRequest(rawInput, language);
+  const requestAssessment = assessBusinessIdeaRequest(rawInput, language, industrialDetails);
   if (requestAssessment.status === "needs_clarification") {
     return {
       ok: true,
@@ -170,6 +170,22 @@ export function executeValidation(rawInput, language = "en") {
       message: requestAssessment.message,
       title: requestAssessment.title,
       presentation: requestAssessment.presentation,
+      clarificationFlow: requestAssessment.clarificationFlow,
+    };
+  }
+
+  if (requestAssessment.status === "ready_for_industrial_analysis") {
+    return {
+      ok: true,
+      state: "industrial_ready",
+      evaluationStatus: "ready_for_industrial_analysis",
+      analysis,
+      validation,
+      requestAssessment,
+      message: requestAssessment.message,
+      title: requestAssessment.title,
+      presentation: requestAssessment.presentation,
+      industrialDetails,
     };
   }
 
@@ -246,7 +262,10 @@ function renderResult(result) {
         <p>${presentation.policy}</p>
         ${
           presentation.questions?.length
-            ? `<ul>${presentation.questions.map((question) => `<li>${question}</li>`).join("")}</ul>`
+            ? `<div class="clarification-questions">
+                <p class="clarification-questions__title">${activeLanguage === "ar" ? "التفاصيل المطلوبة" : "Details needed"}</p>
+                <ol>${presentation.questions.map((question) => `<li>${question}</li>`).join("")}</ol>
+              </div>`
             : ""
         }
         ${presentation.closing ? `<p>${presentation.closing}</p>` : ""}

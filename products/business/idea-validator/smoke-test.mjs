@@ -3,7 +3,11 @@ import contentAr from "./content.ar.js";
 import contentEn from "./content.en.js";
 import { inputSchema } from "./schema.js";
 import { readFileSync } from "node:fs";
-import { assessBusinessIdeaRequest } from "./requestUnderstanding.js";
+import {
+  assessBusinessIdeaRequest,
+  industrialClarificationFields,
+  industrialClarificationSteps,
+} from "./requestUnderstanding.js";
 
 const cases = [
   {
@@ -445,9 +449,9 @@ const plasticRecyclingRegressionPassed =
   !plasticResult.biggestRisk &&
   !plasticResult.nextAction &&
   plasticPresentationText.includes("مشروع صناعي") &&
-  plasticPresentationText.includes("تقييم استثماري") &&
+  /تقييم(?:اً)? استثماري(?:اً)?/.test(plasticPresentationText) &&
   plasticPresentationText.includes("نوع مخلفات البلاستيك") &&
-  plasticPresentationText.includes("الميزانية الاستثمارية") &&
+  plasticPresentationText.includes("الميزانية المتاحة بالريال") &&
   plasticPresentationText.includes("الطاقة الإنتاجية") &&
   plasticPresentationText.includes("المشترون المتوقعون") &&
   !plasticForbiddenFragments.some((fragment) => plasticPresentationText.includes(fragment));
@@ -475,6 +479,73 @@ if (!plasticRecyclingRegressionPassed) {
   process.exitCode = 1;
 }
 
+const completeIndustrialDetails = {
+  plasticWasteType: "pet",
+  intendedOutput: "washed_flakes",
+  targetProductionCapacity: "2 tons per day",
+  availableBudgetSar: "900000 SAR",
+  preferredCityRegion: "Riyadh Industrial City",
+  existingPremises: "no",
+  wasteSourceQuantity: "Supplier agreements for about 45 tons monthly",
+  industrialExperienceTeam: "Operations manager plus two trained technicians",
+  expectedBuyers: "Local packaging factories and plastic product manufacturers",
+  salesScope: "local",
+};
+const originalPlasticProblem = plasticRecyclingCase.problem;
+const readyIndustrialResult = executeValidation(plasticRecyclingCase, "ar", completeIndustrialDetails);
+const partialIndustrialAssessment = assessBusinessIdeaRequest(plasticRecyclingCase, "ar", {
+  plasticWasteType: "pet",
+  intendedOutput: "washed_flakes",
+});
+const requestGatePageSource = readFileSync(new URL("../../../src/pages/BusinessIdeaValidatorPage.jsx", import.meta.url), "utf8");
+const allStepFieldIds = industrialClarificationSteps.flatMap((step) => step.fields);
+const structuredClarificationFlowPassed =
+  industrialClarificationFields.length === 10 &&
+  new Set(industrialClarificationFields.map((field) => field.id)).size === 10 &&
+  allStepFieldIds.length === 10 &&
+  allStepFieldIds.every((fieldId) => industrialClarificationFields.some((field) => field.id === fieldId)) &&
+  plasticResult.clarificationFlow?.steps?.length >= 1 &&
+  plasticResult.clarificationFlow.steps.every((step) => step.fields.length > 0) &&
+  plasticResult.clarificationFlow.steps.every((step) => step.fields.every((field) => field.id && field.labelText && field.type)) &&
+  partialIndustrialAssessment.missingFields.includes("availableBudgetSar") &&
+  !partialIndustrialAssessment.missingFields.includes("plasticWasteType") &&
+  !partialIndustrialAssessment.missingFields.includes("intendedOutput") &&
+  readyIndustrialResult.evaluationStatus === "ready_for_industrial_analysis" &&
+  readyIndustrialResult.requestAssessment?.reason === "industrial_details_complete" &&
+  readyIndustrialResult.industrialDetails?.availableBudgetSar === "900000 SAR" &&
+  readyIndustrialResult.industrialDetails?.expectedBuyers.includes("packaging factories") &&
+  !readyIndustrialResult.score &&
+  !readyIndustrialResult.report &&
+  plasticRecyclingCase.problem === originalPlasticProblem &&
+  requestGatePageSource.includes("useState(initialIndustrialDetails)") &&
+  requestGatePageSource.includes("setIndustrialClarificationStep") &&
+  requestGatePageSource.includes("handleIndustrialDetailChange") &&
+  requestGatePageSource.includes("handleContinueIndustrialClarification") &&
+  requestGatePageSource.includes("clarification-fields") &&
+  requestGatePageSource.includes("clarification-stepper") &&
+  requestGatePageSource.includes("Continue evaluation") === false;
+
+console.log(
+  JSON.stringify(
+    {
+      structuredClarificationFlowPassed,
+      readyIndustrial: {
+        status: readyIndustrialResult.evaluationStatus,
+        hasScore: Boolean(readyIndustrialResult.score),
+        hasReport: Boolean(readyIndustrialResult.report),
+        preservedProblem: plasticRecyclingCase.problem === originalPlasticProblem,
+      },
+      partialMissingFields: partialIndustrialAssessment.missingFields,
+    },
+    null,
+    2
+  )
+);
+
+if (!structuredClarificationFlowPassed) {
+  process.exitCode = 1;
+}
+
 const englishIndustrialCase = {
   businessIdea: "A plastic recycling plant for domestic plastic industries",
   targetCustomer: "Domestic plastic manufacturers",
@@ -498,9 +569,9 @@ const englishIndustrialRegressionPassed =
   englishIndustrialResult.requestAssessment?.requestType === "investment_assessment" &&
   !englishIndustrialResult.score &&
   !englishIndustrialResult.report &&
-  englishIndustrialText.includes("industrial investment-assessment request") &&
-  englishIndustrialText.includes("type of plastic waste") &&
-  englishIndustrialText.includes("investment budget") &&
+  englishIndustrialText.includes("initial investment assessment for an industrial project") &&
+  englishIndustrialText.includes("Type of plastic waste") &&
+  englishIndustrialText.includes("Available budget in SAR") &&
   !englishIndustrialText.includes("Is the project financially viable");
 
 const ordinaryQuestionCase = executeValidation(
@@ -727,6 +798,7 @@ const lawfulPartnership = eligibilityResults.find((result) => result.name === "l
 const donationCrowdfunding = eligibilityResults.find((result) => result.name === "donation crowdfunding no return is eligible");
 const educationInterestAwareness = eligibilityResults.find((result) => result.name === "educational interest awareness is eligible");
 const pageSource = readFileSync(new URL("../../../src/pages/BusinessIdeaValidatorPage.jsx", import.meta.url), "utf8");
+const styleSource = readFileSync(new URL("../../../src/styles.css", import.meta.url), "utf8");
 const refusalCount = (arabicIneligible?.presentationText.match(/لا يمكن لـ AI Source Hub تقييم هذه الفكرة/g) || []).length;
 const clarificationUiRegressionPassed =
   ambiguousFunding?.actualStatus === "needs_clarification" &&
@@ -783,6 +855,15 @@ const eligibilityUiRegressionPassed =
   pageSource.includes("{result && reportSignals ? (") &&
   !pageSource.includes("result.evaluationStatus === 'ineligible' ? pageContent.states.error");
 
+const industrialClarificationPresentationPassed =
+  pageSource.includes("{pageContent.labels.status}") &&
+  !pageSource.includes("result.evaluationStatus === 'ineligible' ? pageContent.labels.status : result.title") &&
+  pageSource.includes("clarification-questions__title") &&
+  pageSource.includes("<ol>") &&
+  styleSource.includes(".clarification-questions") &&
+  plasticResult.presentation?.closing === "أجب عن الحقول الناقصة أدناه، ثم تابع التقييم." &&
+  englishIndustrialResult.presentation?.closing === "Answer the missing fields below, then continue the evaluation.";
+
 const eligibilityPassed =
   eligibilityResults.every((result) => result.actualStatus === result.expectedStatus) &&
   eligibilityResults
@@ -795,9 +876,22 @@ const eligibilityPassed =
   clarificationResult?.message.includes("please clarify") &&
   arabicIneligible?.policyText.includes("أحكام الشريعة الإسلامية") &&
   eligibilityUiRegressionPassed &&
-  clarificationUiRegressionPassed;
+  clarificationUiRegressionPassed &&
+  industrialClarificationPresentationPassed;
 
-console.log(JSON.stringify({ eligibilityPassed, eligibilityUiRegressionPassed, clarificationUiRegressionPassed, eligibilityResults }, null, 2));
+console.log(
+  JSON.stringify(
+    {
+      eligibilityPassed,
+      eligibilityUiRegressionPassed,
+      clarificationUiRegressionPassed,
+      industrialClarificationPresentationPassed,
+      eligibilityResults,
+    },
+    null,
+    2
+  )
+);
 
 if (!eligibilityPassed) {
   process.exitCode = 1;

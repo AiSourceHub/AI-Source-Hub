@@ -96,6 +96,19 @@ const initialFormData = {
   stage: 'idea',
 };
 
+const initialIndustrialDetails = {
+  plasticWasteType: '',
+  intendedOutput: '',
+  targetProductionCapacity: '',
+  availableBudgetSar: '',
+  preferredCityRegion: '',
+  existingPremises: '',
+  wasteSourceQuantity: '',
+  industrialExperienceTeam: '',
+  expectedBuyers: '',
+  salesScope: '',
+};
+
 function buildEngineInput(formData, language = 'en') {
   const fieldPrefixes =
     language === 'ar'
@@ -153,7 +166,7 @@ function deriveReportSignals(result, formData, content) {
   };
 }
 
-function executeBusinessValidation(rawInput, language) {
+function executeBusinessValidation(rawInput, language, industrialDetails = {}) {
   const { analysis, validation } = validateForExecution(rawInput, language);
 
   if (!validation.ok) {
@@ -181,7 +194,7 @@ function executeBusinessValidation(rawInput, language) {
     };
   }
 
-  const requestAssessment = assessBusinessIdeaRequest(rawInput, language);
+  const requestAssessment = assessBusinessIdeaRequest(rawInput, language, industrialDetails);
   if (requestAssessment.status === 'needs_clarification') {
     return {
       ok: true,
@@ -193,6 +206,22 @@ function executeBusinessValidation(rawInput, language) {
       message: requestAssessment.message,
       title: requestAssessment.title,
       presentation: requestAssessment.presentation,
+      clarificationFlow: requestAssessment.clarificationFlow,
+    };
+  }
+
+  if (requestAssessment.status === 'ready_for_industrial_analysis') {
+    return {
+      ok: true,
+      state: 'industrial_ready',
+      evaluationStatus: 'ready_for_industrial_analysis',
+      analysis,
+      validation,
+      requestAssessment,
+      message: requestAssessment.message,
+      title: requestAssessment.title,
+      presentation: requestAssessment.presentation,
+      industrialDetails,
     };
   }
 
@@ -292,6 +321,9 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
     };
   }, [language]);
   const [formData, setFormData] = useState(initialFormData);
+  const [industrialDetails, setIndustrialDetails] = useState(initialIndustrialDetails);
+  const [industrialClarificationStep, setIndustrialClarificationStep] = useState(1);
+  const [clarificationErrors, setClarificationErrors] = useState({});
   const [currentStep, setCurrentStep] = useState(1);
   const [errors, setErrors] = useState({});
   const [status, setStatus] = useState({
@@ -328,7 +360,7 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
   useEffect(() => {
     if (!result) return;
 
-    const localizedResult = executeBusinessValidation(buildEngineInput(formData, language), language);
+    const localizedResult = executeBusinessValidation(buildEngineInput(formData, language), language, industrialDetails);
     if (!localizedResult.ok) return;
 
     setResult(localizedResult);
@@ -344,6 +376,12 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
     }
   };
 
+  const handleIndustrialDetailChange = (event) => {
+    const { name, value } = event.target;
+    setIndustrialDetails((current) => ({ ...current, [name]: value }));
+    setClarificationErrors((current) => ({ ...current, [name]: '' }));
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     setErrors({});
@@ -352,7 +390,7 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
 
     try {
       const engineInput = buildEngineInput(formData, language);
-      const validationResult = executeBusinessValidation(engineInput, language);
+      const validationResult = executeBusinessValidation(engineInput, language, industrialDetails);
 
       if (!validationResult.ok) {
         const fieldErrors = {};
@@ -385,6 +423,32 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
     }
   };
 
+  const handleContinueIndustrialClarification = () => {
+    const engineInput = buildEngineInput(formData, language);
+    const validationResult = executeBusinessValidation(engineInput, language, industrialDetails);
+
+    if (validationResult.evaluationStatus === 'needs_clarification') {
+      const missingFields = validationResult.clarificationFlow?.steps?.flatMap((step) => step.fields) || [];
+      const nextErrors = missingFields.reduce((messages, field) => {
+        if (!industrialDetails[field.id]) {
+          messages[field.id] = language === 'ar' ? 'هذا الحقل مطلوب للمتابعة.' : 'This field is required to continue.';
+        }
+        return messages;
+      }, {});
+      setClarificationErrors(nextErrors);
+      setResult(validationResult);
+      setReportText(buildResultText(validationResult, pageContent, language));
+      setStatus({ tone: 'info', message: validationResult.message || pageContent.states.input });
+      setIndustrialClarificationStep(1);
+      return;
+    }
+
+    setClarificationErrors({});
+    setResult(validationResult);
+    setReportText(buildResultText(validationResult, pageContent, language));
+    setStatus({ tone: 'success', message: validationResult.message || pageContent.states.success });
+  };
+
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(reportText);
@@ -405,6 +469,9 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
 
   const handleReset = () => {
     setFormData(initialFormData);
+    setIndustrialDetails(initialIndustrialDetails);
+    setIndustrialClarificationStep(1);
+    setClarificationErrors({});
     setCurrentStep(1);
     setErrors({});
     setResult(null);
@@ -420,6 +487,9 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
     closing: '',
   };
   const reportSignals = result?.evaluationStatus === 'evaluated' ? deriveReportSignals(result, formData, pageContent) : null;
+  const clarificationFlow = result?.clarificationFlow;
+  const clarificationSteps = clarificationFlow?.steps || [];
+  const currentClarificationStep = clarificationSteps[Math.min(industrialClarificationStep, clarificationSteps.length) - 1];
 
   const main = (
     <div className="validator-shell">
@@ -588,17 +658,109 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
           {isEligibilityResult ? (
             <section className="card" aria-labelledby="validator-policy-title">
               <div className="card__body">
-                <p className="eyebrow">{result.evaluationStatus === 'ineligible' ? pageContent.labels.status : result.title}</p>
+                <p className="eyebrow">{pageContent.labels.status}</p>
                 <h3 id="validator-policy-title">{eligibilityPresentation.heading}</h3>
                 <div className="report-section">
                   <p>{eligibilityPresentation.body}</p>
                   <p>{eligibilityPresentation.policy}</p>
-                  {eligibilityPresentation.questions?.length ? (
-                    <ul>
-                      {eligibilityPresentation.questions.map((question) => (
-                        <li key={question}>{question}</li>
-                      ))}
-                    </ul>
+                  {clarificationFlow?.steps?.length ? (
+                    <div className="clarification-questions">
+                      <p className="clarification-questions__title">
+                        {eligibilityPresentation.detailsTitle || (language === 'ar' ? 'التفاصيل المطلوبة' : 'Details needed')}
+                      </p>
+                      <div className="clarification-stepper" aria-label={language === 'ar' ? 'خطوات التوضيح' : 'Clarification steps'}>
+                        {clarificationSteps.map((step, index) => (
+                          <button
+                            key={step.id}
+                            type="button"
+                            className={`clarification-step ${industrialClarificationStep === index + 1 ? 'is-active' : ''}`}
+                            onClick={() => setIndustrialClarificationStep(index + 1)}
+                            aria-current={industrialClarificationStep === index + 1 ? 'step' : undefined}
+                          >
+                            <span>{index + 1}</span>
+                            <span>{step.title}</span>
+                          </button>
+                        ))}
+                      </div>
+                      {currentClarificationStep ? (
+                        <div className="clarification-fields">
+                          {currentClarificationStep.fields.map((field) => (
+                            <label className="field" key={field.id}>
+                              <span className="field__label">{field.labelText}</span>
+                              {field.type === 'select' ? (
+                                <select
+                                  className="field__control"
+                                  name={field.id}
+                                  value={industrialDetails[field.id] || ''}
+                                  onChange={handleIndustrialDetailChange}
+                                  required
+                                >
+                                  <option value="">{field.placeholderText}</option>
+                                  {field.options.map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                      {option.labelText}
+                                    </option>
+                                  ))}
+                                </select>
+                              ) : field.type === 'textarea' ? (
+                                <textarea
+                                  className="field__control field__control--textarea"
+                                  name={field.id}
+                                  value={industrialDetails[field.id] || ''}
+                                  onChange={handleIndustrialDetailChange}
+                                  placeholder={field.placeholderText}
+                                  required
+                                />
+                              ) : (
+                                <input
+                                  className="field__control"
+                                  name={field.id}
+                                  value={industrialDetails[field.id] || ''}
+                                  onChange={handleIndustrialDetailChange}
+                                  placeholder={field.placeholderText}
+                                  required
+                                />
+                              )}
+                              <span className="field__error">{clarificationErrors[field.id] || ''}</span>
+                            </label>
+                          ))}
+                        </div>
+                      ) : null}
+                      <div className="clarification-actions">
+                        <button
+                          className="button button--secondary"
+                          type="button"
+                          onClick={() => setIndustrialClarificationStep((step) => Math.max(step - 1, 1))}
+                          disabled={industrialClarificationStep === 1}
+                        >
+                          {clarificationFlow.labels.previous}
+                        </button>
+                        {industrialClarificationStep < clarificationSteps.length ? (
+                          <button
+                            className="button button--primary"
+                            type="button"
+                            onClick={() => setIndustrialClarificationStep((step) => Math.min(step + 1, clarificationSteps.length))}
+                          >
+                            {clarificationFlow.labels.next}
+                          </button>
+                        ) : (
+                          <button className="button button--primary" type="button" onClick={handleContinueIndustrialClarification}>
+                            {clarificationFlow.labels.continue}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ) : eligibilityPresentation.questions?.length ? (
+                    <div className="clarification-questions">
+                      <p className="clarification-questions__title">
+                        {language === 'ar' ? 'التفاصيل المطلوبة' : 'Details needed'}
+                      </p>
+                      <ol>
+                        {eligibilityPresentation.questions.map((question) => (
+                          <li key={question}>{question}</li>
+                        ))}
+                      </ol>
+                    </div>
                   ) : null}
                   {eligibilityPresentation.closing ? <p>{eligibilityPresentation.closing}</p> : null}
                 </div>

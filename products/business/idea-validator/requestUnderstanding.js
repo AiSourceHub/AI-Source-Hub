@@ -13,44 +13,177 @@ const industrialClarification = {
   en: {
     heading: "We need project details before evaluation",
     body:
-      "This looks like an industrial investment-assessment request, not a simple startup idea. The current information is not enough for a reliable preliminary decision.",
+      "You are asking for an initial investment assessment for an industrial project. The current information is not enough for a reliable preliminary decision.",
     policy:
       "After clarification, AI Source Hub can prepare a preliminary view of viability, location criteria, equipment categories, operating skills, and marketing route. This is not a certified feasibility study or a guarantee of profitability.",
-    closing: "Add the missing details below, then run the evaluation again.",
-    questions: [
-      "What type of plastic waste will be processed: PET, HDPE, LDPE, PP, mixed, or unknown?",
-      "What is the intended output: sorted/baled plastic, washed flakes, pellets/granules, or finished products?",
-      "What investment budget is available in SAR?",
-      "Which city or region is preferred?",
-      "What is the expected source and quantity of plastic waste?",
-      "What target production capacity is expected per day or month?",
-      "Does the customer already have land, a warehouse, or industrial premises?",
-      "What industrial experience or operating team is available?",
-      "Who are the expected buyers of the final output?",
-      "Will sales be local, export, or both?",
-    ],
+    closing: "Answer the missing fields below, then continue the evaluation.",
+    continueAction: "Continue evaluation",
+    detailsTitle: "Missing industrial details",
   },
   ar: {
     heading: "نحتاج إلى تفاصيل المشروع قبل التقييم",
     body:
-      "تبدو هذه الحالة طلب تقييم استثماري لمشروع صناعي، وليست فكرة ناشئة بسيطة. المعلومات الحالية غير كافية لإصدار قرار أولي موثوق.",
+      "أنت تطلب تقييماً استثمارياً أولياً لمشروع صناعي. المعلومات الحالية غير كافية لإصدار قرار أولي موثوق.",
     policy:
       "بعد التوضيح يمكن لـ AI Source Hub تقديم تقييم أولي للجدوى، ومعايير الموقع، وفئات المعدات، والمهارات التشغيلية، ومسار التسويق. هذا لا يُعد دراسة جدوى معتمدة ولا ضماناً للربحية.",
-    closing: "أضف التفاصيل الناقصة أدناه، ثم أعد تشغيل التقييم.",
-    questions: [
-      "ما نوع مخلفات البلاستيك: PET، HDPE، LDPE، PP، مختلطة، أم غير معروف؟",
-      "ما المخرج المطلوب: بلاستيك مفروز ومكبس، رقائق مغسولة، حبيبات/جرانول، أم منتجات نهائية؟",
-      "ما الميزانية الاستثمارية المتاحة بالريال السعودي؟",
-      "ما المدينة أو المنطقة المفضلة؟",
-      "ما مصدر وكمية مخلفات البلاستيك المتوقعة؟",
-      "ما الطاقة الإنتاجية المستهدفة يومياً أو شهرياً؟",
-      "هل لدى العميل أرض أو مستودع أو مقر صناعي؟",
-      "ما الخبرة الصناعية أو فريق التشغيل المتاح؟",
-      "من المشترون المتوقعون للمخرج النهائي؟",
-      "هل البيع محلي أم للتصدير أم كلاهما؟",
-    ],
+    closing: "أجب عن الحقول الناقصة أدناه، ثم تابع التقييم.",
+    continueAction: "متابعة التقييم",
+    detailsTitle: "التفاصيل الصناعية الناقصة",
   },
 };
+
+const industrialReadyPresentation = {
+  en: {
+    heading: "Ready for industrial analysis",
+    body:
+      "The original request and structured industrial details are now separated and ready for a dedicated industrial preliminary-analysis engine.",
+    policy:
+      "Phase 1 stops here to avoid falling back to the old generic business-idea report. Phase 2 should produce the industrial viability, location, equipment, operations, and marketing analysis.",
+    closing: "No score is shown yet because the industrial analysis engine has not been built.",
+  },
+  ar: {
+    heading: "جاهز للتحليل الصناعي",
+    body:
+      "تم فصل الطلب الأصلي عن التفاصيل الصناعية المنظمة، وأصبحت البيانات جاهزة لمحرك تحليل صناعي أولي مخصص.",
+    policy:
+      "تتوقف المرحلة الأولى هنا حتى لا يعود النظام إلى التقرير العام القديم. المرحلة الثانية يجب أن تنتج تحليل الجدوى والموقع والمعدات والتشغيل والتسويق للمشروع الصناعي.",
+    closing: "لن تظهر درجة تقييم الآن لأن محرك التحليل الصناعي لم يُبنَ بعد.",
+  },
+};
+
+export const industrialClarificationSteps = [
+  {
+    id: "production",
+    title: {
+      en: "Production",
+      ar: "الإنتاج",
+    },
+    fields: ["plasticWasteType", "intendedOutput", "targetProductionCapacity"],
+  },
+  {
+    id: "investmentLocation",
+    title: {
+      en: "Investment and location",
+      ar: "الاستثمار والموقع",
+    },
+    fields: ["availableBudgetSar", "preferredCityRegion", "existingPremises"],
+  },
+  {
+    id: "supplyOperations",
+    title: {
+      en: "Supply and operations",
+      ar: "التوريد والتشغيل",
+    },
+    fields: ["wasteSourceQuantity", "industrialExperienceTeam"],
+  },
+  {
+    id: "market",
+    title: {
+      en: "Market",
+      ar: "السوق",
+    },
+    fields: ["expectedBuyers", "salesScope"],
+  },
+];
+
+export const industrialClarificationFields = [
+  {
+    id: "plasticWasteType",
+    type: "select",
+    required: true,
+    label: { en: "Type of plastic waste", ar: "نوع مخلفات البلاستيك" },
+    placeholder: { en: "Select type", ar: "اختر النوع" },
+    options: [
+      { value: "pet", label: { en: "PET", ar: "PET" } },
+      { value: "hdpe", label: { en: "HDPE", ar: "HDPE" } },
+      { value: "ldpe", label: { en: "LDPE", ar: "LDPE" } },
+      { value: "pp", label: { en: "PP", ar: "PP" } },
+      { value: "mixed", label: { en: "Mixed", ar: "مختلطة" } },
+      { value: "unknown", label: { en: "Unknown", ar: "غير معروف" } },
+    ],
+  },
+  {
+    id: "intendedOutput",
+    type: "select",
+    required: true,
+    label: { en: "Intended output", ar: "المخرج المطلوب" },
+    placeholder: { en: "Select output", ar: "اختر المخرج" },
+    options: [
+      { value: "sorted_baled", label: { en: "Sorted/baled plastic", ar: "بلاستيك مفروز ومكبس" } },
+      { value: "washed_flakes", label: { en: "Washed flakes", ar: "رقائق مغسولة" } },
+      { value: "pellets", label: { en: "Pellets/granules", ar: "حبيبات/جرانول" } },
+      { value: "finished_products", label: { en: "Finished products", ar: "منتجات نهائية" } },
+      { value: "unknown", label: { en: "Unknown", ar: "غير معروف" } },
+    ],
+  },
+  {
+    id: "targetProductionCapacity",
+    type: "text",
+    required: true,
+    label: { en: "Target production capacity", ar: "الطاقة الإنتاجية المستهدفة" },
+    placeholder: { en: "Example: 1 ton per day", ar: "مثال: طن واحد يومياً" },
+  },
+  {
+    id: "availableBudgetSar",
+    type: "text",
+    required: true,
+    label: { en: "Available budget in SAR", ar: "الميزانية المتاحة بالريال" },
+    placeholder: { en: "Example: 750,000 SAR", ar: "مثال: 750,000 ريال" },
+  },
+  {
+    id: "preferredCityRegion",
+    type: "text",
+    required: true,
+    label: { en: "Preferred city or region", ar: "المدينة أو المنطقة المفضلة" },
+    placeholder: { en: "Example: Riyadh Industrial City", ar: "مثال: المدينة الصناعية في الرياض" },
+  },
+  {
+    id: "existingPremises",
+    type: "select",
+    required: true,
+    label: { en: "Existing land, warehouse, or industrial premises", ar: "وجود أرض أو مستودع أو مقر صناعي" },
+    placeholder: { en: "Select status", ar: "اختر الحالة" },
+    options: [
+      { value: "yes", label: { en: "Yes", ar: "نعم" } },
+      { value: "no", label: { en: "No", ar: "لا" } },
+      { value: "unknown", label: { en: "Unknown", ar: "غير معروف" } },
+    ],
+  },
+  {
+    id: "wasteSourceQuantity",
+    type: "textarea",
+    required: true,
+    label: { en: "Source and expected quantity of plastic waste", ar: "مصدر وكمية مخلفات البلاستيك المتوقعة" },
+    placeholder: { en: "Example: contracts with collection companies, about 20 tons monthly", ar: "مثال: عقود مع شركات جمع، نحو 20 طناً شهرياً" },
+  },
+  {
+    id: "industrialExperienceTeam",
+    type: "textarea",
+    required: true,
+    label: { en: "Industrial experience or operating team", ar: "الخبرة الصناعية أو فريق التشغيل" },
+    placeholder: { en: "Example: one operations supervisor and two trained technicians", ar: "مثال: مشرف تشغيل وفنيان مدربان" },
+  },
+  {
+    id: "expectedBuyers",
+    type: "textarea",
+    required: true,
+    label: { en: "Expected buyers", ar: "المشترون المتوقعون" },
+    placeholder: { en: "Example: packaging factories and plastic product manufacturers", ar: "مثال: مصانع التعبئة ومصانع المنتجات البلاستيكية" },
+  },
+  {
+    id: "salesScope",
+    type: "select",
+    required: true,
+    label: { en: "Sales scope", ar: "نطاق البيع" },
+    placeholder: { en: "Select scope", ar: "اختر النطاق" },
+    options: [
+      { value: "local", label: { en: "Local sales", ar: "محلي" } },
+      { value: "export", label: { en: "Export", ar: "تصدير" } },
+      { value: "both", label: { en: "Local and export", ar: "محلي وتصدير" } },
+      { value: "unknown", label: { en: "Unknown", ar: "غير معروف" } },
+    ],
+  },
+];
 
 const genericClarification = {
   en: {
@@ -108,7 +241,7 @@ const patterns = {
   ],
 };
 
-export function assessBusinessIdeaRequest(rawInput = {}, language = "en") {
+export function assessBusinessIdeaRequest(rawInput = {}, language = "en", industrialDetails = {}) {
   const text = normalizeInput(rawInput);
   const problem = normalizeText(rawInput.problem || rawInput.problemSolved || "");
   const businessIdea = normalizeText(rawInput.businessIdea || rawInput.businessName || "");
@@ -121,8 +254,19 @@ export function assessBusinessIdeaRequest(rawInput = {}, language = "en") {
   const problemLooksLikeQuestions = requestedQuestions.length >= 2 || hasNumberedDecisionQuestions(problem);
   const hasClearCustomerProblem = hasAny(problem, patterns.customerProblem);
   const hasTruncatedInput = [businessIdea, targetCustomer, problem, monetization].some((value) => hasAny(value, patterns.truncated));
-  const needsIndustrialDetails = isIndustrial && isInvestmentAssessment && hasMissingIndustrialDetails(text);
+  const missingIndustrialFields = getMissingIndustrialFields(text, industrialDetails);
+  const needsIndustrialDetails = isIndustrial && isInvestmentAssessment && missingIndustrialFields.length > 0;
   const cannotDetermineProjectType = !isIndustrial && !hasClearCustomerProblem && problemLooksLikeQuestions;
+
+  if (isIndustrial && (isInvestmentAssessment || problemLooksLikeQuestions) && missingIndustrialFields.length === 0) {
+    return buildReadyResult({
+      requestType: "investment_assessment",
+      projectType: "industrial_manufacturing",
+      requestedQuestions,
+      industrialDetails,
+      language,
+    });
+  }
 
   if (isIndustrial && (isInvestmentAssessment || problemLooksLikeQuestions) && needsIndustrialDetails) {
     return buildGateResult({
@@ -130,6 +274,8 @@ export function assessBusinessIdeaRequest(rawInput = {}, language = "en") {
       requestType: "investment_assessment",
       projectType: "industrial_manufacturing",
       requestedQuestions,
+      missingFields: missingIndustrialFields,
+      industrialDetails,
       language,
       presentation: industrialClarification,
     });
@@ -141,6 +287,8 @@ export function assessBusinessIdeaRequest(rawInput = {}, language = "en") {
       requestType: isInvestmentAssessment ? "investment_assessment" : "unclear",
       projectType: isIndustrial ? "industrial_manufacturing" : "unclear",
       requestedQuestions,
+      missingFields: isIndustrial ? missingIndustrialFields : [],
+      industrialDetails,
       language,
       presentation: isIndustrial ? industrialClarification : genericClarification,
     });
@@ -156,8 +304,12 @@ export function assessBusinessIdeaRequest(rawInput = {}, language = "en") {
   };
 }
 
-function buildGateResult({ reason, requestType, projectType, requestedQuestions, language, presentation }) {
+function buildGateResult({ reason, requestType, projectType, requestedQuestions, missingFields = [], industrialDetails = {}, language, presentation }) {
   const localized = presentation[language] || presentation.en;
+  const clarificationFlow =
+    projectType === "industrial_manufacturing"
+      ? buildIndustrialClarificationFlow({ missingFields, industrialDetails, language })
+      : null;
 
   return {
     status: "needs_clarification",
@@ -166,6 +318,35 @@ function buildGateResult({ reason, requestType, projectType, requestedQuestions,
     requestType,
     projectType,
     requestedQuestions,
+    missingFields: missingFields.map((field) => field.id),
+    industrialDetails,
+    classifications: buildClassificationLabels({
+      isIndustrial: projectType === "industrial_manufacturing",
+      isInvestmentAssessment: requestType === "investment_assessment",
+      language,
+    }),
+    title: localized.heading,
+    message: localized.body,
+    presentation: {
+      ...localized,
+      questions: missingFields.map((field) => field.label[language] || field.label.en),
+    },
+    clarificationFlow,
+  };
+}
+
+function buildReadyResult({ requestType, projectType, requestedQuestions, industrialDetails, language }) {
+  const localized = industrialReadyPresentation[language] || industrialReadyPresentation.en;
+
+  return {
+    status: "ready_for_industrial_analysis",
+    ok: true,
+    reason: "industrial_details_complete",
+    requestType,
+    projectType,
+    requestedQuestions,
+    missingFields: [],
+    industrialDetails,
     classifications: buildClassificationLabels({
       isIndustrial: projectType === "industrial_manufacturing",
       isInvestmentAssessment: requestType === "investment_assessment",
@@ -174,6 +355,45 @@ function buildGateResult({ reason, requestType, projectType, requestedQuestions,
     title: localized.heading,
     message: localized.body,
     presentation: localized,
+  };
+}
+
+function buildIndustrialClarificationFlow({ missingFields = [], industrialDetails = {}, language }) {
+  const missingIds = new Set(missingFields.map((field) => field.id));
+  const steps = industrialClarificationSteps
+    .map((step) => ({
+      id: step.id,
+      title: step.title[language] || step.title.en,
+      fields: step.fields
+        .filter((fieldId) => missingIds.has(fieldId))
+        .map((fieldId) => localizeIndustrialField(industrialClarificationFields.find((field) => field.id === fieldId), language)),
+    }))
+    .filter((step) => step.fields.length > 0);
+
+  return {
+    type: "industrial",
+    details: industrialDetails,
+    missingFieldIds: [...missingIds],
+    steps,
+    labels: {
+      previous: language === "ar" ? "السابق" : "Previous",
+      next: language === "ar" ? "التالي" : "Next",
+      continue: industrialClarification[language]?.continueAction || industrialClarification.en.continueAction,
+      missing: language === "ar" ? "حقول ناقصة" : "Missing fields",
+      step: language === "ar" ? "خطوة" : "Step",
+    },
+  };
+}
+
+function localizeIndustrialField(field, language) {
+  return {
+    ...field,
+    labelText: field.label[language] || field.label.en,
+    placeholderText: field.placeholder?.[language] || field.placeholder?.en || "",
+    options: field.options?.map((option) => ({
+      value: option.value,
+      labelText: option.label[language] || option.label.en,
+    })),
   };
 }
 
@@ -212,20 +432,25 @@ function hasNumberedDecisionQuestions(problem = "") {
   return numberedItems.some((item) => hasAny(item, patterns.requestedQuestions));
 }
 
-function hasMissingIndustrialDetails(text = "") {
-  const detailGroups = [
-    /(?:PET|HDPE|LDPE|PP|mixed plastic|نوع مخلفات|مخلفات البلاستيك|بولي|مختلط)/iu,
-    /(?:flakes|pellets|granules|baled|finished products|رقائق|حبيبات|جرانول|منتجات نهائية|مكبس|مفروز)/iu,
-    /(?:SAR|ريال|budget|ميزانية|تكلفة|رأس مال)/iu,
-    /(?:city|region|location|مدينة|منطقة|موقع)/iu,
-    /(?:tons|kg|kilograms|quantity|capacity|طن|كيلو|كمية|طاقة إنتاجية|الإنتاجية)/iu,
-    /(?:land|warehouse|industrial premises|أرض|مستودع|مقر صناعي|مصنع جاهز)/iu,
-    /(?:experience|team|operator|خبرة|فريق|مشغل|تشغيل)/iu,
-    /(?:buyers|customers|export|local sales|مشترين|البيع|تصدير|محلي)/iu,
-  ];
+function getMissingIndustrialFields(text = "", industrialDetails = {}) {
+  const inferred = {
+    plasticWasteType: /(?:PET|HDPE|LDPE|PP|mixed plastic|بولي إيثيلين|بولي بروبلين|مختلط|مختلطة)/iu.test(text),
+    intendedOutput: /(?:flakes|pellets|granules|baled|finished products|رقائق|حبيبات|جرانول|منتجات نهائية|مكبس|مفروز)/iu.test(text),
+    availableBudgetSar: /(?:\d[\d,\s]*(?:SAR|ريال)|(?:SAR|ريال)\s*\d|budget\s+of|ميزانية\s+\d|رأس مال\s+\d)/iu.test(text),
+    preferredCityRegion: /(?:Riyadh|Jeddah|Dammam|Qassim|Makkah|Madinah|الرياض|جدة|الدمام|القصيم|مكة|المدينة الصناعية)/iu.test(text),
+    targetProductionCapacity: /(?:\d[\d,\s]*(?:tons?|kg|kilograms)|\d[\d,\s]*(?:طن|كيلو)|طاقة إنتاجية\s+\d)/iu.test(text),
+    wasteSourceQuantity: /(?:(?:source|supplier|collection)\b[^.؟]{0,60}\d|\d[\d,\s]*(?:tons?|kg|طن|كيلو)[^.؟]{0,60}(?:source|supplier|collection|مصدر|توريد|مورد|جمع))/iu.test(text),
+    existingPremises: /(?:land|warehouse|industrial premises|أرض|مستودع|مقر صناعي|مصنع جاهز)/iu.test(text),
+    industrialExperienceTeam: /(?:experience|team|operator|خبرة|فريق|مشغل|تشغيل)/iu.test(text),
+    expectedBuyers: /(?:expected buyers|buyers are|buyers include|المشترون المتوقعون|المشترين المتوقعين|المشترون هم)/iu.test(text),
+    salesScope: /(?:export|local sales|local market|تصدير|محلي|السوق الداخلي|بيع محلي)/iu.test(text),
+  };
 
-  const presentCount = detailGroups.filter((pattern) => pattern.test(text)).length;
-  return presentCount < 5;
+  return industrialClarificationFields.filter((field) => {
+    if (!field.required) return false;
+    const value = normalizeText(industrialDetails[field.id] || "");
+    return !value && !inferred[field.id];
+  });
 }
 
 function normalizeInput(input = {}) {
