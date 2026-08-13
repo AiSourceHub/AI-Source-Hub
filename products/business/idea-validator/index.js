@@ -19,6 +19,7 @@ import {
   getInitialLanguage,
 } from "../../../core/localization.js";
 import { evaluateIdeaEligibility } from "../../../core/eligibilityPolicy.js";
+import { assessBusinessIdeaRequest } from "./requestUnderstanding.js";
 
 const contents = { en: contentEn, ar: contentAr };
 const app = typeof document !== "undefined" ? document.querySelector("#app") : null;
@@ -157,6 +158,21 @@ export function executeValidation(rawInput, language = "en") {
     };
   }
 
+  const requestAssessment = assessBusinessIdeaRequest(rawInput, language);
+  if (requestAssessment.status === "needs_clarification") {
+    return {
+      ok: true,
+      state: "clarification",
+      evaluationStatus: "needs_clarification",
+      analysis,
+      validation,
+      requestAssessment,
+      message: requestAssessment.message,
+      title: requestAssessment.title,
+      presentation: requestAssessment.presentation,
+    };
+  }
+
   const {
     ruleContext,
     score,
@@ -228,6 +244,11 @@ function renderResult(result) {
         <h3>${presentation.heading}</h3>
         <p>${presentation.body}</p>
         <p>${presentation.policy}</p>
+        ${
+          presentation.questions?.length
+            ? `<ul>${presentation.questions.map((question) => `<li>${question}</li>`).join("")}</ul>`
+            : ""
+        }
         ${presentation.closing ? `<p>${presentation.closing}</p>` : ""}
       </div>
       <div class="report-actions">
@@ -235,7 +256,8 @@ function renderResult(result) {
       </div>
     `;
     resultCard.hidden = false;
-    currentReportText = [presentation.heading, presentation.body, presentation.policy, presentation.closing].filter(Boolean).join("\n\n");
+    const questions = presentation.questions?.length ? presentation.questions.map((question) => `- ${question}`).join("\n") : "";
+    currentReportText = [presentation.heading, presentation.body, presentation.policy, questions, presentation.closing].filter(Boolean).join("\n\n");
     bindReportActions();
     return;
   }

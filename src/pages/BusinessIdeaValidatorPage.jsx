@@ -11,6 +11,7 @@ import { buildImprovedIdeaStatement, scoreBusinessIdea } from '../../products/bu
 import { inputSchema } from '../../products/business/idea-validator/questions.js';
 import { applyDocumentLocale, bindLanguageSwitcher } from '../../core/localization.js';
 import { evaluateIdeaEligibility } from '../../core/eligibilityPolicy.js';
+import { assessBusinessIdeaRequest } from '../../products/business/idea-validator/requestUnderstanding.js';
 
 const contentMap = { en: contentEn, ar: contentAr };
 
@@ -180,6 +181,21 @@ function executeBusinessValidation(rawInput, language) {
     };
   }
 
+  const requestAssessment = assessBusinessIdeaRequest(rawInput, language);
+  if (requestAssessment.status === 'needs_clarification') {
+    return {
+      ok: true,
+      state: 'clarification',
+      evaluationStatus: 'needs_clarification',
+      analysis,
+      validation,
+      requestAssessment,
+      message: requestAssessment.message,
+      title: requestAssessment.title,
+      presentation: requestAssessment.presentation,
+    };
+  }
+
   const {
     ruleContext,
     score,
@@ -242,7 +258,8 @@ function executeBusinessValidation(rawInput, language) {
 function buildResultText(result, pageContent, language) {
   if (result?.evaluationStatus && result.evaluationStatus !== 'evaluated') {
     const presentation = result.presentation || {};
-    return [presentation.heading, presentation.body, presentation.policy, presentation.closing].filter(Boolean).join('\n\n');
+    const questions = presentation.questions?.length ? presentation.questions.map((question) => `- ${question}`).join('\n') : '';
+    return [presentation.heading, presentation.body, presentation.policy, questions, presentation.closing].filter(Boolean).join('\n\n');
   }
 
   return buildBusinessIdeaReportText({
@@ -576,6 +593,13 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
                 <div className="report-section">
                   <p>{eligibilityPresentation.body}</p>
                   <p>{eligibilityPresentation.policy}</p>
+                  {eligibilityPresentation.questions?.length ? (
+                    <ul>
+                      {eligibilityPresentation.questions.map((question) => (
+                        <li key={question}>{question}</li>
+                      ))}
+                    </ul>
+                  ) : null}
                   {eligibilityPresentation.closing ? <p>{eligibilityPresentation.closing}</p> : null}
                 </div>
                 <div className="report-actions">

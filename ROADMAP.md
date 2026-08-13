@@ -46,6 +46,7 @@ Current platform capabilities:
 - Startup Risk Scanner quality and accessibility polish
 - SEO metadata, legal templates, brand assets, deployment guide, and v1.0 changelog
 - Deployed browser QA passed on `https://aisourcehq.com/` for desktop, mobile, English, Arabic/RTL, Business Idea Validator, and Startup Risk Scanner
+- Business Idea Validator v2 Phase 1 started locally with request understanding and a report quality gate for industrial/manufacturing investment-assessment requests
 
 ## 3. Milestones
 
@@ -162,10 +163,11 @@ A product is complete only when:
 
 ### Now
 
-- Public launch communication and post-launch monitoring preparation.
+- Business Idea Validator v2 Phase 1 local validation: request understanding and report quality gate for real-world ambiguous assessment requests.
 
 ### Next
 
+- Business Idea Validator v2 Phase 2: industrial preliminary-analysis engine, current market research and sourced evidence, cost/revenue scenarios, equipment/location/operations/marketing analysis, and executive plus detailed decision reports.
 - Add shared product navigation.
 - Build Business Name Generator.
 - Build Pricing Strategy Advisor.
@@ -204,3 +206,4 @@ A product is complete only when:
 | Product Suite | Current | 35% | Stabilize active products before adding the next product. |
 | Quality and Release Candidate | Completed | 100% | Preserve regression checks while planning the next product. |
 | Public Launch | Completed | 100% | Prepare public launch communication and post-launch monitoring. |
+| Business Idea Validator v2 | Started locally | Phase 1 | Validate request-understanding gate before approving production deployment. |

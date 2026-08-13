@@ -34,6 +34,8 @@ AI Source Hub is currently a static v1.0 public launch-ready platform with a sha
 - Manual QA confirms measurable improvement in Arabic report handling: raw numbered problem lists are no longer inserted directly, founder-side execution challenges are separated from customer problems, mechanical ellipses are avoided, revenue wording is safer, and report sections repeat less.
 - Known limitation: broad or ambiguous Arabic inputs still do not receive sufficiently strong analytical interpretation. The current deterministic wording patches are paused rather than expanded further.
 - Future Validator v2 should use either stricter structured inputs or a properly designed AI interpretation layer before production deployment of deeper report-quality changes.
+- Business Idea Validator v2 has started locally with Phase 1: request understanding and report quality gate. The first real-world regression case is an Arabic plastic-recycling plant request that asks feasibility, location, equipment, operating-skill, and marketing questions.
+- Phase 1 now pauses industrial/manufacturing investment-assessment requests when essential project details are missing, instead of forcing a generic scored report.
 
 # Planned
 
@@ -57,6 +59,7 @@ AI Source Hub is currently a static v1.0 public launch-ready platform with a sha
 
 - The migrated validator uses deterministic client-side rules rather than live AI calls.
 - Business Idea Validator report quality is improved but not fully solved for broad or ambiguous Arabic submissions.
+- Business Idea Validator v2 Phase 1 does not yet perform industrial preliminary analysis. Later phases must add current market research and sourced evidence, cost/revenue scenarios, equipment/location/operations/marketing analysis, and executive plus detailed decision reports.
 - Copy report depends on browser clipboard permission.
 - Download report creates a local text file.
 - Deferred UX refinement: the homepage Products navigation should eventually keep the visitor at the top of the homepage and reveal a horizontal product selector directly beneath the main navigation instead of scrolling down to the Products section.
@@ -67,4 +70,4 @@ TBD by project owner. Recommended next step: public launch communication and pos
 
 # Last Updated
 
-2026-08-12
+2026-08-13

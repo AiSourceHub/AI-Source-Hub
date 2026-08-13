@@ -3,6 +3,7 @@ import contentAr from "./content.ar.js";
 import contentEn from "./content.en.js";
 import { inputSchema } from "./schema.js";
 import { readFileSync } from "node:fs";
+import { assessBusinessIdeaRequest } from "./requestUnderstanding.js";
 
 const cases = [
   {
@@ -401,6 +402,173 @@ console.log(
 );
 
 if (!marketplaceExecutionProblemPassed) {
+  process.exitCode = 1;
+}
+
+const plasticRecyclingCase = {
+  businessIdea: "مصنع إعادة تدوير البلاستيك القطاع: الصناعات",
+  targetCustomer: "السوق الداخلي للصناعات البلاستيكية",
+  problem:
+    "١- هل المشروع يستحق العناء، بمعنى: هل المشروع مجدٍ؟ ٢- تحديد الموقع المناسب. ٣- ما نوع الآليات المطلوبة لأداء العمل؟ ٤- هل تشغيل الآليات يحتاج مهارات خاصة؟ ٥- مشكلة التسويق: كيف يمكن أن تتم؟",
+  currentSolution: "لا توجد حلول لدى العميل.",
+  competitiveAdvantage: "توجد أصوات تنادي بأن إعادة التصنيع مربحة بنسب عالية.",
+  monetization: "عند بيع المنتجات.",
+  stage: "idea",
+};
+
+const plasticRequestAssessment = assessBusinessIdeaRequest(plasticRecyclingCase, "ar");
+const plasticResult = executeValidation(plasticRecyclingCase, "ar");
+const plasticPresentationText = [
+  plasticResult.presentation?.heading,
+  plasticResult.presentation?.body,
+  plasticResult.presentation?.policy,
+  ...(plasticResult.presentation?.questions || []),
+  plasticResult.presentation?.closing,
+].join(" ");
+const plasticForbiddenFragments = [
+  "هل المشروع يستحق العناء",
+  "تحديد الموقع المناسب",
+  "ما نوع الآليات المطلوبة",
+  "هل تشغيل الآليات يحتاج مهارات خاصة",
+  "مشكلة التسويق",
+];
+const plasticRecyclingRegressionPassed =
+  plasticRequestAssessment.projectType === "industrial_manufacturing" &&
+  plasticRequestAssessment.requestType === "investment_assessment" &&
+  plasticRequestAssessment.requestedQuestions.length >= 5 &&
+  plasticResult.ok &&
+  plasticResult.evaluationStatus === "needs_clarification" &&
+  plasticResult.requestAssessment?.projectType === "industrial_manufacturing" &&
+  plasticResult.requestAssessment?.requestType === "investment_assessment" &&
+  !plasticResult.score &&
+  !plasticResult.report &&
+  !plasticResult.biggestRisk &&
+  !plasticResult.nextAction &&
+  plasticPresentationText.includes("مشروع صناعي") &&
+  plasticPresentationText.includes("تقييم استثماري") &&
+  plasticPresentationText.includes("نوع مخلفات البلاستيك") &&
+  plasticPresentationText.includes("الميزانية الاستثمارية") &&
+  plasticPresentationText.includes("الطاقة الإنتاجية") &&
+  plasticPresentationText.includes("المشترون المتوقعون") &&
+  !plasticForbiddenFragments.some((fragment) => plasticPresentationText.includes(fragment));
+
+console.log(
+  JSON.stringify(
+    {
+      plasticRecyclingRegressionPassed,
+      plasticRecycling: {
+        requestType: plasticRequestAssessment.requestType,
+        projectType: plasticRequestAssessment.projectType,
+        requestedQuestionCount: plasticRequestAssessment.requestedQuestions.length,
+        evaluationStatus: plasticResult.evaluationStatus,
+        hasScore: Boolean(plasticResult.score),
+        hasReport: Boolean(plasticResult.report),
+        heading: plasticResult.presentation?.heading,
+      },
+    },
+    null,
+    2
+  )
+);
+
+if (!plasticRecyclingRegressionPassed) {
+  process.exitCode = 1;
+}
+
+const englishIndustrialCase = {
+  businessIdea: "A plastic recycling plant for domestic plastic industries",
+  targetCustomer: "Domestic plastic manufacturers",
+  problem:
+    "1. Is the project financially viable? 2. Which location is suitable? 3. What machinery is required? 4. Does operating the machinery require special skills? 5. How should marketing work?",
+  currentSolution: "No current solution.",
+  competitiveAdvantage: "Some market voices say recycling can be highly profitable.",
+  monetization: "Revenue when products are sold.",
+  stage: "idea",
+};
+const englishIndustrialResult = executeValidation(englishIndustrialCase, "en");
+const englishIndustrialText = [
+  englishIndustrialResult.presentation?.heading,
+  englishIndustrialResult.presentation?.body,
+  englishIndustrialResult.presentation?.policy,
+  ...(englishIndustrialResult.presentation?.questions || []),
+].join(" ");
+const englishIndustrialRegressionPassed =
+  englishIndustrialResult.evaluationStatus === "needs_clarification" &&
+  englishIndustrialResult.requestAssessment?.projectType === "industrial_manufacturing" &&
+  englishIndustrialResult.requestAssessment?.requestType === "investment_assessment" &&
+  !englishIndustrialResult.score &&
+  !englishIndustrialResult.report &&
+  englishIndustrialText.includes("industrial investment-assessment request") &&
+  englishIndustrialText.includes("type of plastic waste") &&
+  englishIndustrialText.includes("investment budget") &&
+  !englishIndustrialText.includes("Is the project financially viable");
+
+const ordinaryQuestionCase = executeValidation(
+  {
+    businessIdea: "A booking app for neighborhood tutors",
+    targetCustomer: "Parents looking for vetted math tutors",
+    problem: "Parents ask: who is available this week, how much do they charge, and can I trust them?",
+    currentSolution: "They ask friends or search social media.",
+    competitiveAdvantage: "Verified tutor profiles and simple booking.",
+    monetization: "Commission on each booked session.",
+    stage: "idea",
+  },
+  "en"
+);
+
+const completeIndustrialCase = executeValidation(
+  {
+    businessIdea: "A plastic recycling plant that converts PET bottles into washed flakes",
+    targetCustomer: "Local plastic packaging manufacturers",
+    problem: "Factories need reliable local PET flakes because imported material is delayed and expensive.",
+    currentSolution: "They buy imported PET flakes from regional suppliers.",
+    competitiveAdvantage: "Local sourcing and faster delivery.",
+    monetization: "Selling washed PET flakes to factories.",
+    stage: "idea",
+  },
+  "en"
+);
+
+const truncatedCase = executeValidation(
+  {
+    businessIdea: "A marketplace for industrial spare parts...",
+    targetCustomer: "Small factories",
+    problem: "They cannot find urgent replacement parts quickly.",
+    currentSolution: "They call suppliers manually.",
+    competitiveAdvantage: "Fast supplier matching.",
+    monetization: "Commission on each order.",
+    stage: "idea",
+  },
+  "en"
+);
+
+const requestQualityGateRegressionPassed =
+  englishIndustrialRegressionPassed &&
+  ordinaryQuestionCase.evaluationStatus === "evaluated" &&
+  Boolean(ordinaryQuestionCase.score) &&
+  Boolean(ordinaryQuestionCase.report) &&
+  completeIndustrialCase.evaluationStatus === "evaluated" &&
+  Boolean(completeIndustrialCase.score) &&
+  Boolean(completeIndustrialCase.report) &&
+  truncatedCase.evaluationStatus === "needs_clarification" &&
+  !truncatedCase.score &&
+  !truncatedCase.report;
+
+console.log(
+  JSON.stringify(
+    {
+      requestQualityGateRegressionPassed,
+      englishIndustrialRegressionPassed,
+      ordinaryQuestionStatus: ordinaryQuestionCase.evaluationStatus,
+      completeIndustrialStatus: completeIndustrialCase.evaluationStatus,
+      truncatedStatus: truncatedCase.evaluationStatus,
+    },
+    null,
+    2
+  )
+);
+
+if (!requestQualityGateRegressionPassed) {
   process.exitCode = 1;
 }
 
