@@ -819,6 +819,40 @@ button:focus-visible,
   margin-top: var(--space-4);
 }
 
+.report-section ul {
+  margin: var(--space-2) 0 0;
+  padding-inline-start: 1.25rem;
+}
+
+.report-section li + li {
+  margin-top: var(--space-2);
+}
+
+.report-section li {
+  line-height: 1.65;
+}
+
+.industrial-report__groups {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: var(--space-3);
+}
+
+.industrial-report .report-section li {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.muted-text {
+  color: var(--color-text-muted);
+}
+
+.tag--inline {
+  width: fit-content;
+  margin-block: var(--space-1);
+}
+
 .clarification-questions {
   margin-top: var(--space-4);
   padding: var(--space-4);
@@ -923,6 +957,7 @@ button:focus-visible,
 @media (max-width: 680px) {
   .validator-step-grid,
   .report-grid,
+  .industrial-report__groups,
   .clarification-stepper {
     grid-template-columns: 1fr;
   }

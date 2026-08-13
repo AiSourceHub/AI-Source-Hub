@@ -11,6 +11,7 @@ import contentEn from "./content.en.js";
 import contentAr from "./content.ar.js";
 import { validateForExecution } from "./analyzer.js";
 import { buildBusinessIdeaReport, buildBusinessIdeaReportText } from "./report.js";
+import { buildIndustrialPreliminaryAnalysis, buildIndustrialReportText } from "./industrialAnalysis.js";
 import { buildBusinessIdeaRecommendation, refineBusinessIdeaCriteria } from "./recommendations.js";
 import { buildImprovedIdeaStatement, scoreBusinessIdea } from "./scoring.js";
 import {
@@ -175,16 +176,22 @@ export function executeValidation(rawInput, language = "en", industrialDetails =
   }
 
   if (requestAssessment.status === "ready_for_industrial_analysis") {
+    const industrialReport = buildIndustrialPreliminaryAnalysis({
+      rawInput,
+      requestAssessment,
+      industrialDetails,
+      language,
+    });
     return {
       ok: true,
-      state: "industrial_ready",
-      evaluationStatus: "ready_for_industrial_analysis",
+      state: "industrial_report",
+      evaluationStatus: "industrial_assessment",
       analysis,
       validation,
       requestAssessment,
-      message: requestAssessment.message,
-      title: requestAssessment.title,
-      presentation: requestAssessment.presentation,
+      message: industrialReport.decision.label,
+      title: industrialReport.title,
+      industrialReport,
       industrialDetails,
     };
   }
@@ -248,6 +255,43 @@ export function executeValidation(rawInput, language = "en", industrialDetails =
 function renderResult(result) {
   const content = getContent();
   const resultCard = document.querySelector(".result-card");
+  if (result.evaluationStatus === "industrial_assessment" && result.industrialReport) {
+    resultCard.innerHTML = `
+      <div class="result-summary">
+        <div>
+          <p class="eyebrow">${content.labels.report}</p>
+          <h2>${result.industrialReport.title}</h2>
+          <p>${result.industrialReport.decision.label}</p>
+        </div>
+      </div>
+      <div class="result-highlight">
+        <h3>${activeLanguage === "ar" ? "القرار التنفيذي" : "Executive decision"}</h3>
+        <p>${result.industrialReport.decision.explanation}</p>
+        <p>${activeLanguage === "ar" ? "مستوى الثقة" : "Confidence"}: ${result.industrialReport.decision.confidence.label} (${result.industrialReport.decision.confidence.value}/100)</p>
+      </div>
+      ${result.industrialReport.sections
+        .map((section) => `
+          <div class="result-highlight">
+            <h3>${section.status ? `${section.title}: ${section.status}` : section.title}</h3>
+            ${section.items ? `<ul>${section.items.map((item) => `<li>${typeof item === "string" ? item : `<strong>${item.title}</strong>${item.status ? ` (${item.status})` : ""}: ${item.detail || ""}`}</li>`).join("")}</ul>` : ""}
+            ${section.groups ? section.groups.map((group) => `<h4>${group.title}</h4><ul>${group.items.map((item) => `<li>${item}</li>`).join("")}</ul>`).join("") : ""}
+            ${section.missing ? `<ul>${section.missing.map((item) => `<li>${item}</li>`).join("")}</ul>` : ""}
+          </div>
+        `)
+        .join("")}
+      <p>${result.industrialReport.disclaimer}</p>
+      <div class="report-actions">
+        <button class="button button--secondary" type="button" id="copy-report">${content.labels.copyReport}</button>
+        <button class="button button--secondary" type="button" id="download-report">${content.labels.downloadReport}</button>
+        <button class="button button--secondary" type="button" id="start-again">${content.labels.startAgain}</button>
+      </div>
+    `;
+    resultCard.hidden = false;
+    currentReportText = buildReportText(result);
+    bindReportActions();
+    return;
+  }
+
   if (result.evaluationStatus && result.evaluationStatus !== "evaluated") {
     const presentation = result.presentation || {
       heading: result.title,
@@ -334,6 +378,13 @@ function renderResult(result) {
 }
 
 function buildReportText(result) {
+  if (result.evaluationStatus === "industrial_assessment" && result.industrialReport) {
+    return buildIndustrialReportText({
+      report: result.industrialReport,
+      language: activeLanguage,
+    });
+  }
+
   return buildBusinessIdeaReportText({
     productConfig,
     content: getContent(),

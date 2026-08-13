@@ -36,6 +36,8 @@ AI Source Hub is currently a static v1.0 public launch-ready platform with a sha
 - Future Validator v2 should use either stricter structured inputs or a properly designed AI interpretation layer before production deployment of deeper report-quality changes.
 - Business Idea Validator v2 has started locally with Phase 1: request understanding and report quality gate. The first real-world regression case is an Arabic plastic-recycling plant request that asks feasibility, location, equipment, operating-skill, and marketing questions.
 - Phase 1 now pauses industrial/manufacturing investment-assessment requests when essential project details are missing, instead of forcing a generic scored report.
+- Business Idea Validator v2 Phase 2 is implemented locally for the first supported industrial subtype: plastic recycling. After structured industrial details are completed, the validator now produces a preliminary industrial decision report instead of the temporary "ready for industrial analysis" message.
+- The new industrial report covers preliminary viability, location criteria, equipment pathway, operating skills, B2B marketing route, economics framework, scenarios, project-specific risks, go/no-go gates, and sequenced next actions.
 
 # Planned
 
@@ -59,7 +61,7 @@ AI Source Hub is currently a static v1.0 public launch-ready platform with a sha
 
 - The migrated validator uses deterministic client-side rules rather than live AI calls.
 - Business Idea Validator report quality is improved but not fully solved for broad or ambiguous Arabic submissions.
-- Business Idea Validator v2 Phase 1 does not yet perform industrial preliminary analysis. Later phases must add current market research and sourced evidence, cost/revenue scenarios, equipment/location/operations/marketing analysis, and executive plus detailed decision reports.
+- Business Idea Validator v2 industrial analysis does not yet include sourced market research, verified supplier pricing, regulatory evidence, or certified feasibility calculations. Those remain future enhancements.
 - Copy report depends on browser clipboard permission.
 - Download report creates a local text file.
 - Deferred UX refinement: the homepage Products navigation should eventually keep the visitor at the top of the homepage and reveal a horizontal product selector directly beneath the main navigation instead of scrolling down to the Products section.

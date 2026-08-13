@@ -3,6 +3,7 @@ import contentAr from "./content.ar.js";
 import contentEn from "./content.en.js";
 import { inputSchema } from "./schema.js";
 import { readFileSync } from "node:fs";
+import { buildIndustrialReportText } from "./industrialAnalysis.js";
 import {
   assessBusinessIdeaRequest,
   industrialClarificationFields,
@@ -493,6 +494,9 @@ const completeIndustrialDetails = {
 };
 const originalPlasticProblem = plasticRecyclingCase.problem;
 const readyIndustrialResult = executeValidation(plasticRecyclingCase, "ar", completeIndustrialDetails);
+const readyIndustrialText = readyIndustrialResult.industrialReport
+  ? buildIndustrialReportText({ report: readyIndustrialResult.industrialReport, language: "ar" })
+  : "";
 const partialIndustrialAssessment = assessBusinessIdeaRequest(plasticRecyclingCase, "ar", {
   plasticWasteType: "pet",
   intendedOutput: "washed_flakes",
@@ -510,12 +514,29 @@ const structuredClarificationFlowPassed =
   partialIndustrialAssessment.missingFields.includes("availableBudgetSar") &&
   !partialIndustrialAssessment.missingFields.includes("plasticWasteType") &&
   !partialIndustrialAssessment.missingFields.includes("intendedOutput") &&
-  readyIndustrialResult.evaluationStatus === "ready_for_industrial_analysis" &&
+  readyIndustrialResult.evaluationStatus === "industrial_assessment" &&
   readyIndustrialResult.requestAssessment?.reason === "industrial_details_complete" &&
   readyIndustrialResult.industrialDetails?.availableBudgetSar === "900000 SAR" &&
   readyIndustrialResult.industrialDetails?.expectedBuyers.includes("packaging factories") &&
   !readyIndustrialResult.score &&
   !readyIndustrialResult.report &&
+  Boolean(readyIndustrialResult.industrialReport) &&
+  readyIndustrialResult.industrialReport?.subtype === "plastic_recycling" &&
+  readyIndustrialResult.industrialReport?.sections?.find((section) => section.key === "customerQuestions")?.items?.length === 5 &&
+  readyIndustrialText.includes("الجدوى الأولية") &&
+  readyIndustrialText.includes("الموقع") &&
+  readyIndustrialText.includes("المعدات") &&
+  readyIndustrialText.includes("مهارات التشغيل") &&
+  readyIndustrialText.includes("التسويق") &&
+  readyIndustrialText.includes("الغسيل") &&
+  readyIndustrialText.includes("المياه والصرف") &&
+  readyIndustrialText.includes("لم يُحسب بعد") &&
+  !readyIndustrialText.includes("جاهز للتحليل الصناعي") &&
+  !readyIndustrialText.includes("المرحلة الأولى") &&
+  !readyIndustrialText.includes("المرحلة الثانية") &&
+  !readyIndustrialText.includes("محرك") &&
+  !readyIndustrialText.includes("Overall score") &&
+  !readyIndustrialText.includes("Total Score") &&
   plasticRecyclingCase.problem === originalPlasticProblem &&
   requestGatePageSource.includes("useState(initialIndustrialDetails)") &&
   requestGatePageSource.includes("setIndustrialClarificationStep") &&
@@ -533,6 +554,7 @@ console.log(
         status: readyIndustrialResult.evaluationStatus,
         hasScore: Boolean(readyIndustrialResult.score),
         hasReport: Boolean(readyIndustrialResult.report),
+        hasIndustrialReport: Boolean(readyIndustrialResult.industrialReport),
         preservedProblem: plasticRecyclingCase.problem === originalPlasticProblem,
       },
       partialMissingFields: partialIndustrialAssessment.missingFields,
@@ -543,6 +565,76 @@ console.log(
 );
 
 if (!structuredClarificationFlowPassed) {
+  process.exitCode = 1;
+}
+
+function buildOutputResult(output) {
+  return executeValidation(
+    plasticRecyclingCase,
+    "en",
+    {
+      ...completeIndustrialDetails,
+      intendedOutput: output,
+      plasticWasteType: "mixed",
+      preferredCityRegion: "Jeddah",
+      targetProductionCapacity: "3 tons per day",
+      expectedBuyers: "Plastic manufacturers and packaging factories",
+      salesScope: "both",
+    }
+  );
+}
+
+const outputPathResults = {
+  sortedBaled: buildOutputResult("sorted_baled"),
+  washedFlakes: buildOutputResult("washed_flakes"),
+  pellets: buildOutputResult("pellets"),
+  finishedProducts: buildOutputResult("finished_products"),
+};
+
+const outputTexts = Object.fromEntries(
+  Object.entries(outputPathResults).map(([key, result]) => [
+    key,
+    buildIndustrialReportText({ report: result.industrialReport, language: "en" }),
+  ])
+);
+
+const industrialAnalysisPassed =
+  Object.values(outputPathResults).every((result) => result.evaluationStatus === "industrial_assessment" && result.industrialReport && !result.score && !result.report) &&
+  outputTexts.sortedBaled.includes("Baling") &&
+  !outputTexts.sortedBaled.includes("Washing") &&
+  !outputTexts.sortedBaled.includes("wastewater") &&
+  outputTexts.washedFlakes.includes("Washing") &&
+  outputTexts.washedFlakes.includes("water, and wastewater") &&
+  outputTexts.pellets.includes("Extrusion") &&
+  outputTexts.pellets.includes("Pelletizing") &&
+  outputTexts.finishedProducts.includes("Forming or conversion process") &&
+  outputTexts.finishedProducts.includes("Molds or tooling") &&
+  !Object.values(outputTexts).some((text) => /Phase 1|Phase 2|engine|ready_for_industrial_analysis/i.test(text)) &&
+  outputTexts.washedFlakes.includes("Preliminary viability") &&
+  outputTexts.washedFlakes.includes("Not yet calculated") &&
+  outputTexts.washedFlakes.includes("Selling price per unit") &&
+  outputTexts.washedFlakes.includes("This is a preliminary decision-support assessment");
+
+console.log(
+  JSON.stringify(
+    {
+      industrialAnalysisPassed,
+      outputStatuses: Object.fromEntries(
+        Object.entries(outputPathResults).map(([key, result]) => [key, result.evaluationStatus])
+      ),
+      equipmentSignals: {
+        sortedBaledHasBaling: outputTexts.sortedBaled.includes("Baling"),
+        washedHasWater: outputTexts.washedFlakes.includes("wastewater"),
+        pelletsHasExtrusion: outputTexts.pellets.includes("Extrusion"),
+        finishedHasTooling: outputTexts.finishedProducts.includes("Molds or tooling"),
+      },
+    },
+    null,
+    2
+  )
+);
+
+if (!industrialAnalysisPassed) {
   process.exitCode = 1;
 }
 
@@ -851,7 +943,7 @@ const eligibilityUiRegressionPassed =
   !arabicIneligible?.presentationText.includes(contentAr.labels.reportTitle) &&
   !arabicIneligible?.presentationText.includes(contentAr.labels.copyReport) &&
   !arabicIneligible?.presentationText.includes(contentAr.labels.downloadReport) &&
-  pageSource.includes("{!isEligibilityResult ? (") &&
+  pageSource.includes("{!isEligibilityResult && !industrialReport ? (") &&
   pageSource.includes("{result && reportSignals ? (") &&
   !pageSource.includes("result.evaluationStatus === 'ineligible' ? pageContent.states.error");
 

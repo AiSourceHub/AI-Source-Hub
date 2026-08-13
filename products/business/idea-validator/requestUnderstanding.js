@@ -34,20 +34,20 @@ const industrialClarification = {
 
 const industrialReadyPresentation = {
   en: {
-    heading: "Ready for industrial analysis",
+    heading: "Industrial assessment ready",
     body:
-      "The original request and structured industrial details are now separated and ready for a dedicated industrial preliminary-analysis engine.",
+      "The project details are complete enough to prepare a preliminary industrial decision report.",
     policy:
-      "Phase 1 stops here to avoid falling back to the old generic business-idea report. Phase 2 should produce the industrial viability, location, equipment, operations, and marketing analysis.",
-    closing: "No score is shown yet because the industrial analysis engine has not been built.",
+      "The report should address viability, location, equipment, operations, marketing, economics, risks, and next decision gates.",
+    closing: "No generic business-idea score is shown for industrial assessments.",
   },
   ar: {
-    heading: "جاهز للتحليل الصناعي",
+    heading: "التقييم الصناعي جاهز",
     body:
-      "تم فصل الطلب الأصلي عن التفاصيل الصناعية المنظمة، وأصبحت البيانات جاهزة لمحرك تحليل صناعي أولي مخصص.",
+      "اكتملت تفاصيل المشروع بما يكفي لإعداد تقرير قرار صناعي أولي.",
     policy:
-      "تتوقف المرحلة الأولى هنا حتى لا يعود النظام إلى التقرير العام القديم. المرحلة الثانية يجب أن تنتج تحليل الجدوى والموقع والمعدات والتشغيل والتسويق للمشروع الصناعي.",
-    closing: "لن تظهر درجة تقييم الآن لأن محرك التحليل الصناعي لم يُبنَ بعد.",
+      "يجب أن يغطي التقرير الجدوى، والموقع، والمعدات، والتشغيل، والتسويق، والاقتصاديات، والمخاطر، وبوابات القرار التالية.",
+    closing: "لا تظهر درجة تقييم عامة لفكرة العمل في حالات التقييم الصناعي.",
   },
 };
 

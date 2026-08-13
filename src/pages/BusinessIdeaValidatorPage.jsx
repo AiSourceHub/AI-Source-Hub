@@ -6,6 +6,7 @@ import productConfig from '../../products/business/idea-validator/config.js';
 import contentEn from '../../products/business/idea-validator/content.en.js';
 import contentAr from '../../products/business/idea-validator/content.ar.js';
 import { buildBusinessIdeaReport, buildBusinessIdeaReportText } from '../../products/business/idea-validator/report.js';
+import { buildIndustrialPreliminaryAnalysis, buildIndustrialReportText } from '../../products/business/idea-validator/industrialAnalysis.js';
 import { buildBusinessIdeaRecommendation, refineBusinessIdeaCriteria } from '../../products/business/idea-validator/recommendations.js';
 import { buildImprovedIdeaStatement, scoreBusinessIdea } from '../../products/business/idea-validator/scoring.js';
 import { inputSchema } from '../../products/business/idea-validator/questions.js';
@@ -211,16 +212,22 @@ function executeBusinessValidation(rawInput, language, industrialDetails = {}) {
   }
 
   if (requestAssessment.status === 'ready_for_industrial_analysis') {
+    const industrialReport = buildIndustrialPreliminaryAnalysis({
+      rawInput,
+      requestAssessment,
+      industrialDetails,
+      language,
+    });
     return {
       ok: true,
-      state: 'industrial_ready',
-      evaluationStatus: 'ready_for_industrial_analysis',
+      state: 'industrial_report',
+      evaluationStatus: 'industrial_assessment',
       analysis,
       validation,
       requestAssessment,
-      message: requestAssessment.message,
-      title: requestAssessment.title,
-      presentation: requestAssessment.presentation,
+      message: industrialReport.decision.label,
+      title: industrialReport.title,
+      industrialReport,
       industrialDetails,
     };
   }
@@ -285,6 +292,10 @@ function executeBusinessValidation(rawInput, language, industrialDetails = {}) {
 }
 
 function buildResultText(result, pageContent, language) {
+  if (result?.evaluationStatus === 'industrial_assessment' && result.industrialReport) {
+    return buildIndustrialReportText({ report: result.industrialReport, language });
+  }
+
   if (result?.evaluationStatus && result.evaluationStatus !== 'evaluated') {
     const presentation = result.presentation || {};
     const questions = presentation.questions?.length ? presentation.questions.map((question) => `- ${question}`).join('\n') : '';
@@ -479,7 +490,7 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
     setStatus({ tone: 'info', stateKey: 'reset', message: pageContent.states.reset });
   };
 
-  const isEligibilityResult = result?.evaluationStatus && result.evaluationStatus !== 'evaluated';
+  const isEligibilityResult = result?.evaluationStatus && !['evaluated', 'industrial_assessment'].includes(result.evaluationStatus);
   const eligibilityPresentation = result?.presentation || {
     heading: result?.title,
     body: result?.message,
@@ -487,6 +498,7 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
     closing: '',
   };
   const reportSignals = result?.evaluationStatus === 'evaluated' ? deriveReportSignals(result, formData, pageContent) : null;
+  const industrialReport = result?.evaluationStatus === 'industrial_assessment' ? result.industrialReport : null;
   const clarificationFlow = result?.clarificationFlow;
   const clarificationSteps = clarificationFlow?.steps || [];
   const currentClarificationStep = clarificationSteps[Math.min(industrialClarificationStep, clarificationSteps.length) - 1];
@@ -642,7 +654,7 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
         </section>
 
         <aside className="validator-status-panel">
-          {!isEligibilityResult ? (
+          {!isEligibilityResult && !industrialReport ? (
             <section className="card" aria-live="polite">
               <div className="card__body">
                 <p className="eyebrow">{pageContent.labels.status}</p>
@@ -820,6 +832,95 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
                 <div className="report-section">
                   <h4>{pageContent.labels.recommendedNextAction}</h4>
                   <p>{result.nextAction}</p>
+                </div>
+
+                <div className="report-actions">
+                  <button className="button button--secondary" type="button" onClick={handleCopy}>
+                    {pageContent.labels.copyReport}
+                  </button>
+                  <button className="button button--secondary" type="button" onClick={handleDownload}>
+                    {pageContent.labels.downloadReport}
+                  </button>
+                  <button className="button button--secondary" type="button" onClick={handleReset}>
+                    {pageContent.labels.startAgain}
+                  </button>
+                </div>
+              </div>
+            </section>
+          ) : null}
+
+          {industrialReport ? (
+            <section className="card" aria-labelledby="validator-industrial-report-title">
+              <div className="card__body">
+                <p className="eyebrow">{pageContent.labels.report}</p>
+                <h3 id="validator-industrial-report-title">{industrialReport.title}</h3>
+                <div className="report-grid">
+                  <div className="report-card">
+                    <span>{industrialReport.language === 'ar' ? 'القرار التنفيذي' : 'Executive decision'}</span>
+                    <strong>{industrialReport.decision.label}</strong>
+                  </div>
+                  <div className="report-card">
+                    <span>{industrialReport.language === 'ar' ? 'مستوى الثقة' : 'Confidence'}</span>
+                    <strong>{industrialReport.decision.confidence.label} ({industrialReport.decision.confidence.value}/100)</strong>
+                  </div>
+                </div>
+
+                <div className="report-section">
+                  <p>{industrialReport.decision.explanation}</p>
+                  <p className="muted-text">{industrialReport.decision.confidence.reason}</p>
+                </div>
+
+                <div className="industrial-report">
+                  {industrialReport.evidence.map((group) => (
+                    <div className="report-section" key={group.title}>
+                      <h4>{group.title}</h4>
+                      <ul>
+                        {group.items.map((item) => <li key={item}>{item}</li>)}
+                      </ul>
+                    </div>
+                  ))}
+
+                  {industrialReport.sections.map((section) => (
+                    <div className="report-section" key={section.key}>
+                      <h4>{section.status ? `${section.title}: ${section.status}` : section.title}</h4>
+                      {section.items?.length ? (
+                        <ul>
+                          {section.items.map((item) => (
+                            <li key={`${item.title || item}-${item.detail || ''}`}>
+                              {typeof item === 'string' ? item : (
+                                <>
+                                  <strong>{item.title}</strong>
+                                  {item.status ? <span className="tag tag--inline">{item.status}</span> : null}
+                                  {item.detail ? <span>{item.detail}</span> : null}
+                                </>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : null}
+                      {section.groups?.length ? (
+                        <div className="industrial-report__groups">
+                          {section.groups.map((group) => (
+                            <div className="report-card" key={group.title}>
+                              <strong>{group.title}</strong>
+                              <ul>
+                                {group.items.map((item) => <li key={item}>{item}</li>)}
+                              </ul>
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+                      {section.missing?.length ? (
+                        <ul>
+                          {section.missing.map((item) => <li key={item}>{item}</li>)}
+                        </ul>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+
+                <div className="report-section">
+                  <p className="muted-text">{industrialReport.disclaimer}</p>
                 </div>
 
                 <div className="report-actions">

@@ -47,6 +47,8 @@ Current platform capabilities:
 - SEO metadata, legal templates, brand assets, deployment guide, and v1.0 changelog
 - Deployed browser QA passed on `https://aisourcehq.com/` for desktop, mobile, English, Arabic/RTL, Business Idea Validator, and Startup Risk Scanner
 - Business Idea Validator v2 Phase 1 started locally with request understanding and a report quality gate for industrial/manufacturing investment-assessment requests
+- Business Idea Validator v2 Phase 2 implemented locally with plastic recycling as the first supported industrial subtype
+- The v2 industrial preliminary report now covers viability, location, equipment, operating skills, marketing, economics framework, scenarios, risks, decision gates, and next actions without using the old generic score
 
 ## 3. Milestones
 
@@ -163,11 +165,11 @@ A product is complete only when:
 
 ### Now
 
-- Business Idea Validator v2 Phase 1 local validation: request understanding and report quality gate for real-world ambiguous assessment requests.
+- Business Idea Validator v2 Phase 2 local validation: preliminary industrial analysis for plastic-recycling investment-assessment requests.
 
 ### Next
 
-- Business Idea Validator v2 Phase 2: industrial preliminary-analysis engine, current market research and sourced evidence, cost/revenue scenarios, equipment/location/operations/marketing analysis, and executive plus detailed decision reports.
+- Business Idea Validator v2 evidence enhancement: add sourced market research, verified supplier pricing, regulatory evidence, and certified-feasibility handoff guidance where appropriate.
 - Add shared product navigation.
 - Build Business Name Generator.
 - Build Pricing Strategy Advisor.
@@ -206,4 +208,4 @@ A product is complete only when:
 | Product Suite | Current | 35% | Stabilize active products before adding the next product. |
 | Quality and Release Candidate | Completed | 100% | Preserve regression checks while planning the next product. |
 | Public Launch | Completed | 100% | Prepare public launch communication and post-launch monitoring. |
-| Business Idea Validator v2 | Started locally | Phase 1 | Validate request-understanding gate before approving production deployment. |
+| Business Idea Validator v2 | In local validation | Phase 2 | Validate the plastic-recycling industrial report in browser QA before approving production deployment. |
