@@ -161,6 +161,134 @@ if (!personalizationPassed) {
   process.exitCode = 1;
 }
 
+const stakeholderRoleCases = [
+  {
+    name: "simple direct customer idea",
+    language: "en",
+    input: {
+      businessIdea: "A guided meal prep planner for busy parents",
+      targetCustomer: "Busy parents who cook at home",
+      problem: "They lose time every week deciding meals and grocery lists.",
+      monetization: "Monthly subscription paid by the parent.",
+    },
+    expectAmbiguity: false,
+  },
+  {
+    name: "healthcare user differs from buyer",
+    language: "en",
+    input: {
+      businessIdea: "A medication follow-up dashboard for small clinics",
+      targetCustomer: "Small clinics whose nurses manage chronic patients",
+      problem: "Patients miss medication routines and nurses need follow-up visibility.",
+      monetization: "Monthly license per clinic.",
+    },
+    expectAmbiguity: true,
+  },
+  {
+    name: "b2b software employee user differs from budget owner",
+    language: "en",
+    input: {
+      businessIdea: "A workflow assistant that helps employees prepare weekly compliance reports",
+      targetCustomer: "Operations employees at mid-sized companies",
+      problem: "Employees waste hours gathering data for recurring reports.",
+      monetization: "Monthly subscription.",
+    },
+    expectAmbiguity: true,
+  },
+  {
+    name: "marketplace buyer and provider roles",
+    language: "en",
+    input: {
+      businessIdea: "A marketplace that connects homeowners with maintenance technicians",
+      targetCustomer: "Homeowners and independent technicians",
+      problem: "Homeowners struggle to find available technicians quickly.",
+      monetization: "Commission on completed bookings.",
+    },
+    expectAmbiguity: true,
+  },
+  {
+    name: "retail commerce direct buyer",
+    language: "en",
+    input: {
+      businessIdea: "An online store for refillable cleaning products",
+      targetCustomer: "Urban shoppers who buy household cleaning supplies",
+      problem: "They want affordable refills without visiting multiple stores.",
+      monetization: "Customers pay per order.",
+    },
+    expectAmbiguity: false,
+  },
+  {
+    name: "light manufacturing institutional buyer",
+    language: "en",
+    input: {
+      businessIdea: "A small workshop that produces custom metal brackets for factories",
+      targetCustomer: "Factories that need small batches of custom brackets",
+      problem: "Factories wait too long for small custom parts from large suppliers.",
+      monetization: "Factories pay per approved order.",
+    },
+    expectAmbiguity: false,
+  },
+  {
+    name: "ambiguous multi-role business model",
+    language: "en",
+    input: {
+      businessIdea: "A platform for employees and companies to manage wellbeing rewards",
+      targetCustomer: "Employees and companies",
+      problem: "Employees want useful rewards and companies want better engagement.",
+      monetization: "Subscription fee.",
+    },
+    expectAmbiguity: true,
+  },
+  {
+    name: "arabic buyer and payer ambiguity",
+    language: "ar",
+    input: {
+      businessIdea: "نظام يساعد الموظفين والشركات على إدارة مكافآت الرفاهية",
+      targetCustomer: "الموظفون والشركات",
+      problem: "الموظفون يريدون مكافآت مفيدة والشركات تريد رفع التفاعل.",
+      monetization: "اشتراك شهري.",
+    },
+    expectAmbiguity: true,
+  },
+];
+
+const stakeholderRoleResults = stakeholderRoleCases.map((testCase) => {
+  const result = executeValidation(testCase.input, testCase.language);
+  const roles = result.recommendation?.interpretedContext?.stakeholderRoles || {};
+  const text = `${result.biggestRisk || ""} ${result.nextAction || ""} ${result.criteria?.map((item) => item.reason).join(" ") || ""}`;
+  return {
+    name: testCase.name,
+    ok: result.ok,
+    total: result.score?.total ?? null,
+    hasRoleAmbiguity: Boolean(roles.hasRoleAmbiguity),
+    expectedAmbiguity: testCase.expectAmbiguity,
+    hasInternalLabelLeak: /\b(endUser|payerStatus|approverStatus|providerOperator|hasRoleAmbiguity)\b/.test(text),
+    roles,
+    text,
+  };
+});
+
+const stakeholderDirectCase = stakeholderRoleResults.find((result) => result.name === "simple direct customer idea");
+const stakeholderAmbiguousCase = stakeholderRoleResults.find((result) => result.name === "ambiguous multi-role business model");
+const arabicStakeholderCase = stakeholderRoleResults.find((result) => result.name === "arabic buyer and payer ambiguity");
+
+const stakeholderRolesPassed =
+  stakeholderRoleResults.every((result) => result.ok) &&
+  stakeholderRoleResults.every((result) => result.hasRoleAmbiguity === result.expectedAmbiguity) &&
+  stakeholderRoleResults.every((result) => !result.hasInternalLabelLeak) &&
+  stakeholderDirectCase?.total >= 50 &&
+  stakeholderAmbiguousCase?.text.includes("Who pays?") &&
+  stakeholderAmbiguousCase?.text.includes("Who approves or chooses the purchase?") &&
+  arabicStakeholderCase?.text.includes("من سيدفع") &&
+  arabicStakeholderCase?.text.includes("من يوافق على الشراء") &&
+  !/[A-Za-z]/.test(arabicStakeholderCase?.text || "");
+
+console.log(JSON.stringify({ stakeholderRolesPassed, stakeholderRoleResults }, null, 2));
+
+if (!stakeholderRolesPassed) {
+  process.exitCode = 1;
+}
+
 const arabicPersonalization = executeValidation(
   {
     businessIdea: "خدمة تساعد العيادات الصغيرة على تقليل المواعيد الفائتة",

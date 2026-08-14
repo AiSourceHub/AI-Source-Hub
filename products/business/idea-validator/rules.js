@@ -1,3 +1,5 @@
+import { describeStakeholderAmbiguity, interpretStakeholderRoles } from "./stakeholderRoles.js";
+
 const categoryKeys = [
   "problemClarity",
   "customerClarity",
@@ -212,7 +214,33 @@ function languageFallback(language, en, ar) {
   return language === "ar" ? ar : en;
 }
 
-function reasonFor(category, score, language) {
+function reasonFor(category, score, language, stakeholderRoles = {}) {
+  const roleAmbiguity = stakeholderRoles.hasRoleAmbiguity;
+  const roleAmbiguityText = describeStakeholderAmbiguity(stakeholderRoles, language);
+  if (roleAmbiguity && category === "customerClarity") {
+    return languageFallback(
+      language,
+      `The customer group needs sharper role clarity, especially ${roleAmbiguityText}.`,
+      `تحتاج شريحة العميل إلى توضيح الأدوار، خصوصاً ${roleAmbiguityText}.`
+    );
+  }
+
+  if (roleAmbiguity && category === "monetizationClarity" && stakeholderRoles.payerStatus === "ambiguous") {
+    return languageFallback(
+      language,
+      "The revenue model mentions payment, but it is not clear who pays and who receives the value.",
+      "طريقة الإيرادات تذكر الدفع، لكن لم يتضح من سيدفع ومن سيستفيد من القيمة."
+    );
+  }
+
+  if (roleAmbiguity && category === "feasibility" && stakeholderRoles.approverStatus === "ambiguous") {
+    return languageFallback(
+      language,
+      "Execution depends on clarifying the user, buyer, and purchase approver before testing.",
+      "قابلية التنفيذ تعتمد على توضيح المستخدم والمشتري وصاحب قرار الشراء قبل الاختبار."
+    );
+  }
+
   const band = score >= 16 ? "strong" : score >= 11 ? "moderate" : score >= 6 ? "weak" : "critical";
   const reasons = {
     problemClarity: {
@@ -262,13 +290,14 @@ function scoreProblem(input) {
   return clamp(score);
 }
 
-function scoreCustomer(input) {
+function scoreCustomer(input, stakeholderRoles = {}) {
   if (isMissing(input.targetCustomer) || isUncertain(input.targetCustomer)) return 3;
   let score = 6;
   score += Math.min(4, words(input.targetCustomer).length / 2);
   score += hasSpecificity(input.targetCustomer) ? 5 : 0;
   score += isBroadCustomer(input.targetCustomer) ? -6 : 0;
   score += overlap(input.targetCustomer, input.problem) > 0 ? 2 : 0;
+  score -= stakeholderRoles.hasRoleAmbiguity ? 3 : 0;
   return clamp(score);
 }
 
@@ -282,17 +311,18 @@ function scoreNeed(input) {
   return clamp(score);
 }
 
-function scoreMonetization(input) {
+function scoreMonetization(input, stakeholderRoles = {}) {
   if (isMissing(input.monetization) || isUncertain(input.monetization)) return 3;
   let score = 5;
   score += countMatches(input.monetization, signals.revenue) ? 7 : 0;
   score += Math.min(4, words(input.monetization).length / 2);
   score += isVague(input.monetization) ? -3 : 0;
   score += isBroadCustomer(input.targetCustomer) ? -1 : 1;
+  score -= stakeholderRoles.payerStatus === "ambiguous" ? 4 : 0;
   return clamp(score);
 }
 
-function scoreFeasibility(input, contradictions) {
+function scoreFeasibility(input, contradictions, stakeholderRoles = {}) {
   let score = 7;
   const combined = `${input.businessIdea} ${input.targetCustomer} ${input.problem}`;
   score += hasSpecificity(input.businessIdea) ? 3 : 0;
@@ -301,11 +331,13 @@ function scoreFeasibility(input, contradictions) {
   score += overlap(input.businessIdea, input.problem) > 0 ? 2 : 0;
   score -= hasAny(combined, signals.tooBroad) ? 5 : 0;
   score -= contradictions.length * 2;
+  score -= stakeholderRoles.approverStatus === "ambiguous" ? 2 : 0;
+  score -= stakeholderRoles.isMarketplace && stakeholderRoles.payerStatus === "ambiguous" ? 2 : 0;
   score -= isVague(input.businessIdea) ? 4 : 0;
   return clamp(score);
 }
 
-export function detectContradictions(input, language = "en") {
+export function detectContradictions(input, language = "en", stakeholderRoles = {}) {
   const contradictions = [];
   const ideaProblemOverlap = overlap(input.businessIdea, input.problem);
   const customerProblemOverlap = overlap(input.targetCustomer, input.problem);
@@ -358,6 +390,18 @@ export function detectContradictions(input, language = "en") {
     });
   }
 
+  if (stakeholderRoles.hasRoleConflict) {
+    contradictions.push({
+      code: "stakeholder_payment_ambiguity",
+      severity: "medium",
+      message: languageFallback(
+        language,
+        "The idea appears to involve multiple stakeholders, but the payer is not clearly identified.",
+        "تبدو الفكرة مرتبطة بأكثر من طرف، لكن لم يتم تحديد من سيدفع بوضوح."
+      ),
+    });
+  }
+
   return contradictions;
 }
 
@@ -368,17 +412,19 @@ export function buildRuleContext(input, language = "en") {
     problem: normalize(input.problem),
     monetization: normalize(input.monetization),
   };
-  const contradictions = detectContradictions(normalized, language);
+  const stakeholderRoles = interpretStakeholderRoles(normalized, language);
+  const contradictions = detectContradictions(normalized, language, stakeholderRoles);
 
   return {
     input: normalized,
     language,
     contradictions,
+    stakeholderRoles,
   };
 }
 
 export function createScoringCriteria(ruleContext) {
-  const { input, language, contradictions } = ruleContext;
+  const { input, language, contradictions, stakeholderRoles } = ruleContext;
 
   return [
     {
@@ -394,8 +440,8 @@ export function createScoringCriteria(ruleContext) {
       label: "customerClarity",
       min: 0,
       max: 20,
-      score: () => scoreCustomer(input),
-      reason: (score) => reasonFor("customerClarity", score, language),
+      score: () => scoreCustomer(input, stakeholderRoles),
+      reason: (score) => reasonFor("customerClarity", score, language, stakeholderRoles),
     },
     {
       key: "marketNeed",
@@ -410,16 +456,16 @@ export function createScoringCriteria(ruleContext) {
       label: "monetizationClarity",
       min: 0,
       max: 20,
-      score: () => scoreMonetization(input),
-      reason: (score) => reasonFor("monetizationClarity", score, language),
+      score: () => scoreMonetization(input, stakeholderRoles),
+      reason: (score) => reasonFor("monetizationClarity", score, language, stakeholderRoles),
     },
     {
       key: "feasibility",
       label: "feasibility",
       min: 0,
       max: 20,
-      score: () => scoreFeasibility(input, contradictions),
-      reason: (score) => reasonFor("feasibility", score, language),
+      score: () => scoreFeasibility(input, contradictions, stakeholderRoles),
+      reason: (score) => reasonFor("feasibility", score, language, stakeholderRoles),
     },
   ];
 }
@@ -452,6 +498,8 @@ export function getConfidence(ruleContext, criteria) {
   });
 
   if (isBroadCustomer(input.targetCustomer)) confidence -= 15;
+  if (ruleContext.stakeholderRoles?.hasRoleAmbiguity) confidence -= 12;
+  if (ruleContext.stakeholderRoles?.hasRoleConflict) confidence -= 8;
   confidence -= ruleContext.contradictions.length * 25;
   if (criteria.some((item) => item.score <= 5)) confidence -= 10;
 

@@ -216,6 +216,7 @@ export function executeValidation(rawInput, language = "en", industrialDetails =
       businessName: rawInput.businessName,
       currentSolution: rawInput.currentSolution,
       competitiveAdvantage: rawInput.competitiveAdvantage,
+      stakeholderRoles: ruleContext.stakeholderRoles,
     },
     stage: rawInput.stage,
   });

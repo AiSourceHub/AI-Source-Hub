@@ -1,5 +1,6 @@
 import { RecommendationEngine } from "../../../core/engines.js";
 import { getBiggestRisk, getNextAction } from "./rules.js";
+import { describeStakeholderAmbiguity } from "./stakeholderRoles.js";
 
 export function buildBusinessIdeaRecommendation({
   score,
@@ -33,6 +34,7 @@ export function buildBusinessIdeaRecommendation({
     confidence,
     input,
     stage,
+    stakeholderRoles: input.stakeholderRoles,
   });
 
   return {
@@ -80,6 +82,22 @@ function buildPersonalizedBiggestRisk({ lowestCriterion, language = "en", contex
   if (!context || !lowestCriterion?.key) return getBiggestRisk(lowestCriterion, language);
 
   const stageLabel = getStageLabel(stage, language);
+  if (context.hasMetaProblem) {
+    return language === "ar"
+      ? `الخطر الأكبر هو اختبار تنفيذ المشروع بدلاً من اختبار حاجة العميل. خانة المشكلة تشير إلى ${context.executionChallenges}، لكن الفكرة تحتاج أولاً إلى إثبات أن ${context.customerLabel} يواجهون فعلاً صعوبة في ${context.suggestedProblemExample}. بدون هذا الدليل، قد لا تصبح ${context.revenueDescription} أولوية.`
+      : `The biggest risk is testing execution work instead of customer demand. Your problem input points to ${context.executionChallenges}, but the business still needs proof that ${context.customerLabel} strongly care about ${context.suggestedProblemExample}. Without that proof, ${context.revenueDescription} may not become a priority.`;
+  }
+
+  if (
+    context.hasStakeholderAmbiguity &&
+    !context.hasMetaProblem &&
+    ["customerClarity", "monetizationClarity", "feasibility"].includes(lowestCriterion.key)
+  ) {
+    const ambiguity = describeStakeholderAmbiguity(context.stakeholderRoles, language);
+    return language === "ar"
+      ? `الخطر الأكبر هو غموض الأدوار: ${ambiguity}. إذا لم يتضح من يستخدم الحل ومن يدفع ومن يوافق على الشراء، فقد تبدو ${context.proposedSolution} مفيدة دون أن تتحول إلى طلب أو إيراد واضح.`
+      : `The main risk is role ambiguity: ${ambiguity}. If it is not clear who uses the solution, who pays, and who approves the purchase, ${context.proposedSolution} may look useful without turning into demand or revenue.`;
+  }
 
   const messages = {
     problemClarity: {
@@ -130,6 +148,16 @@ function buildPersonalizedNextAction({ lowestCriterion, verdictKey, language = "
 }
 
 function buildIdeaAction(key, { context, language }) {
+  if (context.hasMetaProblem) {
+    return language === "ar"
+      ? `الحل: أعد كتابة المشكلة هكذا: "يواجه ${context.customerLabel} صعوبة في ${context.suggestedProblemExample}". بعد ذلك قابل 10 أشخاص واسألهم متى حدثت آخر مرة، وكيف حلوها، وكم كلفتهم. واصل فقط إذا أكد 6 منهم على الأقل أنها متكررة أو مكلفة.`
+      : `Rewrite the problem as: "${context.customerLabel} struggle with ${context.suggestedProblemExample}." Interview 10 people and ask when it last happened, how they solved it, and what it cost. Continue only if at least 6 confirm it is frequent or costly.`;
+  }
+
+  if (context.hasStakeholderAmbiguity && !context.hasMetaProblem && ["customerClarity", "monetizationClarity", "feasibility"].includes(key)) {
+    return buildStakeholderClarificationAction(context, language);
+  }
+
   const actions = {
     problemClarity: {
       en: context.hasMultipleProblems
@@ -165,6 +193,10 @@ function buildIdeaAction(key, { context, language }) {
 }
 
 function buildMvpAction(key, { context, language }) {
+  if (context.hasStakeholderAmbiguity && !context.hasMetaProblem && ["customerClarity", "monetizationClarity", "feasibility"].includes(key)) {
+    return buildStakeholderClarificationAction(context, language);
+  }
+
   const actions = {
     problemClarity: {
       en: `Watch 5 MVP users from ${context.customerLabel}. Record where they hesitate while dealing with ${context.primaryProblem}, then fix only the most repeated blocker.`,
@@ -192,6 +224,10 @@ function buildMvpAction(key, { context, language }) {
 }
 
 function buildLaunchedAction(key, { context, language }) {
+  if (context.hasStakeholderAmbiguity && !context.hasMetaProblem && ["customerClarity", "monetizationClarity", "feasibility"].includes(key)) {
+    return buildStakeholderClarificationAction(context, language);
+  }
+
   const actions = {
     problemClarity: {
       en: `Review support, churn, and sales notes from real ${context.customerLabel}. Tag how they describe ${context.primaryProblem} and update positioning around the repeated wording.`,
@@ -216,6 +252,35 @@ function buildLaunchedAction(key, { context, language }) {
   };
 
   return actions[key]?.[language] || getNextAction({ key }, "unclear", language);
+}
+
+function buildStakeholderClarificationAction(context, language) {
+  const questions = [];
+  const ambiguous = new Set(context.stakeholderRoles?.ambiguities || []);
+
+  if (!context.stakeholderRoles?.endUser) {
+    questions.push(language === "ar" ? "من يستخدم الحل فعلياً؟" : "Who uses it?");
+  }
+
+  if (ambiguous.has("payer") || context.stakeholderRoles?.payerStatus === "ambiguous") {
+    questions.push(language === "ar" ? "من سيدفع؟" : "Who pays?");
+  }
+
+  if (ambiguous.has("approver") || context.stakeholderRoles?.approverStatus === "ambiguous") {
+    questions.push(language === "ar" ? "من يوافق على الشراء؟" : "Who approves or chooses the purchase?");
+  }
+
+  if (ambiguous.has("provider")) {
+    questions.push(language === "ar" ? "ما دور مقدم الخدمة؟" : "What is the provider's role?");
+  }
+
+  const selectedQuestions = questions.length ? questions.slice(0, 3) : [language === "ar" ? "من يستخدم الحل ومن يدفع؟" : "Who uses it and who pays?"];
+
+  if (language === "ar") {
+    return `قبل اختبار ${context.primaryProblem}، قابل 5 أشخاص من الأطراف المذكورة وحدد: ${selectedQuestions.join(" ")} واصل فقط إذا كان مسار الاستخدام والدفع والقرار واضحاً في 3 مقابلات على الأقل.`;
+  }
+
+  return `Before testing ${context.primaryProblem}, interview 5 people across the mentioned roles and answer: ${selectedQuestions.join(" ")} Continue only if the usage, payment, and purchase path is clear in at least 3 interviews.`;
 }
 
 function getStageLabel(stage, language) {
@@ -254,6 +319,8 @@ function buildRecommendationContext(input, language) {
       language === "ar" ? "الميزة المقترحة" : "the proposed advantage"
     ),
     revenueDescription: summarizeRevenue(input.monetization, language),
+    stakeholderRoles: input.stakeholderRoles || {},
+    hasStakeholderAmbiguity: Boolean(input.stakeholderRoles?.hasRoleAmbiguity),
     hasMultipleProblems,
     hasMetaProblem,
     focusWarning:

@@ -50,6 +50,7 @@ Current platform capabilities:
 - Business Idea Validator v2 Phase 2 implemented locally with plastic recycling as the first supported industrial subtype
 - The v2 industrial preliminary report now covers viability, location, equipment, operating skills, marketing, economics framework, scenarios, risks, decision gates, and next actions without using the old generic score
 - Business Idea Validator v2 manual-QA correction implemented locally for plastic-recycling configuration readiness, including capacity-period clarification, PET/buyer fit checks, informal-supply handling, budget-readiness severity, and export-readiness guardrails
+- Business Idea Validator stakeholder-role reasoning implemented locally to improve domain-agnostic interpretation of end users, buyers/customers, payers, approvers, beneficiaries, and provider/operator roles without adding UI fields or new score categories
 
 ## 3. Milestones
 

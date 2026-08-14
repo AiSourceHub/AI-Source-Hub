@@ -253,6 +253,7 @@ function executeBusinessValidation(rawInput, language, industrialDetails = {}) {
       businessName: rawInput.businessName,
       currentSolution: rawInput.currentSolution,
       competitiveAdvantage: rawInput.competitiveAdvantage,
+      stakeholderRoles: ruleContext.stakeholderRoles,
     },
     stage: rawInput.stage,
   });
