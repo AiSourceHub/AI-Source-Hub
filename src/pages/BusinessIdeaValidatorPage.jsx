@@ -138,6 +138,8 @@ function buildEngineInput(formData, language = 'en') {
     problem: formData.problemSolved,
     monetization: formData.revenueModel,
     stage: formData.stage,
+    currentSolution: formData.currentSolution,
+    competitiveAdvantage: formData.competitiveAdvantage,
   };
 }
 
@@ -239,7 +241,11 @@ function executeBusinessValidation(rawInput, language, industrialDetails = {}) {
     lowestCriterion,
     verdictKey,
     confidence,
-  } = scoreBusinessIdea(analysis, language);
+  } = scoreBusinessIdea(analysis, language, {
+    currentSolution: rawInput.currentSolution,
+    competitiveAdvantage: rawInput.competitiveAdvantage,
+    stage: rawInput.stage,
+  });
 
   const recommendation = buildBusinessIdeaRecommendation({
     score,
@@ -254,6 +260,7 @@ function executeBusinessValidation(rawInput, language, industrialDetails = {}) {
       currentSolution: rawInput.currentSolution,
       competitiveAdvantage: rawInput.competitiveAdvantage,
       stakeholderRoles: ruleContext.stakeholderRoles,
+      evidenceSignals: ruleContext.evidenceSignals,
     },
     stage: rawInput.stage,
   });

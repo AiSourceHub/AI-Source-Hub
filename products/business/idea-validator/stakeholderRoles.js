@@ -110,6 +110,7 @@ const terms = {
     "decision maker",
     "decision-maker",
     "manager",
+    "management",
     "admin",
     "procurement",
     "owner",
@@ -118,6 +119,7 @@ const terms = {
     "موافقة",
     "صاحب القرار",
     "المدير",
+    "الإدارة",
     "المسؤول",
     "المشتريات",
     "مالك",
@@ -232,10 +234,11 @@ const providerLabels = {
 
 function hasExplicitDifferentActors(input) {
   const combined = `${input.businessIdea || ""} ${input.targetCustomer || ""} ${input.problem || ""}`;
+  const target = input.targetCustomer || "";
   return (
     hasAny(combined, terms.marketplace) ||
     (hasAny(combined, terms.organizationBuyer) && hasAny(combined, terms.individualUser)) ||
-    (hasAny(combined, terms.provider) && /,|\band\b|\bwith\b|\sو\s/u.test(combined))
+    (hasAny(target, terms.provider) && /,|\band\b|\bwith\b|\sو\s/u.test(target))
   );
 }
 

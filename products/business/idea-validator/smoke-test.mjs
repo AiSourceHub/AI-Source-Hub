@@ -289,6 +289,202 @@ if (!stakeholderRolesPassed) {
   process.exitCode = 1;
 }
 
+const evidenceCases = [
+  {
+    name: "idea assumptions no validation",
+    language: "en",
+    input: {
+      businessIdea: "A mobile checklist for first-time apartment renters",
+      targetCustomer: "Young professionals renting their first apartment",
+      problem: "They forget important setup tasks and lose time calling providers.",
+      monetization: "Small one-time purchase.",
+      stage: "idea",
+    },
+    expectSupport: "none",
+    expectUnsupportedClaims: false,
+  },
+  {
+    name: "strong demand claim without evidence",
+    language: "en",
+    input: {
+      businessIdea: "A premium delivery service for office snacks",
+      targetCustomer: "Small office managers",
+      problem: "There is huge demand and customers will buy because offices need this every week.",
+      monetization: "Monthly subscription.",
+      stage: "idea",
+    },
+    expectUnsupportedClaims: true,
+  },
+  {
+    name: "customer interviews support problem",
+    language: "en",
+    input: {
+      businessIdea: "A booking assistant for independent fitness coaches",
+      targetCustomer: "Independent fitness coaches",
+      problem: "We interviewed 12 coaches and 8 said scheduling no-shows cost them weekly revenue.",
+      monetization: "Monthly subscription.",
+      stage: "idea",
+    },
+    expectCustomerEvidence: true,
+  },
+  {
+    name: "actual paying customers",
+    language: "en",
+    input: {
+      businessIdea: "A template library for freelance consultants",
+      targetCustomer: "Independent consultants",
+      problem: "Consultants waste time writing repeat project documents.",
+      monetization: "We have 7 paying customers and recurring monthly revenue.",
+      stage: "launched",
+    },
+    expectPaymentEvidence: true,
+  },
+  {
+    name: "b2b pilot with employee users and management buyer",
+    language: "en",
+    input: {
+      businessIdea: "A customer-support handover tool used by frontline employees",
+      targetCustomer: "Support employees at B2B software companies",
+      problem: "A pilot with 18 employees reduced missed customer handover notes.",
+      monetization: "Management approved a paid pilot license per site.",
+      stage: "mvp",
+    },
+    expectCustomerEvidence: true,
+    expectPaymentEvidence: true,
+    expectRoleAmbiguity: false,
+  },
+  {
+    name: "supplier quotation supports cost assumptions",
+    language: "en",
+    input: {
+      businessIdea: "A local assembly service for custom retail displays",
+      targetCustomer: "Small retail chains opening new branches",
+      problem: "Stores wait weeks for small display batches.",
+      monetization: "Supplier quote received for material costs; stores pay per approved display order.",
+      stage: "idea",
+    },
+    expectOperationalEvidence: true,
+  },
+  {
+    name: "healthcare service unvalidated demand",
+    language: "en",
+    input: {
+      businessIdea: "A home follow-up service for patients after minor procedures",
+      targetCustomer: "Private clinics and recovering patients",
+      problem: "Patients need support after discharge and clinics want fewer calls.",
+      monetization: "Monthly service fee.",
+      stage: "idea",
+    },
+    expectSupport: "none",
+    expectRoleAmbiguity: true,
+  },
+  {
+    name: "industrial supplier and buyer evidence",
+    language: "en",
+    input: {
+      businessIdea: "A light manufacturing workshop for custom food packaging inserts",
+      targetCustomer: "Local food producers",
+      problem: "Producers wait too long for small custom insert batches.",
+      monetization: "We have supplier pricing for raw material and two buyer price discussions for trial batches.",
+      stage: "idea",
+    },
+    expectOperationalEvidence: true,
+  },
+  {
+    name: "idea stage conflicts with established revenue",
+    language: "en",
+    input: {
+      businessIdea: "A team analytics dashboard for remote sales teams",
+      targetCustomer: "Sales managers at small companies",
+      problem: "Managers lose time checking activity across tools.",
+      monetization: "We have 15 paying customers, retention evidence, and monthly recurring revenue.",
+      stage: "idea",
+    },
+    expectStageConflict: true,
+    expectPaymentEvidence: true,
+  },
+  {
+    name: "arabic unsupported demand claim",
+    language: "ar",
+    input: {
+      businessIdea: "خدمة توصيل وجبات صحية للموظفين",
+      targetCustomer: "الموظفون في الشركات الصغيرة",
+      problem: "هناك طلب كبير والموظفون يحتاجون هذه الخدمة يومياً.",
+      monetization: "اشتراك شهري.",
+      stage: "idea",
+    },
+    expectUnsupportedClaims: true,
+  },
+  {
+    name: "arabic customer interviews",
+    language: "ar",
+    input: {
+      businessIdea: "تطبيق يساعد المعلمين المستقلين على تنظيم الحجوزات",
+      targetCustomer: "المعلمون المستقلون",
+      problem: "قابلنا 10 معلمين وأكد 7 منهم أن تنظيم المواعيد يضيع وقتهم أسبوعياً.",
+      monetization: "اشتراك شهري.",
+      stage: "idea",
+    },
+    expectCustomerEvidence: true,
+  },
+];
+
+const evidenceResults = evidenceCases.map((testCase) => {
+  const result = executeValidation(testCase.input, testCase.language);
+  const evidence = result.recommendation?.interpretedContext?.evidenceSignals || {};
+  const roles = result.recommendation?.interpretedContext?.stakeholderRoles || {};
+  const text = `${result.biggestRisk || ""} ${result.nextAction || ""} ${result.criteria?.map((item) => item.reason).join(" ") || ""}`;
+  return {
+    name: testCase.name,
+    ok: result.ok,
+    total: result.score?.total ?? null,
+    supportLevel: evidence.supportLevel,
+    hasCustomerEvidence: Boolean(evidence.hasCustomerEvidence),
+    hasPaymentEvidence: Boolean(evidence.hasPaymentEvidence),
+    hasOperationalEvidence: Boolean(evidence.hasOperationalEvidence),
+    hasUnsupportedClaims: Boolean(evidence.hasUnsupportedClaims),
+    hasStageConflict: Boolean(evidence.hasStageEvidenceConflict),
+    hasRoleAmbiguity: Boolean(roles.hasRoleAmbiguity),
+    contradictionCodes: result.contradictions?.map((item) => item.code) || [],
+    hasInternalLabelLeak: /\b(supportLevel|hasUnsupportedClaims|hasPaymentEvidence|hasCustomerEvidence|strongestEvidence)\b/.test(text),
+    saysProven: /(?<!not\s)\bproven\b|مثبت تماماً|مؤكد تماماً/.test(text),
+    nextAction: result.nextAction || "",
+    text,
+    expected: testCase,
+  };
+});
+
+const evidenceAssumptionCase = evidenceResults.find((result) => result.name === "idea assumptions no validation");
+const evidenceDemandClaim = evidenceResults.find((result) => result.name === "strong demand claim without evidence");
+const evidenceArabicDemandClaim = evidenceResults.find((result) => result.name === "arabic unsupported demand claim");
+const evidenceStageConflict = evidenceResults.find((result) => result.name === "idea stage conflicts with established revenue");
+const evidenceB2bPilot = evidenceResults.find((result) => result.name === "b2b pilot with employee users and management buyer");
+
+const evidenceSignalsPassed =
+  evidenceResults.every((result) => result.ok) &&
+  evidenceResults.every((result) => !result.hasInternalLabelLeak && !result.saysProven) &&
+  evidenceResults.every((result) => result.expected.expectSupport ? result.supportLevel === result.expected.expectSupport : true) &&
+  evidenceResults.every((result) => result.expected.expectCustomerEvidence ? result.hasCustomerEvidence : true) &&
+  evidenceResults.every((result) => result.expected.expectPaymentEvidence ? result.hasPaymentEvidence : true) &&
+  evidenceResults.every((result) => result.expected.expectOperationalEvidence ? result.hasOperationalEvidence : true) &&
+  evidenceResults.every((result) => result.expected.expectUnsupportedClaims ? result.hasUnsupportedClaims : true) &&
+  evidenceResults.every((result) => result.expected.expectStageConflict ? result.hasStageConflict && result.contradictionCodes.includes("stage_evidence_mismatch") : true) &&
+  evidenceResults.every((result) => result.expected.expectRoleAmbiguity !== undefined ? result.hasRoleAmbiguity === result.expected.expectRoleAmbiguity : true) &&
+  evidenceAssumptionCase?.total >= 45 &&
+  !/assumption|افتراض/.test(evidenceAssumptionCase?.text || "") &&
+  evidenceDemandClaim?.text.includes("demand claim needs customer evidence") &&
+  evidenceDemandClaim?.nextAction !== "" &&
+  evidenceArabicDemandClaim?.text.includes("ادعاء الطلب يحتاج إلى دليل من العملاء") &&
+  !/[A-Za-z]/.test(evidenceArabicDemandClaim?.text || "") &&
+  evidenceStageConflict?.supportLevel === "strong" &&
+  evidenceB2bPilot?.supportLevel === "strong";
+
+console.log(JSON.stringify({ evidenceSignalsPassed, evidenceResults }, null, 2));
+
+if (!evidenceSignalsPassed) {
+  process.exitCode = 1;
+}
+
 const arabicPersonalization = executeValidation(
   {
     businessIdea: "خدمة تساعد العيادات الصغيرة على تقليل المواعيد الفائتة",

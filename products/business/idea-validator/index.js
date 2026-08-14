@@ -203,7 +203,11 @@ export function executeValidation(rawInput, language = "en", industrialDetails =
     lowestCriterion,
     verdictKey,
     confidence,
-  } = scoreBusinessIdea(analysis, language);
+  } = scoreBusinessIdea(analysis, language, {
+    currentSolution: rawInput.currentSolution,
+    competitiveAdvantage: rawInput.competitiveAdvantage,
+    stage: rawInput.stage,
+  });
   const recommendation = buildBusinessIdeaRecommendation({
     score,
     criteria,
@@ -217,6 +221,7 @@ export function executeValidation(rawInput, language = "en", industrialDetails =
       currentSolution: rawInput.currentSolution,
       competitiveAdvantage: rawInput.competitiveAdvantage,
       stakeholderRoles: ruleContext.stakeholderRoles,
+      evidenceSignals: ruleContext.evidenceSignals,
     },
     stage: rawInput.stage,
   });

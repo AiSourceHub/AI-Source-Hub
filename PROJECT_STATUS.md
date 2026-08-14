@@ -40,6 +40,7 @@ AI Source Hub is currently a static v1.0 public launch-ready platform with a sha
 - The new industrial report covers preliminary viability, location criteria, equipment pathway, operating skills, B2B marketing route, economics framework, scenarios, project-specific risks, go/no-go gates, and sequenced next actions.
 - A focused manual-QA correction is implemented locally for plastic-recycling readiness: incomplete capacity periods now trigger clarification, PET/buyer material mismatch is flagged, informal street/bin collection is not treated as verified feedstock, low budget plus no premises/team/quotations is treated as not ready for factory investment, and export is treated as a later route until volume, quality, logistics, and buyer requirements are established.
 - Business Idea Validator general reasoning has been strengthened locally with stakeholder-role interpretation. The validator can now conservatively distinguish supported end-user, buyer/customer, payer, approver, beneficiary, and provider/operator signals from existing inputs, and it adjusts customer clarity, monetization clarity, feasibility, confidence, contradictions, and recommendations when role ambiguity materially affects the business model.
+- Business Idea Validator general reasoning has been strengthened locally with evidence and assumption interpretation. The validator now distinguishes unsupported founder claims from stated real-world validation such as customer interviews, paying customers, pilots, usage metrics, supplier quotations, operational data, and institutional discussions; it uses those signals conservatively to adjust confidence, scoring rationale, contradictions, and the most relevant next action without adding UI fields or new score categories.
 
 # Planned
 
@@ -66,6 +67,7 @@ AI Source Hub is currently a static v1.0 public launch-ready platform with a sha
 - Business Idea Validator v2 industrial analysis does not yet include sourced market research, verified supplier pricing, regulatory evidence, or certified feasibility calculations. Those remain future enhancements.
 - Business Idea Validator v2 industrial analysis remains deterministic. It can flag obvious readiness and configuration problems, but it does not replace a verified feasibility study, supplier quotations, buyer specifications, or site/regulatory review.
 - Stakeholder-role reasoning remains deterministic and conservative. It can flag clear multi-party ambiguity, but it does not replace deeper customer discovery, sales-process mapping, procurement analysis, or legal/regulatory review.
+- Evidence and assumption reasoning remains deterministic and self-reported. It can recognize validation signals stated by the user, but it does not independently verify market facts, revenue, quotations, contracts, or operating data.
 - Copy report depends on browser clipboard permission.
 - Download report creates a local text file.
 - Deferred UX refinement: the homepage Products navigation should eventually keep the visitor at the top of the homepage and reveal a horizontal product selector directly beneath the main navigation instead of scrolling down to the Products section.

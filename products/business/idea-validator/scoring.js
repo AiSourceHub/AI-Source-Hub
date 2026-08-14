@@ -8,8 +8,8 @@ import {
   getVerdictKey,
 } from "./rules.js";
 
-export function scoreBusinessIdea(analysis, language = "en") {
-  const ruleContext = buildRuleContext(analysis.input, language);
+export function scoreBusinessIdea(analysis, language = "en", contextInput = {}) {
+  const ruleContext = buildRuleContext({ ...analysis.input, ...contextInput }, language);
   const scoringCriteria = createScoringCriteria(ruleContext);
   const scoreEngine = new ScoreEngine({ criteria: scoringCriteria });
   const score = scoreEngine.score({ analysis, ruleContext });
@@ -38,4 +38,3 @@ export function scoreBusinessIdea(analysis, language = "en") {
 export function buildImprovedIdeaStatement(input, language = "en") {
   return buildImprovedIdea(input, language);
 }
-

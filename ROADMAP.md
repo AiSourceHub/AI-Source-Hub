@@ -51,6 +51,7 @@ Current platform capabilities:
 - The v2 industrial preliminary report now covers viability, location, equipment, operating skills, marketing, economics framework, scenarios, risks, decision gates, and next actions without using the old generic score
 - Business Idea Validator v2 manual-QA correction implemented locally for plastic-recycling configuration readiness, including capacity-period clarification, PET/buyer fit checks, informal-supply handling, budget-readiness severity, and export-readiness guardrails
 - Business Idea Validator stakeholder-role reasoning implemented locally to improve domain-agnostic interpretation of end users, buyers/customers, payers, approvers, beneficiaries, and provider/operator roles without adding UI fields or new score categories
+- Business Idea Validator evidence/assumption reasoning implemented locally to distinguish unsupported claims from user-stated validation evidence such as customer interviews, paying customers, pilots, usage metrics, supplier quotations, operational data, and institutional discussions, with conservative confidence, scoring rationale, contradiction, and recommendation adjustments
 
 ## 3. Milestones
 
@@ -171,7 +172,7 @@ A product is complete only when:
 
 ### Next
 
-- Business Idea Validator v2 evidence enhancement: add sourced market research, verified supplier pricing, regulatory evidence, and certified-feasibility handoff guidance where appropriate.
+- Business Idea Validator v2 external-evidence readiness: add sourced market research, independently verified supplier pricing, regulatory evidence, and certified-feasibility handoff guidance where appropriate.
 - Add shared product navigation.
 - Build Business Name Generator.
 - Build Pricing Strategy Advisor.
@@ -199,6 +200,7 @@ A product is complete only when:
 | Spending time on authentication and payments too early | Mark accounts and payments as future scope until product usefulness is proven. |
 | Documentation replacing actual implementation | Keep documentation tied to implementation tasks and release criteria. |
 | Lack of browser testing | Add manual browser checks to the Definition of Done before release candidate. |
+| Treating stated claims as verified facts | Keep deterministic evidence reasoning conservative and require explicit user-stated validation signals before increasing confidence. |
 
 ## 10. Progress Tracking
 
@@ -210,4 +212,4 @@ A product is complete only when:
 | Product Suite | Current | 35% | Stabilize active products before adding the next product. |
 | Quality and Release Candidate | Completed | 100% | Preserve regression checks while planning the next product. |
 | Public Launch | Completed | 100% | Prepare public launch communication and post-launch monitoring. |
-| Business Idea Validator v2 | In local validation | Phase 2 | Validate the plastic-recycling industrial report in browser QA before approving production deployment. |
+| Business Idea Validator v2 | In local validation | Phase 2 + general reasoning | Validate the plastic-recycling industrial report and evidence/assumption reasoning in browser QA before approving production deployment. |

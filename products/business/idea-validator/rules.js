@@ -1,3 +1,4 @@
+import { describeEvidenceGap, interpretEvidenceSignals } from "./evidenceSignals.js";
 import { describeStakeholderAmbiguity, interpretStakeholderRoles } from "./stakeholderRoles.js";
 
 const categoryKeys = [
@@ -214,9 +215,10 @@ function languageFallback(language, en, ar) {
   return language === "ar" ? ar : en;
 }
 
-function reasonFor(category, score, language, stakeholderRoles = {}) {
+function reasonFor(category, score, language, stakeholderRoles = {}, evidenceSignals = {}) {
   const roleAmbiguity = stakeholderRoles.hasRoleAmbiguity;
   const roleAmbiguityText = describeStakeholderAmbiguity(stakeholderRoles, language);
+  const evidenceGap = describeEvidenceGap(evidenceSignals, language);
   if (roleAmbiguity && category === "customerClarity") {
     return languageFallback(
       language,
@@ -238,6 +240,30 @@ function reasonFor(category, score, language, stakeholderRoles = {}) {
       language,
       "Execution depends on clarifying the user, buyer, and purchase approver before testing.",
       "قابلية التنفيذ تعتمد على توضيح المستخدم والمشتري وصاحب قرار الشراء قبل الاختبار."
+    );
+  }
+
+  if (evidenceSignals.hasUnsupportedClaims && category === "marketNeed") {
+    return languageFallback(
+      language,
+      `The need is stated as a claim, but ${evidenceGap}.`,
+      `الحاجة مذكورة كافتراض، لكن ${evidenceGap}.`
+    );
+  }
+
+  if (evidenceSignals.hasPaymentEvidence && category === "monetizationClarity") {
+    return languageFallback(
+      language,
+      "The revenue path has early payment or buying evidence, but the pricing test should continue.",
+      "مسار الإيرادات لديه دليل مبكر على الدفع أو الشراء، لكن اختبار التسعير يجب أن يستمر."
+    );
+  }
+
+  if (evidenceSignals.hasOperationalEvidence && category === "feasibility") {
+    return languageFallback(
+      language,
+      "Feasibility is stronger because the input includes operating, supplier, or cost evidence.",
+      "قابلية التنفيذ أقوى لأن المدخلات تتضمن دليلاً تشغيلياً أو سعراً من مورد أو بيانات تكلفة."
     );
   }
 
@@ -301,17 +327,19 @@ function scoreCustomer(input, stakeholderRoles = {}) {
   return clamp(score);
 }
 
-function scoreNeed(input) {
+function scoreNeed(input, evidenceSignals = {}) {
   if (isMissing(input.problem) || isUncertain(input.problem)) return 3;
   let score = 5;
   score += Math.min(8, countMatches(input.problem, signals.need) * 2.3);
   score += Math.min(4, countMatches(input.problem, signals.frequency) * 2);
   score += hasSpecificity(input.problem) ? 2 : 0;
   score += isBroadCustomer(input.targetCustomer) ? -2 : 0;
+  score += evidenceSignals.hasCustomerEvidence ? 2 : 0;
+  score -= evidenceSignals.hasUnsupportedDemandClaim ? 2 : 0;
   return clamp(score);
 }
 
-function scoreMonetization(input, stakeholderRoles = {}) {
+function scoreMonetization(input, stakeholderRoles = {}, evidenceSignals = {}) {
   if (isMissing(input.monetization) || isUncertain(input.monetization)) return 3;
   let score = 5;
   score += countMatches(input.monetization, signals.revenue) ? 7 : 0;
@@ -319,10 +347,11 @@ function scoreMonetization(input, stakeholderRoles = {}) {
   score += isVague(input.monetization) ? -3 : 0;
   score += isBroadCustomer(input.targetCustomer) ? -1 : 1;
   score -= stakeholderRoles.payerStatus === "ambiguous" ? 4 : 0;
+  score += evidenceSignals.hasPaymentEvidence ? 3 : 0;
   return clamp(score);
 }
 
-function scoreFeasibility(input, contradictions, stakeholderRoles = {}) {
+function scoreFeasibility(input, contradictions, stakeholderRoles = {}, evidenceSignals = {}) {
   let score = 7;
   const combined = `${input.businessIdea} ${input.targetCustomer} ${input.problem}`;
   score += hasSpecificity(input.businessIdea) ? 3 : 0;
@@ -333,11 +362,13 @@ function scoreFeasibility(input, contradictions, stakeholderRoles = {}) {
   score -= contradictions.length * 2;
   score -= stakeholderRoles.approverStatus === "ambiguous" ? 2 : 0;
   score -= stakeholderRoles.isMarketplace && stakeholderRoles.payerStatus === "ambiguous" ? 2 : 0;
+  score += evidenceSignals.hasOperationalEvidence ? 2 : 0;
+  score -= evidenceSignals.hasUnsupportedProfitClaim ? 2 : 0;
   score -= isVague(input.businessIdea) ? 4 : 0;
   return clamp(score);
 }
 
-export function detectContradictions(input, language = "en", stakeholderRoles = {}) {
+export function detectContradictions(input, language = "en", stakeholderRoles = {}, evidenceSignals = {}) {
   const contradictions = [];
   const ideaProblemOverlap = overlap(input.businessIdea, input.problem);
   const customerProblemOverlap = overlap(input.targetCustomer, input.problem);
@@ -402,6 +433,18 @@ export function detectContradictions(input, language = "en", stakeholderRoles = 
     });
   }
 
+  if (evidenceSignals.hasStageEvidenceConflict) {
+    contradictions.push({
+      code: "stage_evidence_mismatch",
+      severity: "medium",
+      message: languageFallback(
+        language,
+        "The stated stage is idea-stage, but the input also mentions evidence such as revenue, retention, or active usage.",
+        "مرحلة المشروع مذكورة كفكرة، لكن المدخلات تذكر دليلاً مثل الإيرادات أو الاحتفاظ أو الاستخدام النشط."
+      ),
+    });
+  }
+
   return contradictions;
 }
 
@@ -411,20 +454,25 @@ export function buildRuleContext(input, language = "en") {
     targetCustomer: normalize(input.targetCustomer),
     problem: normalize(input.problem),
     monetization: normalize(input.monetization),
+    currentSolution: normalize(input.currentSolution),
+    competitiveAdvantage: normalize(input.competitiveAdvantage),
+    stage: normalize(input.stage),
   };
   const stakeholderRoles = interpretStakeholderRoles(normalized, language);
-  const contradictions = detectContradictions(normalized, language, stakeholderRoles);
+  const evidenceSignals = interpretEvidenceSignals(normalized, language);
+  const contradictions = detectContradictions(normalized, language, stakeholderRoles, evidenceSignals);
 
   return {
     input: normalized,
     language,
     contradictions,
     stakeholderRoles,
+    evidenceSignals,
   };
 }
 
 export function createScoringCriteria(ruleContext) {
-  const { input, language, contradictions, stakeholderRoles } = ruleContext;
+  const { input, language, contradictions, stakeholderRoles, evidenceSignals } = ruleContext;
 
   return [
     {
@@ -448,24 +496,24 @@ export function createScoringCriteria(ruleContext) {
       label: "marketNeed",
       min: 0,
       max: 20,
-      score: () => scoreNeed(input),
-      reason: (score) => reasonFor("marketNeed", score, language),
+      score: () => scoreNeed(input, evidenceSignals),
+      reason: (score) => reasonFor("marketNeed", score, language, stakeholderRoles, evidenceSignals),
     },
     {
       key: "monetizationClarity",
       label: "monetizationClarity",
       min: 0,
       max: 20,
-      score: () => scoreMonetization(input, stakeholderRoles),
-      reason: (score) => reasonFor("monetizationClarity", score, language, stakeholderRoles),
+      score: () => scoreMonetization(input, stakeholderRoles, evidenceSignals),
+      reason: (score) => reasonFor("monetizationClarity", score, language, stakeholderRoles, evidenceSignals),
     },
     {
       key: "feasibility",
       label: "feasibility",
       min: 0,
       max: 20,
-      score: () => scoreFeasibility(input, contradictions, stakeholderRoles),
-      reason: (score) => reasonFor("feasibility", score, language, stakeholderRoles),
+      score: () => scoreFeasibility(input, contradictions, stakeholderRoles, evidenceSignals),
+      reason: (score) => reasonFor("feasibility", score, language, stakeholderRoles, evidenceSignals),
     },
   ];
 }
@@ -491,7 +539,7 @@ export function getConfidence(ruleContext, criteria) {
   let confidence = 100;
   const input = ruleContext.input;
 
-  Object.values(input).forEach((value) => {
+  [input.businessIdea, input.targetCustomer, input.problem, input.monetization].forEach((value) => {
     if (isMissing(value)) confidence -= 20;
     if (isUncertain(value)) confidence -= 15;
     if (isVague(value)) confidence -= 10;
@@ -500,6 +548,10 @@ export function getConfidence(ruleContext, criteria) {
   if (isBroadCustomer(input.targetCustomer)) confidence -= 15;
   if (ruleContext.stakeholderRoles?.hasRoleAmbiguity) confidence -= 12;
   if (ruleContext.stakeholderRoles?.hasRoleConflict) confidence -= 8;
+  if (ruleContext.evidenceSignals?.supportLevel === "some") confidence += 5;
+  if (ruleContext.evidenceSignals?.supportLevel === "strong") confidence += 10;
+  if (ruleContext.evidenceSignals?.hasUnsupportedClaims) confidence -= 8;
+  if (ruleContext.evidenceSignals?.hasStageEvidenceConflict) confidence -= 8;
   confidence -= ruleContext.contradictions.length * 25;
   if (criteria.some((item) => item.score <= 5)) confidence -= 10;
 

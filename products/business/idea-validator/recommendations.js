@@ -1,3 +1,4 @@
+import { describeEvidenceGap } from "./evidenceSignals.js";
 import { RecommendationEngine } from "../../../core/engines.js";
 import { getBiggestRisk, getNextAction } from "./rules.js";
 import { describeStakeholderAmbiguity } from "./stakeholderRoles.js";
@@ -99,6 +100,13 @@ function buildPersonalizedBiggestRisk({ lowestCriterion, language = "en", contex
       : `The main risk is role ambiguity: ${ambiguity}. If it is not clear who uses the solution, who pays, and who approves the purchase, ${context.proposedSolution} may look useful without turning into demand or revenue.`;
   }
 
+  if (context.hasMaterialEvidenceGap && ["marketNeed", "monetizationClarity", "feasibility"].includes(lowestCriterion.key)) {
+    const gap = describeEvidenceGap(context.evidenceSignals, language);
+    return language === "ar"
+      ? `الخطر الأكبر هو أن ${context.primaryProblem} ما زالت معتمدة على افتراض مهم: ${gap}. بدون دليل عملي من ${context.customerLabel}، قد تبدو الفكرة منطقية لكنها لا تتحول إلى طلب أو إيراد.`
+      : `The main risk is that ${context.primaryProblem} still depends on an important assumption: ${gap}. Without practical evidence from ${context.customerLabel}, the idea may sound logical but fail to turn into demand or revenue.`;
+  }
+
   const messages = {
     problemClarity: {
       en: context.hasMultipleProblems
@@ -158,6 +166,10 @@ function buildIdeaAction(key, { context, language }) {
     return buildStakeholderClarificationAction(context, language);
   }
 
+  if (context.hasMaterialEvidenceGap && ["marketNeed", "monetizationClarity", "feasibility"].includes(key)) {
+    return buildEvidenceValidationAction(context, language);
+  }
+
   const actions = {
     problemClarity: {
       en: context.hasMultipleProblems
@@ -197,6 +209,10 @@ function buildMvpAction(key, { context, language }) {
     return buildStakeholderClarificationAction(context, language);
   }
 
+  if (context.hasMaterialEvidenceGap && ["marketNeed", "monetizationClarity", "feasibility"].includes(key)) {
+    return buildEvidenceValidationAction(context, language, "mvp");
+  }
+
   const actions = {
     problemClarity: {
       en: `Watch 5 MVP users from ${context.customerLabel}. Record where they hesitate while dealing with ${context.primaryProblem}, then fix only the most repeated blocker.`,
@@ -228,6 +244,10 @@ function buildLaunchedAction(key, { context, language }) {
     return buildStakeholderClarificationAction(context, language);
   }
 
+  if (context.hasMaterialEvidenceGap && ["marketNeed", "monetizationClarity", "feasibility"].includes(key)) {
+    return buildEvidenceValidationAction(context, language, "launched");
+  }
+
   const actions = {
     problemClarity: {
       en: `Review support, churn, and sales notes from real ${context.customerLabel}. Tag how they describe ${context.primaryProblem} and update positioning around the repeated wording.`,
@@ -252,6 +272,30 @@ function buildLaunchedAction(key, { context, language }) {
   };
 
   return actions[key]?.[language] || getNextAction({ key }, "unclear", language);
+}
+
+function buildEvidenceValidationAction(context, language, stage = "idea") {
+  if (stage === "mvp") {
+    return language === "ar"
+      ? `حوّل الافتراض حول ${context.primaryProblem} إلى قياس داخل النموذج الأولي: راقب 10 مستخدمين أو 20 جلسة استخدام، وسجّل التكرار أو التفعيل أو الاستعداد للدفع قبل إضافة مزايا جديدة.`
+      : `Turn the assumption around ${context.primaryProblem} into an MVP metric: observe 10 users or 20 usage sessions, then record repeat use, activation, or willingness to pay before adding features.`;
+  }
+
+  if (stage === "launched") {
+    return language === "ar"
+      ? `راجع بيانات العملاء الحاليين حول ${context.primaryProblem}: التحويل، الاحتفاظ، أو الدفع. اتخذ القرار التالي فقط إذا ظهر دليل واضح من العملاء الفعليين.`
+      : `Review existing customer data around ${context.primaryProblem}: conversion, retention, or payment. Make the next decision only if real customer evidence supports it.`;
+  }
+
+  if (context.evidenceSignals?.hasUnsupportedProfitClaim) {
+    return language === "ar"
+      ? `اختبر افتراض الربحية قبل البناء: احصل على 3 أسعار أو عروض تكلفة حقيقية، ثم قابل 5 عملاء من ${context.customerLabel} لمعرفة السعر المقبول لحل ${context.primaryProblem}.`
+      : `Test the profitability assumption before building: collect 3 real cost quotes or price references, then interview 5 ${context.customerLabel} about an acceptable price for solving ${context.primaryProblem}.`;
+  }
+
+  return language === "ar"
+    ? `اختبر افتراض الطلب مباشرة: قابل 10 أشخاص من ${context.customerLabel} واسألهم عن آخر مرة واجهوا ${context.primaryProblem}. واصل فقط إذا أكد 6 منهم على الأقل أنها مشكلة متكررة أو مكلفة.`
+    : `Test the demand assumption directly: interview 10 people from ${context.customerLabel} and ask about the last time they faced ${context.primaryProblem}. Continue only if at least 6 confirm it is frequent or costly.`;
 }
 
 function buildStakeholderClarificationAction(context, language) {
@@ -321,6 +365,8 @@ function buildRecommendationContext(input, language) {
     revenueDescription: summarizeRevenue(input.monetization, language),
     stakeholderRoles: input.stakeholderRoles || {},
     hasStakeholderAmbiguity: Boolean(input.stakeholderRoles?.hasRoleAmbiguity),
+    evidenceSignals: input.evidenceSignals || {},
+    hasMaterialEvidenceGap: Boolean(input.evidenceSignals?.hasUnsupportedClaims),
     hasMultipleProblems,
     hasMetaProblem,
     focusWarning:
