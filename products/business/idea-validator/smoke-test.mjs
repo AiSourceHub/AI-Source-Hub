@@ -485,6 +485,187 @@ if (!evidenceSignalsPassed) {
   process.exitCode = 1;
 }
 
+const regulatoryCases = [
+  {
+    name: "simple consumer service no approval dependency",
+    language: "en",
+    input: {
+      businessIdea: "A home closet organization service",
+      targetCustomer: "Busy apartment renters",
+      problem: "They lose time finding clothes and reorganizing storage every month.",
+      monetization: "Customers pay a fixed service fee.",
+      stage: "idea",
+    },
+    expectStatus: "none",
+  },
+  {
+    name: "healthcare licensed professional dependency",
+    language: "en",
+    input: {
+      businessIdea: "A home follow-up service that requires licensed nurses",
+      targetCustomer: "Private clinics and recovering patients",
+      problem: "Patients forget aftercare steps and clinics receive repeated calls.",
+      monetization: "Clinics pay a monthly service fee.",
+      stage: "idea",
+    },
+    expectStatus: "required",
+  },
+  {
+    name: "food retail possible permit dependency",
+    language: "en",
+    input: {
+      businessIdea: "A weekend meal prep kiosk for office workers",
+      targetCustomer: "Office workers in business districts",
+      problem: "They spend too much time finding healthy lunches.",
+      monetization: "Customers pay per meal box; we may need a food permit.",
+      stage: "idea",
+    },
+    expectStatus: "needs_clarification",
+  },
+  {
+    name: "b2b software vendor approval",
+    language: "en",
+    input: {
+      businessIdea: "A vendor onboarding dashboard for enterprise procurement teams",
+      targetCustomer: "Procurement managers at mid-sized companies",
+      problem: "Teams lose time collecting supplier documents.",
+      monetization: "Enterprise subscription after vendor approval and security review.",
+      stage: "mvp",
+    },
+    expectStatus: "needs_clarification",
+  },
+  {
+    name: "marketplace platform approval",
+    language: "en",
+    input: {
+      businessIdea: "A plugin marketplace seller tool that depends on app store approval",
+      targetCustomer: "Independent software plugin makers",
+      problem: "They lose sales when listings are delayed.",
+      monetization: "Monthly subscription.",
+      stage: "idea",
+    },
+    expectStatus: "needs_clarification",
+  },
+  {
+    name: "import dependent commerce",
+    language: "en",
+    input: {
+      businessIdea: "An online shop importing specialty equipment for small workshops",
+      targetCustomer: "Small workshop owners",
+      problem: "They wait weeks to source replacement parts.",
+      monetization: "Margin on imported products after customs clearance.",
+      stage: "idea",
+    },
+    expectStatus: "needs_clarification",
+  },
+  {
+    name: "light manufacturing facility approval",
+    language: "en",
+    input: {
+      businessIdea: "A small workshop producing custom metal brackets",
+      targetCustomer: "Local contractors",
+      problem: "Contractors wait too long for small custom batches.",
+      monetization: "Pay per order; factory permit and site inspection are pending.",
+      stage: "idea",
+    },
+    expectStatus: "required",
+  },
+  {
+    name: "approval already obtained",
+    language: "en",
+    input: {
+      businessIdea: "A mobile food cart for office districts",
+      targetCustomer: "Office workers near transit hubs",
+      problem: "They need quick lunches during short breaks.",
+      monetization: "Pay per meal; permit obtained and inspection passed.",
+      stage: "mvp",
+    },
+    expectStatus: "obtained",
+  },
+  {
+    name: "ambiguous approval should be clarified",
+    language: "en",
+    input: {
+      businessIdea: "A delivery service for prescription refills",
+      targetCustomer: "Families caring for elderly patients",
+      problem: "They lose time coordinating repeat refills.",
+      monetization: "Monthly delivery membership.",
+      stage: "idea",
+    },
+    expectStatus: "needs_clarification",
+  },
+  {
+    name: "arabic required approval dependency",
+    language: "ar",
+    input: {
+      businessIdea: "خدمة متابعة منزلية تتطلب ممرض مرخص",
+      targetCustomer: "العيادات الخاصة والمرضى بعد الخروج",
+      problem: "ينسى المرضى تعليمات الرعاية وتكثر اتصالات المتابعة.",
+      monetization: "اشتراك شهري تدفعه العيادة.",
+      stage: "idea",
+    },
+    expectStatus: "required",
+  },
+  {
+    name: "arabic obtained approval",
+    language: "ar",
+    input: {
+      businessIdea: "عربة طعام متنقلة للموظفين",
+      targetCustomer: "الموظفون في مناطق الأعمال",
+      problem: "يحتاجون غداء سريعاً خلال وقت قصير.",
+      monetization: "الدفع لكل وجبة، وحصلنا على تصريح واجتزنا التفتيش.",
+      stage: "mvp",
+    },
+    expectStatus: "obtained",
+  },
+];
+
+const regulatoryResults = regulatoryCases.map((testCase) => {
+  const result = executeValidation(testCase.input, testCase.language);
+  const dependency = result.recommendation?.interpretedContext?.regulatoryDependencies || {};
+  const feasibility = result.criteria?.find((item) => item.key === "feasibility");
+  const text = `${result.biggestRisk || ""} ${result.nextAction || ""} ${feasibility?.reason || ""}`;
+  return {
+    name: testCase.name,
+    ok: result.ok,
+    total: result.score?.total ?? null,
+    status: dependency.status,
+    isMaterial: Boolean(dependency.isMaterial),
+    hasUnresolvedApproval: Boolean(dependency.hasUnresolvedApproval),
+    needsClarification: Boolean(dependency.needsClarification),
+    contradictionCodes: result.contradictions?.map((item) => item.code) || [],
+    feasibilityReason: feasibility?.reason || "",
+    hasInternalLabelLeak: /\b(regulatoryDependencies|dependencyType|hasUnresolvedApproval|needsClarification|approvalTerms)\b/.test(text),
+    hasApprovalAction:
+      /approval path|permit|license|certification|authorization|vendor approval|security review|customs|مسار|تصريح|ترخيص|اعتماد|تفتيش|موافقة/.test(text),
+    englishLeakInArabic: testCase.language === "ar" ? /approval path|vendor approval|security review|customs/.test(text) : false,
+    text,
+    expected: testCase,
+  };
+});
+
+const simpleRegulatoryCase = regulatoryResults.find((result) => result.name === "simple consumer service no approval dependency");
+const requiredRegulatoryCase = regulatoryResults.find((result) => result.name === "healthcare licensed professional dependency");
+const obtainedRegulatoryCase = regulatoryResults.find((result) => result.name === "approval already obtained");
+const arabicRequiredRegulatoryCase = regulatoryResults.find((result) => result.name === "arabic required approval dependency");
+
+const regulatoryDependenciesPassed =
+  regulatoryResults.every((result) => result.ok) &&
+  regulatoryResults.every((result) => result.status === result.expected.expectStatus) &&
+  regulatoryResults.every((result) => !result.hasInternalLabelLeak && !result.englishLeakInArabic) &&
+  simpleRegulatoryCase?.isMaterial === false &&
+  requiredRegulatoryCase?.hasApprovalAction === true &&
+  requiredRegulatoryCase?.contradictionCodes.includes("external_approval_unresolved") &&
+  obtainedRegulatoryCase?.hasUnresolvedApproval === false &&
+  obtainedRegulatoryCase?.needsClarification === false &&
+  arabicRequiredRegulatoryCase?.hasApprovalAction === true;
+
+console.log(JSON.stringify({ regulatoryDependenciesPassed, regulatoryResults }, null, 2));
+
+if (!regulatoryDependenciesPassed) {
+  process.exitCode = 1;
+}
+
 const arabicPersonalization = executeValidation(
   {
     businessIdea: "خدمة تساعد العيادات الصغيرة على تقليل المواعيد الفائتة",

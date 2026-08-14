@@ -52,6 +52,7 @@ Current platform capabilities:
 - Business Idea Validator v2 manual-QA correction implemented locally for plastic-recycling configuration readiness, including capacity-period clarification, PET/buyer fit checks, informal-supply handling, budget-readiness severity, and export-readiness guardrails
 - Business Idea Validator stakeholder-role reasoning implemented locally to improve domain-agnostic interpretation of end users, buyers/customers, payers, approvers, beneficiaries, and provider/operator roles without adding UI fields or new score categories
 - Business Idea Validator evidence/assumption reasoning implemented locally to distinguish unsupported claims from user-stated validation evidence such as customer interviews, paying customers, pilots, usage metrics, supplier quotations, operational data, and institutional discussions, with conservative confidence, scoring rationale, contradiction, and recommendation adjustments
+- Business Idea Validator regulatory/approval dependency reasoning implemented locally to detect user-stated external permission paths such as permits, licensed professionals, medical or clinical approval, municipal authorization, inspections, import/export clearance, institutional vendor approval, platform approval, and facility approval, with conservative feasibility, confidence, contradiction, risk, and next-action adjustments
 
 ## 3. Milestones
 
@@ -201,6 +202,7 @@ A product is complete only when:
 | Documentation replacing actual implementation | Keep documentation tied to implementation tasks and release criteria. |
 | Lack of browser testing | Add manual browser checks to the Definition of Done before release candidate. |
 | Treating stated claims as verified facts | Keep deterministic evidence reasoning conservative and require explicit user-stated validation signals before increasing confidence. |
+| Inventing legal or regulatory requirements | Treat approvals and licenses as dependencies to check, not rulings, and avoid sector-name-only penalties. |
 
 ## 10. Progress Tracking
 
@@ -212,4 +214,4 @@ A product is complete only when:
 | Product Suite | Current | 35% | Stabilize active products before adding the next product. |
 | Quality and Release Candidate | Completed | 100% | Preserve regression checks while planning the next product. |
 | Public Launch | Completed | 100% | Prepare public launch communication and post-launch monitoring. |
-| Business Idea Validator v2 | In local validation | Phase 2 + general reasoning | Validate the plastic-recycling industrial report and evidence/assumption reasoning in browser QA before approving production deployment. |
+| Business Idea Validator v2 | In local validation | Phase 2 + general reasoning | Validate the plastic-recycling industrial report, evidence/assumption reasoning, and regulatory/approval dependency reasoning in browser QA before approving production deployment. |

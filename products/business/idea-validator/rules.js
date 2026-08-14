@@ -1,4 +1,5 @@
 import { describeEvidenceGap, interpretEvidenceSignals } from "./evidenceSignals.js";
+import { describeRegulatoryDependency, interpretRegulatoryDependencies } from "./regulatoryDependencies.js";
 import { describeStakeholderAmbiguity, interpretStakeholderRoles } from "./stakeholderRoles.js";
 
 const categoryKeys = [
@@ -215,10 +216,19 @@ function languageFallback(language, en, ar) {
   return language === "ar" ? ar : en;
 }
 
-function reasonFor(category, score, language, stakeholderRoles = {}, evidenceSignals = {}) {
+function reasonFor(category, score, language, stakeholderRoles = {}, evidenceSignals = {}, regulatoryDependencies = {}) {
   const roleAmbiguity = stakeholderRoles.hasRoleAmbiguity;
   const roleAmbiguityText = describeStakeholderAmbiguity(stakeholderRoles, language);
   const evidenceGap = describeEvidenceGap(evidenceSignals, language);
+  const dependencyText = describeRegulatoryDependency(regulatoryDependencies, language);
+
+  if (
+    regulatoryDependencies.isMaterial &&
+    regulatoryDependencies.status !== "obtained" &&
+    category === "feasibility"
+  ) {
+    return languageFallback(language, dependencyText, dependencyText);
+  }
   if (roleAmbiguity && category === "customerClarity") {
     return languageFallback(
       language,
@@ -351,7 +361,7 @@ function scoreMonetization(input, stakeholderRoles = {}, evidenceSignals = {}) {
   return clamp(score);
 }
 
-function scoreFeasibility(input, contradictions, stakeholderRoles = {}, evidenceSignals = {}) {
+function scoreFeasibility(input, contradictions, stakeholderRoles = {}, evidenceSignals = {}, regulatoryDependencies = {}) {
   let score = 7;
   const combined = `${input.businessIdea} ${input.targetCustomer} ${input.problem}`;
   score += hasSpecificity(input.businessIdea) ? 3 : 0;
@@ -364,11 +374,14 @@ function scoreFeasibility(input, contradictions, stakeholderRoles = {}, evidence
   score -= stakeholderRoles.isMarketplace && stakeholderRoles.payerStatus === "ambiguous" ? 2 : 0;
   score += evidenceSignals.hasOperationalEvidence ? 2 : 0;
   score -= evidenceSignals.hasUnsupportedProfitClaim ? 2 : 0;
+  score -= regulatoryDependencies.status === "required" ? 4 : 0;
+  score -= regulatoryDependencies.status === "needs_clarification" ? 2 : 0;
+  score += regulatoryDependencies.status === "obtained" ? 1 : 0;
   score -= isVague(input.businessIdea) ? 4 : 0;
   return clamp(score);
 }
 
-export function detectContradictions(input, language = "en", stakeholderRoles = {}, evidenceSignals = {}) {
+export function detectContradictions(input, language = "en", stakeholderRoles = {}, evidenceSignals = {}, regulatoryDependencies = {}) {
   const contradictions = [];
   const ideaProblemOverlap = overlap(input.businessIdea, input.problem);
   const customerProblemOverlap = overlap(input.targetCustomer, input.problem);
@@ -445,6 +458,18 @@ export function detectContradictions(input, language = "en", stakeholderRoles = 
     });
   }
 
+  if (regulatoryDependencies.hasUnresolvedApproval) {
+    contradictions.push({
+      code: "external_approval_unresolved",
+      severity: "medium",
+      message: languageFallback(
+        language,
+        "The input says an external approval, permit, license, certification, or authorization is required, but does not show that it has been resolved.",
+        "تذكر المدخلات أن هناك موافقة أو تصريحاً أو ترخيصاً أو اعتماداً خارجياً مطلوباً، لكنها لا توضّح أنه تم حلّه."
+      ),
+    });
+  }
+
   return contradictions;
 }
 
@@ -460,7 +485,14 @@ export function buildRuleContext(input, language = "en") {
   };
   const stakeholderRoles = interpretStakeholderRoles(normalized, language);
   const evidenceSignals = interpretEvidenceSignals(normalized, language);
-  const contradictions = detectContradictions(normalized, language, stakeholderRoles, evidenceSignals);
+  const regulatoryDependencies = interpretRegulatoryDependencies(normalized, language);
+  const contradictions = detectContradictions(
+    normalized,
+    language,
+    stakeholderRoles,
+    evidenceSignals,
+    regulatoryDependencies
+  );
 
   return {
     input: normalized,
@@ -468,11 +500,12 @@ export function buildRuleContext(input, language = "en") {
     contradictions,
     stakeholderRoles,
     evidenceSignals,
+    regulatoryDependencies,
   };
 }
 
 export function createScoringCriteria(ruleContext) {
-  const { input, language, contradictions, stakeholderRoles, evidenceSignals } = ruleContext;
+  const { input, language, contradictions, stakeholderRoles, evidenceSignals, regulatoryDependencies } = ruleContext;
 
   return [
     {
@@ -497,7 +530,7 @@ export function createScoringCriteria(ruleContext) {
       min: 0,
       max: 20,
       score: () => scoreNeed(input, evidenceSignals),
-      reason: (score) => reasonFor("marketNeed", score, language, stakeholderRoles, evidenceSignals),
+      reason: (score) => reasonFor("marketNeed", score, language, stakeholderRoles, evidenceSignals, regulatoryDependencies),
     },
     {
       key: "monetizationClarity",
@@ -505,15 +538,16 @@ export function createScoringCriteria(ruleContext) {
       min: 0,
       max: 20,
       score: () => scoreMonetization(input, stakeholderRoles, evidenceSignals),
-      reason: (score) => reasonFor("monetizationClarity", score, language, stakeholderRoles, evidenceSignals),
+      reason: (score) =>
+        reasonFor("monetizationClarity", score, language, stakeholderRoles, evidenceSignals, regulatoryDependencies),
     },
     {
       key: "feasibility",
       label: "feasibility",
       min: 0,
       max: 20,
-      score: () => scoreFeasibility(input, contradictions, stakeholderRoles, evidenceSignals),
-      reason: (score) => reasonFor("feasibility", score, language, stakeholderRoles, evidenceSignals),
+      score: () => scoreFeasibility(input, contradictions, stakeholderRoles, evidenceSignals, regulatoryDependencies),
+      reason: (score) => reasonFor("feasibility", score, language, stakeholderRoles, evidenceSignals, regulatoryDependencies),
     },
   ];
 }
@@ -552,6 +586,9 @@ export function getConfidence(ruleContext, criteria) {
   if (ruleContext.evidenceSignals?.supportLevel === "strong") confidence += 10;
   if (ruleContext.evidenceSignals?.hasUnsupportedClaims) confidence -= 8;
   if (ruleContext.evidenceSignals?.hasStageEvidenceConflict) confidence -= 8;
+  if (ruleContext.regulatoryDependencies?.status === "required") confidence -= 10;
+  if (ruleContext.regulatoryDependencies?.status === "needs_clarification") confidence -= 6;
+  if (ruleContext.regulatoryDependencies?.status === "obtained") confidence += 3;
   confidence -= ruleContext.contradictions.length * 25;
   if (criteria.some((item) => item.score <= 5)) confidence -= 10;
 

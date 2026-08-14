@@ -222,6 +222,7 @@ export function executeValidation(rawInput, language = "en", industrialDetails =
       competitiveAdvantage: rawInput.competitiveAdvantage,
       stakeholderRoles: ruleContext.stakeholderRoles,
       evidenceSignals: ruleContext.evidenceSignals,
+      regulatoryDependencies: ruleContext.regulatoryDependencies,
     },
     stage: rawInput.stage,
   });

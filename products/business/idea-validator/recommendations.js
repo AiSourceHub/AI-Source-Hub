@@ -1,6 +1,7 @@
 import { describeEvidenceGap } from "./evidenceSignals.js";
 import { RecommendationEngine } from "../../../core/engines.js";
 import { getBiggestRisk, getNextAction } from "./rules.js";
+import { describeRegulatoryDependency } from "./regulatoryDependencies.js";
 import { describeStakeholderAmbiguity } from "./stakeholderRoles.js";
 
 export function buildBusinessIdeaRecommendation({
@@ -36,6 +37,7 @@ export function buildBusinessIdeaRecommendation({
     input,
     stage,
     stakeholderRoles: input.stakeholderRoles,
+    regulatoryDependencies: input.regulatoryDependencies,
   });
 
   return {
@@ -87,6 +89,17 @@ function buildPersonalizedBiggestRisk({ lowestCriterion, language = "en", contex
     return language === "ar"
       ? `الخطر الأكبر هو اختبار تنفيذ المشروع بدلاً من اختبار حاجة العميل. خانة المشكلة تشير إلى ${context.executionChallenges}، لكن الفكرة تحتاج أولاً إلى إثبات أن ${context.customerLabel} يواجهون فعلاً صعوبة في ${context.suggestedProblemExample}. بدون هذا الدليل، قد لا تصبح ${context.revenueDescription} أولوية.`
       : `The biggest risk is testing execution work instead of customer demand. Your problem input points to ${context.executionChallenges}, but the business still needs proof that ${context.customerLabel} strongly care about ${context.suggestedProblemExample}. Without that proof, ${context.revenueDescription} may not become a priority.`;
+  }
+
+  if (
+    context.hasMaterialApprovalDependency &&
+    !context.hasMetaProblem &&
+    lowestCriterion.key !== "problemClarity"
+  ) {
+    const dependency = describeRegulatoryDependency(context.regulatoryDependencies, language);
+    return language === "ar"
+      ? `الخطر الأكبر هو أن إطلاق ${context.proposedSolution} قد يتوقف على موافقة خارجية قبل الإطلاق أو البيع. ${dependency} إذا لم يتضح هذا المسار مبكراً، فقد تبدو الفكرة قابلة للتنفيذ بينما يتأخر الاختبار أو الشراء.`
+      : `The biggest risk is that ${context.proposedSolution} may depend on external permission before launch or sale. ${dependency} If this path is not clarified early, the idea may look executable while testing or buying is blocked.`;
   }
 
   if (
@@ -162,6 +175,10 @@ function buildIdeaAction(key, { context, language }) {
       : `Rewrite the problem as: "${context.customerLabel} struggle with ${context.suggestedProblemExample}." Interview 10 people and ask when it last happened, how they solved it, and what it cost. Continue only if at least 6 confirm it is frequent or costly.`;
   }
 
+  if (context.hasMaterialApprovalDependency) {
+    return buildApprovalPathAction(context, language);
+  }
+
   if (context.hasStakeholderAmbiguity && !context.hasMetaProblem && ["customerClarity", "monetizationClarity", "feasibility"].includes(key)) {
     return buildStakeholderClarificationAction(context, language);
   }
@@ -205,6 +222,10 @@ function buildIdeaAction(key, { context, language }) {
 }
 
 function buildMvpAction(key, { context, language }) {
+  if (context.hasMaterialApprovalDependency) {
+    return buildApprovalPathAction(context, language, "mvp");
+  }
+
   if (context.hasStakeholderAmbiguity && !context.hasMetaProblem && ["customerClarity", "monetizationClarity", "feasibility"].includes(key)) {
     return buildStakeholderClarificationAction(context, language);
   }
@@ -240,6 +261,10 @@ function buildMvpAction(key, { context, language }) {
 }
 
 function buildLaunchedAction(key, { context, language }) {
+  if (context.hasMaterialApprovalDependency) {
+    return buildApprovalPathAction(context, language, "launched");
+  }
+
   if (context.hasStakeholderAmbiguity && !context.hasMetaProblem && ["customerClarity", "monetizationClarity", "feasibility"].includes(key)) {
     return buildStakeholderClarificationAction(context, language);
   }
@@ -296,6 +321,26 @@ function buildEvidenceValidationAction(context, language, stage = "idea") {
   return language === "ar"
     ? `اختبر افتراض الطلب مباشرة: قابل 10 أشخاص من ${context.customerLabel} واسألهم عن آخر مرة واجهوا ${context.primaryProblem}. واصل فقط إذا أكد 6 منهم على الأقل أنها مشكلة متكررة أو مكلفة.`
     : `Test the demand assumption directly: interview 10 people from ${context.customerLabel} and ask about the last time they faced ${context.primaryProblem}. Continue only if at least 6 confirm it is frequent or costly.`;
+}
+
+function buildApprovalPathAction(context, language, stage = "idea") {
+  const dependency = context.regulatoryDependencies?.dependencyLabel || (language === "ar" ? "الموافقة الخارجية" : "external approval");
+
+  if (stage === "mvp") {
+    return language === "ar"
+      ? `قبل توسيع النموذج الأولي، حدد مسار ${dependency}: الجهة المسؤولة، المتطلبات المتوقعة، والزمن التقريبي. واصل الاختبار فقط ضمن نطاق لا يتجاوز هذا المسار.`
+      : `Before expanding the MVP, map the ${dependency}: responsible authority, expected requirements, and likely timeline. Continue testing only within a scope that does not bypass that path.`;
+  }
+
+  if (stage === "launched") {
+    return language === "ar"
+      ? `راجع مسار ${dependency} قبل زيادة المبيعات: وثّق الحالة الحالية، المتطلبات المتبقية، ومن يملك قرار الموافقة. لا توسّع التشغيل قبل وضوح هذا الاعتماد.`
+      : `Review the ${dependency} before increasing sales: document current status, remaining requirements, and who owns approval. Do not expand operations until this dependency is clear.`;
+  }
+
+  return language === "ar"
+    ? `قبل البناء، تحقق من مسار ${dependency}: من الجهة أو الطرف الذي يوافق، ما المتطلبات المتوقعة، وكم قد يستغرق ذلك. اعتبر الفكرة قابلة للاختبار فقط إذا كان المسار واضحاً وممكناً.`
+    : `Before building, validate the ${dependency}: who approves it, what requirements are expected, and how long it may take. Treat the idea as testable only if that path is clear and feasible.`;
 }
 
 function buildStakeholderClarificationAction(context, language) {
@@ -367,6 +412,10 @@ function buildRecommendationContext(input, language) {
     hasStakeholderAmbiguity: Boolean(input.stakeholderRoles?.hasRoleAmbiguity),
     evidenceSignals: input.evidenceSignals || {},
     hasMaterialEvidenceGap: Boolean(input.evidenceSignals?.hasUnsupportedClaims),
+    regulatoryDependencies: input.regulatoryDependencies || {},
+    hasMaterialApprovalDependency: Boolean(
+      input.regulatoryDependencies?.isMaterial && input.regulatoryDependencies?.status !== "obtained"
+    ),
     hasMultipleProblems,
     hasMetaProblem,
     focusWarning:
