@@ -21,6 +21,7 @@ import {
 } from "../../../core/localization.js";
 import { evaluateIdeaEligibility } from "../../../core/eligibilityPolicy.js";
 import { assessBusinessIdeaRequest } from "./requestUnderstanding.js";
+import { buildFeasibilityFoundation, buildGuidedFeasibilityFlow } from "./feasibilityFoundation.js";
 
 const contents = { en: contentEn, ar: contentAr };
 const app = typeof document !== "undefined" ? document.querySelector("#app") : null;
@@ -132,16 +133,8 @@ function validateInputs(rawInput, language) {
   return { analysis, validation };
 }
 
-export function executeValidation(rawInput, language = "en", industrialDetails = {}) {
+export function executeValidation(rawInput, language = "en", industrialDetails = {}, feasibilityAnswers = {}) {
   const { analysis, validation } = validateForExecution(rawInput, language);
-  if (!validation.ok) {
-    return {
-      ok: false,
-      state: "invalid",
-      analysis,
-      validation,
-    };
-  }
 
   const eligibility = evaluateIdeaEligibility(rawInput, language);
   if (eligibility.status !== "eligible") {
@@ -159,8 +152,10 @@ export function executeValidation(rawInput, language = "en", industrialDetails =
     };
   }
 
-  const requestAssessment = assessBusinessIdeaRequest(rawInput, language, industrialDetails);
-  if (requestAssessment.status === "needs_clarification") {
+  const feasibilityFoundation = buildFeasibilityFoundation(rawInput, language, { details: { ...industrialDetails, ...feasibilityAnswers } });
+  const requestAssessment = validation.ok ? assessBusinessIdeaRequest(rawInput, language, industrialDetails) : null;
+
+  if (requestAssessment?.status === "needs_clarification") {
     return {
       ok: true,
       state: "clarification",
@@ -172,10 +167,11 @@ export function executeValidation(rawInput, language = "en", industrialDetails =
       title: requestAssessment.title,
       presentation: requestAssessment.presentation,
       clarificationFlow: requestAssessment.clarificationFlow,
+      feasibilityFoundation,
     };
   }
 
-  if (requestAssessment.status === "ready_for_industrial_analysis") {
+  if (requestAssessment?.status === "ready_for_industrial_analysis") {
     const industrialReport = buildIndustrialPreliminaryAnalysis({
       rawInput,
       requestAssessment,
@@ -193,6 +189,41 @@ export function executeValidation(rawInput, language = "en", industrialDetails =
       title: industrialReport.title,
       industrialReport,
       industrialDetails,
+      feasibilityFoundation,
+    };
+  }
+
+  const guidedFeasibility = buildGuidedFeasibilityFlow(rawInput, language, {
+    foundation: feasibilityFoundation,
+    answers: feasibilityAnswers,
+    validation,
+  });
+
+  if (guidedFeasibility.shouldGuide) {
+    return {
+      ok: true,
+      state: "clarification",
+      evaluationStatus:
+        guidedFeasibility.status === "ready_for_preliminary_feasibility"
+          ? "feasibility_ready"
+          : "feasibility_followup",
+      analysis,
+      validation,
+      message: guidedFeasibility.message,
+      title: guidedFeasibility.title,
+      presentation: guidedFeasibility.presentation,
+      clarificationFlow: guidedFeasibility.clarificationFlow,
+      feasibilityFoundation,
+      feasibilityGuidance: guidedFeasibility,
+    };
+  }
+
+  if (!validation.ok) {
+    return {
+      ok: false,
+      state: "invalid",
+      analysis,
+      validation,
     };
   }
 
@@ -256,6 +287,7 @@ export function executeValidation(rawInput, language = "en", industrialDetails =
     improvedIdea,
     report,
     contradictions: ruleContext.contradictions,
+    feasibilityFoundation,
   };
 }
 

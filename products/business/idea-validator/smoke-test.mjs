@@ -4,6 +4,7 @@ import contentEn from "./content.en.js";
 import { inputSchema } from "./schema.js";
 import { readFileSync } from "node:fs";
 import { buildIndustrialReportText } from "./industrialAnalysis.js";
+import { buildFeasibilityFoundation } from "./feasibilityFoundation.js";
 import {
   assessBusinessIdeaRequest,
   industrialClarificationFields,
@@ -666,6 +667,438 @@ if (!regulatoryDependenciesPassed) {
   process.exitCode = 1;
 }
 
+const feasibilityFoundationCases = [
+  {
+    name: "industrial receives industrial feasibility questions",
+    language: "en",
+    input: {
+      businessIdea: "A small manufacturing workshop producing custom metal brackets",
+      targetCustomer: "Local contractors",
+      problem: "Contractors wait too long for small custom batches.",
+      monetization: "Pay per approved order.",
+    },
+    expectType: "industrial_manufacturing",
+    expectRequiredCategories: ["equipmentTools", "inventoryMaterials", "operatingCapacity"],
+  },
+  {
+    name: "service receives labor and delivery questions",
+    language: "en",
+    input: {
+      businessIdea: "A mobile car cleaning service for office parking lots",
+      targetCustomer: "Office employees with limited time",
+      problem: "They lose weekend time handling basic car cleaning.",
+      monetization: "Customers pay per cleaning visit.",
+    },
+    expectType: "service",
+    expectQuestionText: ["Who will deliver the service", "clients, visits, sessions, or jobs"],
+  },
+  {
+    name: "digital does not receive machinery or raw material questions",
+    language: "en",
+    input: {
+      businessIdea: "A SaaS dashboard that automates weekly reporting for sales teams",
+      targetCustomer: "Sales managers at small software companies",
+      problem: "Managers lose time collecting weekly updates from several tools.",
+      monetization: "Monthly subscription per team.",
+    },
+    expectType: "digital_software",
+    forbiddenCategories: ["inventoryMaterials"],
+    forbiddenText: ["raw materials", "machinery"],
+  },
+  {
+    name: "marketplace receives two-sided operating questions",
+    language: "en",
+    input: {
+      businessIdea: "A marketplace platform connecting homeowners with maintenance providers",
+      targetCustomer: "Homeowners and independent technicians",
+      problem: "Homeowners struggle to find available technicians quickly.",
+      monetization: "Commission on completed bookings.",
+    },
+    expectType: "marketplace_platform",
+    expectQuestionText: ["both sides", "providers", "buyers"],
+  },
+  {
+    name: "known answers are not asked again",
+    language: "en",
+    input: {
+      businessIdea: "A retail shop selling imported spare parts",
+      targetCustomer: "Small workshop owners",
+      problem: "They wait weeks for replacement parts.",
+      monetization: "Margin on products. Budget 120,000 SAR. Location Riyadh. Inventory from two suppliers. Monthly rent and payroll are estimated.",
+    },
+    expectType: "retail_trading",
+    forbiddenCategories: ["startupCapital", "locationPremises", "inventoryMaterials", "recurringCosts"],
+  },
+  {
+    name: "calculated estimate is separated from fact and assumption",
+    language: "en",
+    input: {
+      businessIdea: "A mobile service for repairing office printers",
+      targetCustomer: "Small offices",
+      problem: "Printer failures interrupt daily work.",
+      monetization: "Per-visit service fee. Startup cost calculated from 2 technician kits x 6,000 SAR plus one vehicle.",
+    },
+    expectType: "service",
+    expectStatus: { startupCapital: "calculated_estimate", equipmentTools: "calculated_estimate" },
+  },
+  {
+    name: "insufficient evidence blocks false precision",
+    language: "en",
+    input: {
+      businessIdea: "A professional training service for new managers",
+      targetCustomer: "Small company managers",
+      problem: "They make repeated hiring and feedback mistakes.",
+      monetization: "Per-seat workshop fee.",
+    },
+    expectType: "service",
+    expectCanEstimate: false,
+    expectPrecision: "not_trustworthy",
+  },
+  {
+    name: "arabic service feasibility questions",
+    language: "ar",
+    input: {
+      businessIdea: "خدمة صيانة منزلية سريعة للأسر",
+      targetCustomer: "الأسر في المدن الكبيرة",
+      problem: "يتأخرون في إيجاد مساعدة موثوقة عند حدوث أعطال متكررة.",
+      monetization: "الدفع لكل زيارة.",
+    },
+    expectType: "service",
+    expectArabic: true,
+    expectQuestionText: ["من سيقدم الخدمة", "كم عميلاً"],
+  },
+  {
+    name: "generic fallback remains domain agnostic",
+    language: "en",
+    input: {
+      businessIdea: "A membership offer for a local community of creators",
+      targetCustomer: "Independent creators",
+      problem: "They need a structured way to stay accountable every week.",
+      monetization: "Monthly membership.",
+    },
+    expectType: "generic",
+    expectRequiredCategories: ["startupCapital", "recurringCosts", "implementationTimeline"],
+  },
+];
+
+const feasibilityFoundationResults = feasibilityFoundationCases.map((testCase) => {
+  const foundation = buildFeasibilityFoundation(testCase.input, testCase.language);
+  const requiredCategories = foundation.requiredQuestions.map((question) => question.category);
+  const questionText = foundation.requiredQuestions.map((question) => question.question).join(" ");
+  const allQuestionText = [...foundation.requiredQuestions, ...foundation.optionalQuestions]
+    .map((question) => `${question.question} ${question.evidenceRequired}`)
+    .join(" ");
+  const statuses = Object.fromEntries(foundation.categories.map((item) => [item.category, item.evidenceType]));
+
+  return {
+    name: testCase.name,
+    type: foundation.businessType,
+    direction: foundation.direction,
+    requiredCategories,
+    optionalCategories: foundation.optionalQuestions.map((question) => question.category),
+    estimateReadiness: foundation.estimateReadiness,
+    statuses,
+    hasRequiredCategories: (testCase.expectRequiredCategories || []).every((category) => requiredCategories.includes(category)),
+    hasQuestionText: (testCase.expectQuestionText || []).every((text) => questionText.includes(text)),
+    hasForbiddenCategories: (testCase.forbiddenCategories || []).some((category) => requiredCategories.includes(category)),
+    hasForbiddenText: (testCase.forbiddenText || []).some((text) => allQuestionText.toLowerCase().includes(text.toLowerCase())),
+    hasEnglishLeakInArabic: testCase.expectArabic ? /What|Which|How|State whether|Startup capital/.test(allQuestionText) : false,
+    expected: testCase,
+  };
+});
+
+const feasibilityFoundationPassed =
+  feasibilityFoundationResults.every((result) => result.type === result.expected.expectType) &&
+  feasibilityFoundationResults.every((result) => result.hasRequiredCategories) &&
+  feasibilityFoundationResults.every((result) => result.hasQuestionText) &&
+  feasibilityFoundationResults.every((result) => !result.hasForbiddenCategories && !result.hasForbiddenText) &&
+  feasibilityFoundationResults.every((result) =>
+    result.expected.expectCanEstimate === undefined
+      ? true
+      : result.estimateReadiness.canEstimate === result.expected.expectCanEstimate
+  ) &&
+  feasibilityFoundationResults.every((result) =>
+    result.expected.expectPrecision ? result.estimateReadiness.precision === result.expected.expectPrecision : true
+  ) &&
+  feasibilityFoundationResults.every((result) =>
+    result.expected.expectStatus
+      ? Object.entries(result.expected.expectStatus).every(([category, status]) => result.statuses[category] === status)
+      : true
+  ) &&
+  feasibilityFoundationResults.every((result) => !result.hasEnglishLeakInArabic) &&
+  feasibilityFoundationResults.find((result) => result.name === "known answers are not asked again")?.statuses.startupCapital !== "unresolved_unknown" &&
+  feasibilityFoundationResults.find((result) => result.name === "known answers are not asked again")?.statuses.recurringCosts === "assumption";
+
+const feasibilityIntegrationResult = executeValidation(
+  {
+    businessIdea: "A SaaS dashboard for weekly sales reporting",
+    targetCustomer: "Sales managers at small software companies",
+    problem: "Managers lose time collecting updates every week.",
+    monetization: "Monthly subscription per team.",
+  },
+  "en"
+);
+const feasibilityIntegrationPassed =
+  feasibilityIntegrationResult.evaluationStatus === "evaluated" &&
+  feasibilityIntegrationResult.feasibilityFoundation?.type === "capital_operational_feasibility_foundation" &&
+  feasibilityIntegrationResult.feasibilityFoundation?.businessType === "digital_software";
+
+console.log(JSON.stringify({ feasibilityFoundationPassed, feasibilityIntegrationPassed, feasibilityFoundationResults }, null, 2));
+
+if (!feasibilityFoundationPassed || !feasibilityIntegrationPassed) {
+  process.exitCode = 1;
+}
+
+const guidedFeasibilityArabicSeed = executeValidation(
+  {
+    businessIdea: "مغسلة سيارات آلية",
+    targetCustomer: "",
+    problem: "",
+    monetization: "",
+  },
+  "ar"
+);
+
+const guidedFeasibilityQuestion = executeValidation(
+  {
+    businessIdea: "مغسلة سيارات آلية",
+    targetCustomer: "أصحاب السيارات في الأحياء السكنية",
+    problem: "كم تكلف الفكرة وما المعدات والتراخيص والعمالة المطلوبة؟",
+    monetization: "الدفع لكل عملية غسيل.",
+  },
+  "ar"
+);
+
+const guidedFeasibilityCompleted = executeValidation(
+  {
+    businessIdea: "مغسلة سيارات آلية",
+    targetCustomer: "",
+    problem: "",
+    monetization: "",
+  },
+  "ar",
+  {},
+  {
+    userExperienceLevel: "beginner_first_business",
+    projectStageIntent: "initial_idea",
+    countryCity: "السعودية، الرياض",
+    operatingFormat: "fixed_site",
+    deliveryModel: "آلي مع إشراف عاملين",
+    targetCustomerPromise: "أصحاب السيارات يحصلون على غسيل سريع ومنظم",
+    targetCapacity: "40 سيارة يومياً",
+    premisesStatus: "rented",
+    budgetRange: "300,000 إلى 500,000 ريال",
+    quotationStatus: "لا توجد عروض معدات بعد",
+    equipmentLevel: "معدات آلية متوسطة",
+    utilitiesNeeds: "ماء وكهرباء وتصريف وإعادة استخدام للمياه",
+    staffingPlan: "مشغلان ومحاسب وفني صيانة",
+    licensesDependencies: "ترخيص البلدية غير معروف",
+    suppliersDependencies: "مورد معدات ومواد تنظيف ومقاول صيانة",
+    knownFacts: "تم تحديد فكرة المشروع فقط",
+    researchNeeded: "تكلفة المعدات ومسار الترخيص وتكلفة التشغيل",
+    assumptionsToValidate: "عدد السيارات اليومي وسعر الخدمة المناسب",
+  }
+);
+
+const guidedFeasibilityEnglishQuestion = executeValidation(
+  {
+    businessIdea: "An automated car wash",
+    targetCustomer: "Drivers near residential neighborhoods",
+    problem: "How much will it cost and what equipment, licenses, and staff are needed?",
+    monetization: "Customers pay per wash.",
+  },
+  "en"
+);
+
+const beginnerInitialIdea = executeValidation(
+  {
+    businessIdea: "A simple home baking service",
+    targetCustomer: "",
+    problem: "",
+    monetization: "",
+  },
+  "en",
+  {},
+  {
+    userExperienceLevel: "beginner_first_business",
+    projectStageIntent: "initial_idea",
+  }
+);
+
+const experiencedInitialIdea = executeValidation(
+  {
+    businessIdea: "A SaaS app for independent clinic scheduling",
+    targetCustomer: "",
+    problem: "",
+    monetization: "",
+  },
+  "en",
+  {},
+  {
+    userExperienceLevel: "experienced_new_idea",
+    projectStageIntent: "initial_idea",
+  }
+);
+
+const beginnerOperatingBusiness = executeValidation(
+  {
+    businessIdea: "A neighborhood laundry shop that already operates",
+    targetCustomer: "",
+    problem: "",
+    monetization: "",
+  },
+  "en",
+  {},
+  {
+    userExperienceLevel: "beginner_first_business",
+    projectStageIntent: "operating",
+  }
+);
+
+const existingOwnerImproving = executeValidation(
+  {
+    businessIdea: "A salon owner wants to reduce waiting time and improve repeat bookings",
+    targetCustomer: "",
+    problem: "",
+    monetization: "",
+  },
+  "en",
+  {},
+  {
+    userExperienceLevel: "existing_business_owner",
+    projectStageIntent: "improving",
+  }
+);
+
+const experiencedOwnerExpanding = executeValidation(
+  {
+    businessIdea: "A profitable catering business wants to expand to a second production kitchen",
+    targetCustomer: "",
+    problem: "",
+    monetization: "",
+  },
+  "en",
+  {},
+  {
+    userExperienceLevel: "experienced_new_idea",
+    projectStageIntent: "expanding",
+  }
+);
+
+const switchedProfile = executeValidation(
+  {
+    businessIdea: "مغسلة سيارات آلية",
+    targetCustomer: "",
+    problem: "",
+    monetization: "",
+  },
+  "ar",
+  {},
+  {
+    userExperienceLevel: "existing_business_owner",
+    projectStageIntent: "improving",
+    countryCity: "الرياض",
+  }
+);
+
+const guidedNormalIdea = executeValidation(
+  {
+    businessIdea: "A subscription inventory planning tool for independent restaurants",
+    targetCustomer: "Independent restaurant owners with one to three locations.",
+    problem: "They waste money every week because food inventory is overordered.",
+    monetization: "Monthly subscription per restaurant location.",
+  },
+  "en"
+);
+
+const guidedIneligible = executeValidation(
+  {
+    businessIdea: "A phishing scam service that steals login details",
+    targetCustomer: "People trying to commit identity theft",
+    problem: "They need better ways to steal accounts.",
+    monetization: "Monthly fee.",
+  },
+  "en"
+);
+
+const guidedAmbiguousFinance = executeValidation(
+  {
+    businessIdea:
+      "A platform connects small businesses seeking funding with people providing funds in exchange for a periodic financial return.",
+    targetCustomer: "Small businesses seeking funding",
+    problem: "They need funding quickly.",
+    monetization: "Fee on funded amounts with repayment period.",
+  },
+  "en"
+);
+
+const guidedFeasibilityPassed =
+  guidedFeasibilityArabicSeed.evaluationStatus === "feasibility_followup" &&
+  guidedFeasibilityArabicSeed.presentation.heading === "دعنا نفهم فكرتك بشكل أدق" &&
+  guidedFeasibilityArabicSeed.clarificationFlow?.steps?.[0]?.fields?.some((field) => field.labelText === "أي وصف يناسبك أكثر؟") &&
+  guidedFeasibilityArabicSeed.clarificationFlow?.steps?.[0]?.fields?.some((field) => field.labelText === "في أي مرحلة يوجد المشروع؟") &&
+  guidedFeasibilityArabicSeed.clarificationFlow?.steps?.some((step) => step.title === "إعداد الفكرة") &&
+  guidedFeasibilityArabicSeed.clarificationFlow?.steps?.some((step) => step.title === "رأس المال والمعدات") &&
+  guidedFeasibilityArabicSeed.clarificationFlow?.steps?.some((step) => step.title === "التشغيل") &&
+  guidedFeasibilityArabicSeed.clarificationFlow?.steps?.some((step) => step.title === "الأدلة والبحث") &&
+  guidedFeasibilityQuestion.evaluationStatus === "feasibility_followup" &&
+  !guidedFeasibilityQuestion.score &&
+  !guidedFeasibilityQuestion.biggestRisk &&
+  !guidedFeasibilityQuestion.report &&
+  guidedFeasibilityCompleted.evaluationStatus === "feasibility_ready" &&
+  !guidedFeasibilityCompleted.score &&
+  guidedFeasibilityCompleted.feasibilityGuidance?.structuredReadiness?.originalInput.problem === "" &&
+  guidedFeasibilityEnglishQuestion.evaluationStatus === "feasibility_followup" &&
+  guidedFeasibilityEnglishQuestion.presentation.heading === "Let’s understand your idea more clearly" &&
+  beginnerInitialIdea.feasibilityGuidance?.userProfile?.adaptationStyle === "beginner" &&
+  JSON.stringify(beginnerInitialIdea.clarificationFlow?.steps || []).includes("Simple answer is fine") &&
+  experiencedInitialIdea.feasibilityGuidance?.userProfile?.adaptationStyle === "experienced" &&
+  JSON.stringify(experiencedInitialIdea.clarificationFlow?.steps || []).includes("unit economics") &&
+  beginnerOperatingBusiness.feasibilityGuidance?.userProfile?.isBeginner === true &&
+  beginnerOperatingBusiness.feasibilityGuidance?.userProfile?.isExistingBusinessPath === true &&
+  JSON.stringify(beginnerOperatingBusiness.clarificationFlow?.steps || []).includes("Current revenue") &&
+  existingOwnerImproving.feasibilityGuidance?.userProfile?.adaptationStyle === "existing_business" &&
+  JSON.stringify(existingOwnerImproving.clarificationFlow?.steps || []).includes("Current costs and margins") &&
+  experiencedOwnerExpanding.feasibilityGuidance?.userProfile?.isExperienced === true &&
+  experiencedOwnerExpanding.feasibilityGuidance?.userProfile?.isExistingBusinessPath === true &&
+  JSON.stringify(experiencedOwnerExpanding.clarificationFlow?.steps || []).includes("Current bottlenecks") &&
+  switchedProfile.feasibilityGuidance?.userProfile?.experienceLevel === "existing_business_owner" &&
+  switchedProfile.feasibilityGuidance?.userProfile?.projectStageIntent === "improving" &&
+  switchedProfile.feasibilityGuidance?.answers?.countryCity === "الرياض" &&
+  !switchedProfile.report &&
+  !switchedProfile.biggestRisk &&
+  guidedNormalIdea.evaluationStatus === "evaluated" &&
+  guidedIneligible.evaluationStatus === "ineligible" &&
+  !guidedIneligible.score &&
+  guidedAmbiguousFinance.evaluationStatus === "needs_clarification" &&
+  !guidedAmbiguousFinance.score;
+
+console.log(
+  JSON.stringify(
+    {
+      guidedFeasibilityPassed,
+      guidedFeasibilityArabicSeed: {
+        status: guidedFeasibilityArabicSeed.evaluationStatus,
+        heading: guidedFeasibilityArabicSeed.presentation?.heading,
+        steps: guidedFeasibilityArabicSeed.clarificationFlow?.steps?.map((step) => step.title),
+      },
+      guidedFeasibilityCompleted: {
+        status: guidedFeasibilityCompleted.evaluationStatus,
+        heading: guidedFeasibilityCompleted.presentation?.heading,
+      },
+      guidedNormalIdea: guidedNormalIdea.evaluationStatus,
+      guidedIneligible: guidedIneligible.evaluationStatus,
+      guidedAmbiguousFinance: guidedAmbiguousFinance.evaluationStatus,
+    },
+    null,
+    2
+  )
+);
+
+if (!guidedFeasibilityPassed) {
+  process.exitCode = 1;
+}
+
 const arabicPersonalization = executeValidation(
   {
     businessIdea: "خدمة تساعد العيادات الصغيرة على تقليل المواعيد الفائتة",
@@ -1045,7 +1478,7 @@ const structuredClarificationFlowPassed =
   plasticRecyclingCase.problem === originalPlasticProblem &&
   requestGatePageSource.includes("useState(initialIndustrialDetails)") &&
   requestGatePageSource.includes("setIndustrialClarificationStep") &&
-  requestGatePageSource.includes("handleIndustrialDetailChange") &&
+  requestGatePageSource.includes("handleClarificationDetailChange") &&
   requestGatePageSource.includes("handleContinueIndustrialClarification") &&
   requestGatePageSource.includes("clarification-fields") &&
   requestGatePageSource.includes("clarification-stepper") &&

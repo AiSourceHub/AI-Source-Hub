@@ -13,6 +13,7 @@ import { inputSchema } from '../../products/business/idea-validator/questions.js
 import { applyDocumentLocale, bindLanguageSwitcher } from '../../core/localization.js';
 import { evaluateIdeaEligibility } from '../../core/eligibilityPolicy.js';
 import { assessBusinessIdeaRequest } from '../../products/business/idea-validator/requestUnderstanding.js';
+import { buildFeasibilityFoundation, buildGuidedFeasibilityFlow } from '../../products/business/idea-validator/feasibilityFoundation.js';
 
 const contentMap = { en: contentEn, ar: contentAr };
 
@@ -110,6 +111,8 @@ const initialIndustrialDetails = {
   salesScope: '',
 };
 
+const initialFeasibilityAnswers = {};
+
 function buildEngineInput(formData, language = 'en') {
   const fieldPrefixes =
     language === 'ar'
@@ -169,17 +172,8 @@ function deriveReportSignals(result, formData, content) {
   };
 }
 
-function executeBusinessValidation(rawInput, language, industrialDetails = {}) {
+function executeBusinessValidation(rawInput, language, industrialDetails = {}, feasibilityAnswers = {}) {
   const { analysis, validation } = validateForExecution(rawInput, language);
-
-  if (!validation.ok) {
-    return {
-      ok: false,
-      state: 'invalid',
-      analysis,
-      validation,
-    };
-  }
 
   const eligibility = evaluateIdeaEligibility(rawInput, language);
   if (eligibility.status !== 'eligible') {
@@ -197,8 +191,10 @@ function executeBusinessValidation(rawInput, language, industrialDetails = {}) {
     };
   }
 
-  const requestAssessment = assessBusinessIdeaRequest(rawInput, language, industrialDetails);
-  if (requestAssessment.status === 'needs_clarification') {
+  const feasibilityFoundation = buildFeasibilityFoundation(rawInput, language, { details: { ...industrialDetails, ...feasibilityAnswers } });
+  const requestAssessment = validation.ok ? assessBusinessIdeaRequest(rawInput, language, industrialDetails) : null;
+
+  if (requestAssessment?.status === 'needs_clarification') {
     return {
       ok: true,
       state: 'clarification',
@@ -210,10 +206,11 @@ function executeBusinessValidation(rawInput, language, industrialDetails = {}) {
       title: requestAssessment.title,
       presentation: requestAssessment.presentation,
       clarificationFlow: requestAssessment.clarificationFlow,
+      feasibilityFoundation,
     };
   }
 
-  if (requestAssessment.status === 'ready_for_industrial_analysis') {
+  if (requestAssessment?.status === 'ready_for_industrial_analysis') {
     const industrialReport = buildIndustrialPreliminaryAnalysis({
       rawInput,
       requestAssessment,
@@ -231,6 +228,41 @@ function executeBusinessValidation(rawInput, language, industrialDetails = {}) {
       title: industrialReport.title,
       industrialReport,
       industrialDetails,
+      feasibilityFoundation,
+    };
+  }
+
+  const guidedFeasibility = buildGuidedFeasibilityFlow(rawInput, language, {
+    foundation: feasibilityFoundation,
+    answers: feasibilityAnswers,
+    validation,
+  });
+
+  if (guidedFeasibility.shouldGuide) {
+    return {
+      ok: true,
+      state: 'clarification',
+      evaluationStatus:
+        guidedFeasibility.status === 'ready_for_preliminary_feasibility'
+          ? 'feasibility_ready'
+          : 'feasibility_followup',
+      analysis,
+      validation,
+      message: guidedFeasibility.message,
+      title: guidedFeasibility.title,
+      presentation: guidedFeasibility.presentation,
+      clarificationFlow: guidedFeasibility.clarificationFlow,
+      feasibilityFoundation,
+      feasibilityGuidance: guidedFeasibility,
+    };
+  }
+
+  if (!validation.ok) {
+    return {
+      ok: false,
+      state: 'invalid',
+      analysis,
+      validation,
     };
   }
 
@@ -297,6 +329,7 @@ function executeBusinessValidation(rawInput, language, industrialDetails = {}) {
     improvedIdea,
     report,
     contradictions: ruleContext.contradictions,
+    feasibilityFoundation,
   };
 }
 
@@ -342,6 +375,7 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
   }, [language]);
   const [formData, setFormData] = useState(initialFormData);
   const [industrialDetails, setIndustrialDetails] = useState(initialIndustrialDetails);
+  const [feasibilityAnswers, setFeasibilityAnswers] = useState(initialFeasibilityAnswers);
   const [industrialClarificationStep, setIndustrialClarificationStep] = useState(1);
   const [clarificationErrors, setClarificationErrors] = useState({});
   const [currentStep, setCurrentStep] = useState(1);
@@ -380,7 +414,7 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
   useEffect(() => {
     if (!result) return;
 
-    const localizedResult = executeBusinessValidation(buildEngineInput(formData, language), language, industrialDetails);
+    const localizedResult = executeBusinessValidation(buildEngineInput(formData, language), language, industrialDetails, feasibilityAnswers);
     if (!localizedResult.ok) return;
 
     setResult(localizedResult);
@@ -396,9 +430,13 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
     }
   };
 
-  const handleIndustrialDetailChange = (event) => {
+  const handleClarificationDetailChange = (event) => {
     const { name, value } = event.target;
-    setIndustrialDetails((current) => ({ ...current, [name]: value }));
+    if (result?.clarificationFlow?.type === 'feasibility_guided') {
+      setFeasibilityAnswers((current) => ({ ...current, [name]: value }));
+    } else {
+      setIndustrialDetails((current) => ({ ...current, [name]: value }));
+    }
     setClarificationErrors((current) => ({ ...current, [name]: '' }));
   };
 
@@ -410,7 +448,7 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
 
     try {
       const engineInput = buildEngineInput(formData, language);
-      const validationResult = executeBusinessValidation(engineInput, language, industrialDetails);
+      const validationResult = executeBusinessValidation(engineInput, language, industrialDetails, feasibilityAnswers);
 
       if (!validationResult.ok) {
         const fieldErrors = {};
@@ -445,12 +483,13 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
 
   const handleContinueIndustrialClarification = () => {
     const engineInput = buildEngineInput(formData, language);
-    const validationResult = executeBusinessValidation(engineInput, language, industrialDetails);
+    const validationResult = executeBusinessValidation(engineInput, language, industrialDetails, feasibilityAnswers);
 
-    if (validationResult.evaluationStatus === 'needs_clarification') {
+    if (['needs_clarification', 'feasibility_followup'].includes(validationResult.evaluationStatus)) {
       const missingFields = validationResult.clarificationFlow?.steps?.flatMap((step) => step.fields) || [];
       const nextErrors = missingFields.reduce((messages, field) => {
-        if (!industrialDetails[field.id]) {
+        const source = validationResult.clarificationFlow?.type === 'feasibility_guided' ? feasibilityAnswers : industrialDetails;
+        if (field.required && !source[field.id]) {
           messages[field.id] = language === 'ar' ? 'هذا الحقل مطلوب للمتابعة.' : 'This field is required to continue.';
         }
         return messages;
@@ -490,6 +529,7 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
   const handleReset = () => {
     setFormData(initialFormData);
     setIndustrialDetails(initialIndustrialDetails);
+    setFeasibilityAnswers(initialFeasibilityAnswers);
     setIndustrialClarificationStep(1);
     setClarificationErrors({});
     setCurrentStep(1);
@@ -511,6 +551,7 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
   const clarificationFlow = result?.clarificationFlow;
   const clarificationSteps = clarificationFlow?.steps || [];
   const currentClarificationStep = clarificationSteps[Math.min(industrialClarificationStep, clarificationSteps.length) - 1];
+  const activeClarificationDetails = clarificationFlow?.type === 'feasibility_guided' ? feasibilityAnswers : industrialDetails;
 
   const main = (
     <div className="validator-shell">
@@ -712,8 +753,8 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
                                 <select
                                   className="field__control"
                                   name={field.id}
-                                  value={industrialDetails[field.id] || ''}
-                                  onChange={handleIndustrialDetailChange}
+                                  value={activeClarificationDetails[field.id] || ''}
+                                  onChange={handleClarificationDetailChange}
                                   required
                                 >
                                   <option value="">{field.placeholderText}</option>
@@ -727,8 +768,8 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
                                 <textarea
                                   className="field__control field__control--textarea"
                                   name={field.id}
-                                  value={industrialDetails[field.id] || ''}
-                                  onChange={handleIndustrialDetailChange}
+                                  value={activeClarificationDetails[field.id] || ''}
+                                  onChange={handleClarificationDetailChange}
                                   placeholder={field.placeholderText}
                                   required
                                 />
@@ -736,12 +777,14 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
                                 <input
                                   className="field__control"
                                   name={field.id}
-                                  value={industrialDetails[field.id] || ''}
-                                  onChange={handleIndustrialDetailChange}
+                                  value={activeClarificationDetails[field.id] || ''}
+                                  onChange={handleClarificationDetailChange}
                                   placeholder={field.placeholderText}
                                   required
                                 />
                               )}
+                              {field.sourceLabel ? <span className="field__help">{field.sourceLabel}</span> : null}
+                              {field.helpText ? <span className="field__help">{field.helpText}</span> : null}
                               <span className="field__error">{clarificationErrors[field.id] || ''}</span>
                             </label>
                           ))}

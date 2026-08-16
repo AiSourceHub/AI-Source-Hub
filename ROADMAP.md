@@ -53,6 +53,10 @@ Current platform capabilities:
 - Business Idea Validator stakeholder-role reasoning implemented locally to improve domain-agnostic interpretation of end users, buyers/customers, payers, approvers, beneficiaries, and provider/operator roles without adding UI fields or new score categories
 - Business Idea Validator evidence/assumption reasoning implemented locally to distinguish unsupported claims from user-stated validation evidence such as customer interviews, paying customers, pilots, usage metrics, supplier quotations, operational data, and institutional discussions, with conservative confidence, scoring rationale, contradiction, and recommendation adjustments
 - Business Idea Validator regulatory/approval dependency reasoning implemented locally to detect user-stated external permission paths such as permits, licensed professionals, medical or clinical approval, municipal authorization, inspections, import/export clearance, institutional vendor approval, platform approval, and facility approval, with conservative feasibility, confidence, contradiction, risk, and next-action adjustments
+- Capital & Operational Feasibility foundation started locally with a domain-agnostic feasibility model for startup capital, recurring operating costs, location, equipment, inventory/materials, labor, licenses/compliance, suppliers/dependencies, operating capacity, implementation timeline, and evidence quality; adaptive bilingual question groups now cover industrial/manufacturing, service, retail/trading, digital/software, marketplace/platform, and generic fallback cases without producing unsupported figures
+- Business Idea Validator unified guided journey started locally: feasibility, capital, location, equipment, labor, operations, research, and implementation planning are internal stages of the validator experience, not separate user-facing products. The first visible guided follow-up now appears when an early idea or founder feasibility question needs structured answers before scoring.
+- Business Idea Validator guided journey now captures user experience level and project stage as separate structured dimensions. It adapts question wording and depth for beginners, experienced founders, and existing-business owners while preserving the original idea/problem fields.
+- Existing-business paths now request current operating evidence such as revenue, costs, margins, customer volume, repeat business, capacity, staffing, location/equipment bottlenecks, and the improvement or expansion objective before future reports compare current performance with the proposed change.
 
 ## 3. Milestones
 
@@ -173,6 +177,8 @@ A product is complete only when:
 
 ### Next
 
+- Capital & Operational Feasibility Phase 2: turn the guided follow-up readiness state into a coherent preliminary feasibility output covering market/customer need, feasibility, capital confidence, cost categories, location, equipment, labor, operating model, licenses/dependencies, risks, unknowns, and next actions without inventing figures.
+- Use the captured user experience level and project stage to tailor the preliminary feasibility report structure for beginners, experienced founders, and existing-business improvement/expansion cases.
 - Business Idea Validator v2 external-evidence readiness: add sourced market research, independently verified supplier pricing, regulatory evidence, and certified-feasibility handoff guidance where appropriate.
 - Add shared product navigation.
 - Build Business Name Generator.
@@ -203,6 +209,9 @@ A product is complete only when:
 | Lack of browser testing | Add manual browser checks to the Definition of Done before release candidate. |
 | Treating stated claims as verified facts | Keep deterministic evidence reasoning conservative and require explicit user-stated validation signals before increasing confidence. |
 | Inventing legal or regulatory requirements | Treat approvals and licenses as dependencies to check, not rulings, and avoid sector-name-only penalties. |
+| Producing false precision in capital estimates | Do not calculate capital or operating figures until required inputs and evidence quality are separated. |
+| Fragmenting the user journey into disconnected tools | Keep feasibility, capital, location, labor, operations, research, and implementation planning as internal stages inside Business Idea Validator unless a later product has a clearly separate job. |
+| Treating every user as the same type of founder | Capture experience level and project stage explicitly, keep them separate, and adapt question depth without making assumptions from writing style. |
 
 ## 10. Progress Tracking
 
@@ -214,4 +223,4 @@ A product is complete only when:
 | Product Suite | Current | 35% | Stabilize active products before adding the next product. |
 | Quality and Release Candidate | Completed | 100% | Preserve regression checks while planning the next product. |
 | Public Launch | Completed | 100% | Prepare public launch communication and post-launch monitoring. |
-| Business Idea Validator v2 | In local validation | Phase 2 + general reasoning | Validate the plastic-recycling industrial report, evidence/assumption reasoning, and regulatory/approval dependency reasoning in browser QA before approving production deployment. |
+| Business Idea Validator v2 | In local validation | Phase 2 + general reasoning + guided feasibility follow-up | Validate the industrial report, evidence/assumption reasoning, regulatory/approval dependency reasoning, and unified guided feasibility follow-up in browser QA before approving production deployment. |
