@@ -981,7 +981,7 @@ export const feasibilityCategories = Object.keys(categoryLabels);
 export function buildFeasibilityFoundation(input = {}, language = "en", options = {}) {
   const lang = language === "ar" ? "ar" : "en";
   const combined = textOf(input, options.details);
-  const businessType = classifyBusinessType(combined);
+  const businessType = options.businessTypeOverride || classifyBusinessType(combined);
   const requiredCategories = requiredByType[businessType] || requiredByType.generic;
   const optionalCategories = optionalByType[businessType] || [];
   const categoryStatus = buildCategoryStatus({ combined, requiredCategories, optionalCategories, language: lang });
@@ -1025,11 +1025,12 @@ export function buildGuidedFeasibilityFlow(input = {}, language = "en", options 
   const foundation = options.foundation || buildFeasibilityFoundation(input, lang, { details: options.answers });
   const answers = options.answers || {};
   const validation = options.validation;
+  const classificationPrompt = options.classificationPrompt || null;
   const userProfile = buildUserJourneyProfile(answers, lang);
   const requestedByUser = hasAny(textOf(input), guidedIntentPatterns);
   const hasIdeaSeed = normalize(input.businessIdea || input.businessName || "").length >= 5;
   const hasMissingPrimaryFields = Boolean(validation && !validation.ok);
-  const shouldGuide = hasIdeaSeed && (hasMissingPrimaryFields || requestedByUser);
+  const shouldGuide = hasIdeaSeed && (hasMissingPrimaryFields || requestedByUser || Boolean(classificationPrompt) || Boolean(options.forceGuide));
 
   if (!shouldGuide) {
     return {
@@ -1039,7 +1040,7 @@ export function buildGuidedFeasibilityFlow(input = {}, language = "en", options 
     };
   }
 
-  const fields = buildGuidedFields({ foundation, input, answers, userProfile, language: lang });
+  const fields = buildGuidedFields({ foundation, input, answers, userProfile, language: lang, classificationPrompt });
   const requiredFields = fields.filter((field) => field.required);
   const missingRequired = requiredFields.filter((field) => !normalize(answers[field.id]));
   const steps = guidedSteps
@@ -1224,8 +1225,11 @@ function buildEstimateReadiness(missingRequired, language) {
   };
 }
 
-function buildGuidedFields({ foundation, input, answers, userProfile, language }) {
+function buildGuidedFields({ foundation, input, answers, userProfile, language, classificationPrompt }) {
   const baseIds = guidedFieldsByType[foundation.businessType] || guidedFieldsByType.generic;
+  const classificationField = classificationPrompt && !normalize(answers[classificationPrompt.id])
+    ? [{ ...classificationPrompt, value: answers[classificationPrompt.id] || "" }]
+    : [];
   const allowedIds = [
     "userExperienceLevel",
     "projectStageIntent",
@@ -1237,7 +1241,7 @@ function buildGuidedFields({ foundation, input, answers, userProfile, language }
   const hasOriginalProblem = normalize(input.problem || input.problemSolved).length >= 8;
   const hasOriginalMonetization = normalize(input.monetization || input.revenueModel).length >= 4;
 
-  return [...new Set(allowedIds)]
+  const adaptiveFields = [...new Set(allowedIds)]
     .map((fieldId) => ({ id: fieldId, ...guidedFieldBank[fieldId] }))
     .filter(Boolean)
     .filter((field) => {
@@ -1254,6 +1258,8 @@ function buildGuidedFields({ foundation, input, answers, userProfile, language }
       return true;
     })
     .map((field) => localizeGuidedField(field, language, answers, userProfile));
+
+  return [...classificationField, ...adaptiveFields];
 }
 
 function localizeGuidedField(field, language, answers, userProfile) {

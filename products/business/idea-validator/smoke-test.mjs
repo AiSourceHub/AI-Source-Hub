@@ -5,6 +5,7 @@ import { inputSchema } from "./schema.js";
 import { readFileSync } from "node:fs";
 import { buildIndustrialReportText } from "./industrialAnalysis.js";
 import { buildFeasibilityFoundation } from "./feasibilityFoundation.js";
+import { orchestrateBusinessIdeaValidation } from "./validatorOrchestrator.js";
 import {
   assessBusinessIdeaRequest,
   industrialClarificationFields,
@@ -1099,6 +1100,302 @@ if (!guidedFeasibilityPassed) {
   process.exitCode = 1;
 }
 
+const allowedOrchestratorRoutes = new Set([
+  "ineligible",
+  "needs_clarification",
+  "guided_follow_up",
+  "specialist_analysis",
+  "normal_evaluation",
+  "validation_error",
+]);
+
+function textFromDecisionResult(result = {}) {
+  return [
+    result.presentation?.heading,
+    result.presentation?.body,
+    result.presentation?.policy,
+    result.presentation?.closing,
+    ...(result.clarificationFlow?.steps || []).flatMap((step) =>
+      (step.fields || []).map((field) => `${field.labelText || ""} ${field.helpText || ""} ${field.placeholderText || ""}`)
+    ),
+    result.industrialReport?.title,
+    ...(result.industrialReport?.sections || []).flatMap((section) => [
+      section.title,
+      ...(section.items || []).map((item) => (typeof item === "string" ? item : `${item.title || ""} ${item.detail || ""}`)),
+      ...(section.missing || []),
+    ]),
+    result.biggestRisk,
+    result.nextAction,
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+const crossDomainCases = [
+  {
+    name: "automated car wash",
+    language: "en",
+    input: {
+      businessIdea: "An automated car wash near residential neighborhoods",
+      targetCustomer: "",
+      problem: "",
+      monetization: "",
+    },
+    expectRoute: "guided_follow_up",
+    expectType: "service",
+    forbidPet: true,
+  },
+  {
+    name: "car wash asking about cost and equipment",
+    language: "en",
+    input: {
+      businessIdea: "An automated car wash",
+      targetCustomer: "Drivers in residential neighborhoods",
+      problem: "How much will it cost and what equipment and license do I need?",
+      monetization: "Pay per wash.",
+    },
+    expectRoute: "guided_follow_up",
+    expectType: "service",
+    forbidPet: true,
+  },
+  {
+    name: "explicit pet recycling plant",
+    language: "en",
+    input: {
+      businessIdea: "A PET plastic recycling plant that processes bottle waste into washed flakes",
+      targetCustomer: "Packaging producers buying recycled PET flakes",
+      problem: "They need consistent recycled material supply.",
+      monetization: "Sell washed PET flakes per ton.",
+    },
+    expectRoute: "needs_clarification",
+    expectSpecialist: "pet_plastic_recycling",
+  },
+  {
+    name: "automated laundry",
+    language: "en",
+    input: {
+      businessIdea: "An automated laundry service for apartment residents",
+      targetCustomer: "Busy apartment residents",
+      problem: "They spend too much time washing and folding clothes.",
+      monetization: "Pay per laundry order.",
+    },
+    expectType: "service",
+    forbidPet: true,
+  },
+  {
+    name: "vehicle workshop",
+    language: "en",
+    input: {
+      businessIdea: "A vehicle repair workshop for small delivery fleets",
+      targetCustomer: "Delivery fleet owners",
+      problem: "Vehicle downtime delays customer deliveries.",
+      monetization: "Pay per repair order.",
+    },
+    expectType: "service",
+    forbidPet: true,
+  },
+  {
+    name: "restaurant",
+    language: "en",
+    input: {
+      businessIdea: "A healthy lunch restaurant near offices",
+      targetCustomer: "Office workers",
+      problem: "They need quick lunches during short breaks.",
+      monetization: "Customers pay per meal.",
+    },
+    expectType: "service",
+    forbidPet: true,
+  },
+  {
+    name: "clinic",
+    language: "en",
+    input: {
+      businessIdea: "A private clinic appointment follow-up service",
+      targetCustomer: "Private clinics and patients",
+      problem: "Patients miss appointments and clinics lose time.",
+      monetization: "Monthly clinic fee.",
+    },
+    expectType: "service",
+    forbidPet: true,
+  },
+  {
+    name: "construction contractor",
+    language: "en",
+    input: {
+      businessIdea: "A contractor service for small home renovations",
+      targetCustomer: "Homeowners",
+      problem: "They struggle to coordinate small renovation jobs.",
+      monetization: "Fixed project fee.",
+    },
+    expectType: "service",
+    forbidPet: true,
+  },
+  {
+    name: "retail store",
+    language: "en",
+    input: {
+      businessIdea: "A retail store selling imported workshop tools",
+      targetCustomer: "Small workshop owners",
+      problem: "They wait too long for replacement tools.",
+      monetization: "Margin on product sales.",
+    },
+    expectType: "retail_trading",
+    forbidPet: true,
+  },
+  {
+    name: "two-sided marketplace",
+    language: "en",
+    input: {
+      businessIdea: "A marketplace platform connecting homeowners with maintenance providers",
+      targetCustomer: "Homeowners and independent technicians",
+      problem: "Homeowners struggle to find available technicians quickly.",
+      monetization: "Commission on completed bookings.",
+    },
+    expectType: "marketplace_platform",
+    forbidPet: true,
+  },
+  {
+    name: "inventory software application",
+    language: "en",
+    input: {
+      businessIdea: "A software application for restaurant inventory management",
+      targetCustomer: "Restaurant managers",
+      problem: "They lose money from stockouts and overordering.",
+      monetization: "Monthly subscription.",
+    },
+    expectType: "digital_software",
+    forbidPet: true,
+  },
+  {
+    name: "consulting service",
+    language: "en",
+    input: {
+      businessIdea: "A consulting service helping small retailers improve cash flow",
+      targetCustomer: "Small retail owners",
+      problem: "They do not know which costs are draining cash.",
+      monetization: "Fixed consulting package.",
+    },
+    expectType: "service",
+    forbidPet: true,
+  },
+  {
+    name: "existing factory expansion",
+    language: "en",
+    input: {
+      businessIdea: "An existing factory wants to add a second production line for custom packaging",
+      targetCustomer: "Food producers",
+      problem: "Customers wait too long for small packaging batches.",
+      monetization: "Pay per approved order.",
+    },
+    feasibilityAnswers: {
+      userExperienceLevel: "existing_business_owner",
+      projectStageIntent: "expanding",
+    },
+    expectType: "industrial_manufacturing",
+    forbidPet: true,
+  },
+];
+
+const crossDomainResults = crossDomainCases.map((testCase) => {
+  const decision = orchestrateBusinessIdeaValidation({
+    rawInput: testCase.input,
+    language: testCase.language,
+    feasibilityAnswers: testCase.feasibilityAnswers || {},
+  });
+  const result = executeValidation(testCase.input, testCase.language, {}, testCase.feasibilityAnswers || {});
+  const text = textFromDecisionResult(result);
+  const hasPetLeak = /(PET|plastic|بلاستيك|نوع مخلفات البلاستيك|مخلفات البلاستيك|رقائق|حبيبات|جرانول)/u.test(text);
+  return {
+    name: testCase.name,
+    route: decision.route,
+    selectedRoute: decision.selectedRoute,
+    reasonText: decision.reasonText,
+    businessType: decision.businessType,
+    matchedSpecialist: decision.matchedSpecialist?.id || "",
+    hasPetLeak,
+    resultStatus: result.evaluationStatus,
+    expected: testCase,
+  };
+});
+
+const crossDomainPassed =
+  crossDomainResults.every((result) => allowedOrchestratorRoutes.has(result.route)) &&
+  crossDomainResults.every((result) => result.route === result.selectedRoute) &&
+  crossDomainResults.every((result) => typeof result.reasonText === "string" && result.reasonText.length > 10) &&
+  crossDomainResults.every((result) => result.expected.expectRoute ? result.route === result.expected.expectRoute : true) &&
+  crossDomainResults.every((result) => result.expected.expectType ? result.businessType === result.expected.expectType : true) &&
+  crossDomainResults.every((result) => result.expected.expectSpecialist ? result.matchedSpecialist === result.expected.expectSpecialist : true) &&
+  crossDomainResults.every((result) => result.expected.forbidPet ? !result.hasPetLeak && result.matchedSpecialist !== "pet_plastic_recycling" : true) &&
+  crossDomainResults.find((result) => result.name === "inventory software application")?.businessType === "digital_software" &&
+  crossDomainResults.find((result) => result.name === "explicit pet recycling plant")?.matchedSpecialist === "pet_plastic_recycling";
+
+const stalePetDetails = {
+  plasticWasteType: "PET bottles",
+  intendedOutput: "Washed flakes",
+  targetProductionCapacity: "one ton per day",
+};
+const staleCarWashDecision = orchestrateBusinessIdeaValidation({
+  rawInput: {
+    businessIdea: "An automated car wash",
+    targetCustomer: "Drivers",
+    problem: "They need faster car cleaning.",
+    monetization: "Pay per wash.",
+  },
+  language: "en",
+  industrialDetails: stalePetDetails,
+});
+const staleCarWashResult = executeValidation(
+  {
+    businessIdea: "An automated car wash",
+    targetCustomer: "Drivers",
+    problem: "They need faster car cleaning.",
+    monetization: "Pay per wash.",
+  },
+  "en",
+  stalePetDetails
+);
+const correctionDecision = orchestrateBusinessIdeaValidation({
+  rawInput: {
+    businessIdea: "A tool for tracking stock, orders, and customer service",
+    targetCustomer: "",
+    problem: "",
+    monetization: "",
+  },
+  language: "en",
+  feasibilityAnswers: { projectTypeCorrection: "digital_software" },
+});
+const ineligiblePriorityDecision = orchestrateBusinessIdeaValidation({
+  rawInput: {
+    businessIdea: "A phishing scam platform asking what equipment and licenses are needed",
+    targetCustomer: "Scammers",
+    problem: "They want to steal accounts.",
+    monetization: "Monthly fee.",
+  },
+  language: "en",
+});
+const financePriorityDecision = orchestrateBusinessIdeaValidation({
+  rawInput: {
+    businessIdea: "A funding platform with periodic fixed financial returns and repayment period",
+    targetCustomer: "Small businesses",
+    problem: "They need funding quickly.",
+    monetization: "Fee on funded amounts.",
+  },
+  language: "en",
+});
+const staleStatePassed =
+  staleCarWashDecision.matchedSpecialist === null &&
+  !/PET|plastic|بلاستيك|نوع مخلفات البلاستيك|مخلفات البلاستيك/u.test(textFromDecisionResult(staleCarWashResult)) &&
+  correctionDecision.businessType === "digital_software" &&
+  correctionDecision.route === "guided_follow_up" &&
+  ineligiblePriorityDecision.route === "ineligible" &&
+  financePriorityDecision.route === "needs_clarification";
+
+console.log(JSON.stringify({ crossDomainPassed, staleStatePassed, crossDomainResults }, null, 2));
+
+if (!crossDomainPassed || !staleStatePassed) {
+  process.exitCode = 1;
+}
+
 const arabicPersonalization = executeValidation(
   {
     businessIdea: "خدمة تساعد العيادات الصغيرة على تقليل المواعيد الفائتة",
@@ -1748,12 +2045,14 @@ const requestQualityGateRegressionPassed =
   ordinaryQuestionCase.evaluationStatus === "evaluated" &&
   Boolean(ordinaryQuestionCase.score) &&
   Boolean(ordinaryQuestionCase.report) &&
-  completeIndustrialCase.evaluationStatus === "evaluated" &&
-  Boolean(completeIndustrialCase.score) &&
-  Boolean(completeIndustrialCase.report) &&
-  truncatedCase.evaluationStatus === "needs_clarification" &&
+  completeIndustrialCase.evaluationStatus === "needs_clarification" &&
+  completeIndustrialCase.orchestrationDecision?.matchedSpecialist?.id === "pet_plastic_recycling" &&
+  !completeIndustrialCase.score &&
+  !completeIndustrialCase.report &&
+  truncatedCase.evaluationStatus === "feasibility_followup" &&
   !truncatedCase.score &&
-  !truncatedCase.report;
+  !truncatedCase.report &&
+  !/Type of plastic waste|Source and expected quantity of plastic waste|PET|نوع مخلفات البلاستيك|مخلفات البلاستيك/u.test(textFromDecisionResult(truncatedCase));
 
 console.log(
   JSON.stringify(

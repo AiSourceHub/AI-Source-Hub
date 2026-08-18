@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { renderHeader } from '../../components/Header/index.js';
 import { renderFooter } from '../../components/Footer/index.js';
-import { validateForExecution } from '../../products/business/idea-validator/analyzer.js';
 import productConfig from '../../products/business/idea-validator/config.js';
 import contentEn from '../../products/business/idea-validator/content.en.js';
 import contentAr from '../../products/business/idea-validator/content.ar.js';
@@ -11,9 +10,7 @@ import { buildBusinessIdeaRecommendation, refineBusinessIdeaCriteria } from '../
 import { buildImprovedIdeaStatement, scoreBusinessIdea } from '../../products/business/idea-validator/scoring.js';
 import { inputSchema } from '../../products/business/idea-validator/questions.js';
 import { applyDocumentLocale, bindLanguageSwitcher } from '../../core/localization.js';
-import { evaluateIdeaEligibility } from '../../core/eligibilityPolicy.js';
-import { assessBusinessIdeaRequest } from '../../products/business/idea-validator/requestUnderstanding.js';
-import { buildFeasibilityFoundation, buildGuidedFeasibilityFlow } from '../../products/business/idea-validator/feasibilityFoundation.js';
+import { orchestrateBusinessIdeaValidation } from '../../products/business/idea-validator/validatorOrchestrator.js';
 
 const contentMap = { en: contentEn, ar: contentAr };
 
@@ -173,10 +170,26 @@ function deriveReportSignals(result, formData, content) {
 }
 
 function executeBusinessValidation(rawInput, language, industrialDetails = {}, feasibilityAnswers = {}) {
-  const { analysis, validation } = validateForExecution(rawInput, language);
+  const decision = orchestrateBusinessIdeaValidation({
+    rawInput,
+    language,
+    industrialDetails,
+    feasibilityAnswers,
+  });
+  const { analysis, validation } = decision;
 
-  const eligibility = evaluateIdeaEligibility(rawInput, language);
-  if (eligibility.status !== 'eligible') {
+  if (decision.route === 'validation_error') {
+    return {
+      ok: false,
+      state: 'invalid',
+      analysis,
+      validation,
+      orchestrationDecision: decision,
+    };
+  }
+
+  if (['ineligible', 'needs_clarification'].includes(decision.route) && decision.eligibility) {
+    const eligibility = decision.eligibility;
     return {
       ok: true,
       state: eligibility.status === 'ineligible' ? 'ineligible' : 'clarification',
@@ -188,13 +201,12 @@ function executeBusinessValidation(rawInput, language, industrialDetails = {}, f
       policyText: eligibility.policyText,
       title: eligibility.title,
       presentation: eligibility.presentation,
+      orchestrationDecision: decision,
     };
   }
 
-  const feasibilityFoundation = buildFeasibilityFoundation(rawInput, language, { details: { ...industrialDetails, ...feasibilityAnswers } });
-  const requestAssessment = validation.ok ? assessBusinessIdeaRequest(rawInput, language, industrialDetails) : null;
-
-  if (requestAssessment?.status === 'needs_clarification') {
+  if (decision.route === 'needs_clarification' && decision.requestAssessment) {
+    const requestAssessment = decision.requestAssessment;
     return {
       ok: true,
       state: 'clarification',
@@ -206,11 +218,13 @@ function executeBusinessValidation(rawInput, language, industrialDetails = {}, f
       title: requestAssessment.title,
       presentation: requestAssessment.presentation,
       clarificationFlow: requestAssessment.clarificationFlow,
-      feasibilityFoundation,
+      feasibilityFoundation: decision.feasibilityFoundation,
+      orchestrationDecision: decision,
     };
   }
 
-  if (requestAssessment?.status === 'ready_for_industrial_analysis') {
+  if (decision.route === 'specialist_analysis') {
+    const requestAssessment = decision.requestAssessment;
     const industrialReport = buildIndustrialPreliminaryAnalysis({
       rawInput,
       requestAssessment,
@@ -228,17 +242,13 @@ function executeBusinessValidation(rawInput, language, industrialDetails = {}, f
       title: industrialReport.title,
       industrialReport,
       industrialDetails,
-      feasibilityFoundation,
+      feasibilityFoundation: decision.feasibilityFoundation,
+      orchestrationDecision: decision,
     };
   }
 
-  const guidedFeasibility = buildGuidedFeasibilityFlow(rawInput, language, {
-    foundation: feasibilityFoundation,
-    answers: feasibilityAnswers,
-    validation,
-  });
-
-  if (guidedFeasibility.shouldGuide) {
+  if (decision.route === 'guided_follow_up') {
+    const guidedFeasibility = decision.guidedFeasibility;
     return {
       ok: true,
       state: 'clarification',
@@ -252,17 +262,9 @@ function executeBusinessValidation(rawInput, language, industrialDetails = {}, f
       title: guidedFeasibility.title,
       presentation: guidedFeasibility.presentation,
       clarificationFlow: guidedFeasibility.clarificationFlow,
-      feasibilityFoundation,
+      feasibilityFoundation: decision.feasibilityFoundation,
       feasibilityGuidance: guidedFeasibility,
-    };
-  }
-
-  if (!validation.ok) {
-    return {
-      ok: false,
-      state: 'invalid',
-      analysis,
-      validation,
+      orchestrationDecision: decision,
     };
   }
 
@@ -329,7 +331,8 @@ function executeBusinessValidation(rawInput, language, industrialDetails = {}, f
     improvedIdea,
     report,
     contradictions: ruleContext.contradictions,
-    feasibilityFoundation,
+    feasibilityFoundation: decision.feasibilityFoundation,
+    orchestrationDecision: decision,
   };
 }
 
@@ -425,6 +428,12 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
     const { name, value } = event.target;
     setFormData((current) => ({ ...current, [name]: value }));
     setErrors((current) => ({ ...current, [name]: '' }));
+    if (['businessName', 'industry', 'problemSolved'].includes(name)) {
+      setIndustrialDetails(initialIndustrialDetails);
+      setFeasibilityAnswers(initialFeasibilityAnswers);
+      setIndustrialClarificationStep(1);
+      setClarificationErrors({});
+    }
     if (status.tone !== 'info' || status.message !== pageContent.states.idle) {
       setStatus({ tone: 'info', stateKey: 'input', message: pageContent.states.input });
     }

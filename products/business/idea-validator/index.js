@@ -19,9 +19,7 @@ import {
   bindLanguageSwitcher,
   getInitialLanguage,
 } from "../../../core/localization.js";
-import { evaluateIdeaEligibility } from "../../../core/eligibilityPolicy.js";
-import { assessBusinessIdeaRequest } from "./requestUnderstanding.js";
-import { buildFeasibilityFoundation, buildGuidedFeasibilityFlow } from "./feasibilityFoundation.js";
+import { orchestrateBusinessIdeaValidation } from "./validatorOrchestrator.js";
 
 const contents = { en: contentEn, ar: contentAr };
 const app = typeof document !== "undefined" ? document.querySelector("#app") : null;
@@ -134,10 +132,26 @@ function validateInputs(rawInput, language) {
 }
 
 export function executeValidation(rawInput, language = "en", industrialDetails = {}, feasibilityAnswers = {}) {
-  const { analysis, validation } = validateForExecution(rawInput, language);
+  const decision = orchestrateBusinessIdeaValidation({
+    rawInput,
+    language,
+    industrialDetails,
+    feasibilityAnswers,
+  });
+  const { analysis, validation } = decision;
 
-  const eligibility = evaluateIdeaEligibility(rawInput, language);
-  if (eligibility.status !== "eligible") {
+  if (decision.route === "validation_error") {
+    return {
+      ok: false,
+      state: "invalid",
+      analysis,
+      validation,
+      orchestrationDecision: decision,
+    };
+  }
+
+  if (["ineligible", "needs_clarification"].includes(decision.route) && decision.eligibility) {
+    const eligibility = decision.eligibility;
     return {
       ok: true,
       state: eligibility.status === "ineligible" ? "ineligible" : "clarification",
@@ -149,13 +163,12 @@ export function executeValidation(rawInput, language = "en", industrialDetails =
       policyText: eligibility.policyText,
       title: eligibility.title,
       presentation: eligibility.presentation,
+      orchestrationDecision: decision,
     };
   }
 
-  const feasibilityFoundation = buildFeasibilityFoundation(rawInput, language, { details: { ...industrialDetails, ...feasibilityAnswers } });
-  const requestAssessment = validation.ok ? assessBusinessIdeaRequest(rawInput, language, industrialDetails) : null;
-
-  if (requestAssessment?.status === "needs_clarification") {
+  if (decision.route === "needs_clarification" && decision.requestAssessment) {
+    const requestAssessment = decision.requestAssessment;
     return {
       ok: true,
       state: "clarification",
@@ -167,11 +180,13 @@ export function executeValidation(rawInput, language = "en", industrialDetails =
       title: requestAssessment.title,
       presentation: requestAssessment.presentation,
       clarificationFlow: requestAssessment.clarificationFlow,
-      feasibilityFoundation,
+      feasibilityFoundation: decision.feasibilityFoundation,
+      orchestrationDecision: decision,
     };
   }
 
-  if (requestAssessment?.status === "ready_for_industrial_analysis") {
+  if (decision.route === "specialist_analysis") {
+    const requestAssessment = decision.requestAssessment;
     const industrialReport = buildIndustrialPreliminaryAnalysis({
       rawInput,
       requestAssessment,
@@ -189,17 +204,13 @@ export function executeValidation(rawInput, language = "en", industrialDetails =
       title: industrialReport.title,
       industrialReport,
       industrialDetails,
-      feasibilityFoundation,
+      feasibilityFoundation: decision.feasibilityFoundation,
+      orchestrationDecision: decision,
     };
   }
 
-  const guidedFeasibility = buildGuidedFeasibilityFlow(rawInput, language, {
-    foundation: feasibilityFoundation,
-    answers: feasibilityAnswers,
-    validation,
-  });
-
-  if (guidedFeasibility.shouldGuide) {
+  if (decision.route === "guided_follow_up") {
+    const guidedFeasibility = decision.guidedFeasibility;
     return {
       ok: true,
       state: "clarification",
@@ -213,17 +224,9 @@ export function executeValidation(rawInput, language = "en", industrialDetails =
       title: guidedFeasibility.title,
       presentation: guidedFeasibility.presentation,
       clarificationFlow: guidedFeasibility.clarificationFlow,
-      feasibilityFoundation,
+      feasibilityFoundation: decision.feasibilityFoundation,
       feasibilityGuidance: guidedFeasibility,
-    };
-  }
-
-  if (!validation.ok) {
-    return {
-      ok: false,
-      state: "invalid",
-      analysis,
-      validation,
+      orchestrationDecision: decision,
     };
   }
 
@@ -287,7 +290,8 @@ export function executeValidation(rawInput, language = "en", industrialDetails =
     improvedIdea,
     report,
     contradictions: ruleContext.contradictions,
-    feasibilityFoundation,
+    feasibilityFoundation: decision.feasibilityFoundation,
+    orchestrationDecision: decision,
   };
 }
 

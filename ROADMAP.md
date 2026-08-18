@@ -173,12 +173,13 @@ A product is complete only when:
 
 ### Now
 
-- Business Idea Validator v2 Phase 2 local validation: preliminary industrial analysis for plastic-recycling investment-assessment requests, including manual-QA readiness corrections.
+- Business Idea Validator central orchestration Phase 1 local validation: verify the single decision route across normal evaluation, eligibility, ambiguous finance, guided follow-up, explicit PET specialist analysis, and non-PET cross-domain ideas before production approval.
 
 ### Next
 
 - Capital & Operational Feasibility Phase 2: turn the guided follow-up readiness state into a coherent preliminary feasibility output covering market/customer need, feasibility, capital confidence, cost categories, location, equipment, labor, operating model, licenses/dependencies, risks, unknowns, and next actions without inventing figures.
 - Use the captured user experience level and project stage to tailor the preliminary feasibility report structure for beginners, experienced founders, and existing-business improvement/expansion cases.
+- After orchestration QA passes, prepare a production checkpoint for the Business Idea Validator v2 routing architecture without adding final capital estimates.
 - Business Idea Validator v2 external-evidence readiness: add sourced market research, independently verified supplier pricing, regulatory evidence, and certified-feasibility handoff guidance where appropriate.
 - Add shared product navigation.
 - Build Business Name Generator.
