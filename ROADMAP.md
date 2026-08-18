@@ -57,6 +57,9 @@ Current platform capabilities:
 - Business Idea Validator unified guided journey started locally: feasibility, capital, location, equipment, labor, operations, research, and implementation planning are internal stages of the validator experience, not separate user-facing products. The first visible guided follow-up now appears when an early idea or founder feasibility question needs structured answers before scoring.
 - Business Idea Validator guided journey now captures user experience level and project stage as separate structured dimensions. It adapts question wording and depth for beginners, experienced founders, and existing-business owners while preserving the original idea/problem fields.
 - Existing-business paths now request current operating evidence such as revenue, costs, margins, customer volume, repeat business, capacity, staffing, location/equipment bottlenecks, and the improvement or expansion objective before future reports compare current performance with the proposed change.
+- Business Idea Validator Product Specification v2.0 approved locally in `BIV_PRODUCT_SPEC_V2.md`.
+- Business Idea Validator v2 Phase 2 central orchestrator hardening implemented locally: one normalized route-decision layer now controls validation errors, eligibility refusal, clarification, guided follow-up, research-required placeholder, specialist analysis, and normal evaluation before UI rendering. Specialist modules remain subordinate to the orchestrator, and future free/paid routes remain dormant contract values only.
+- Business Idea Validator v2 Phase 2 focused manual QA passed locally: mobile car-wash input stayed on the normal lawful path without PET/plastic/manufacturing analysis, clearly ineligible betting input blocked scoring and reports, and explicit PET sorting/baling input selected specialist analysis without unsupported prices or profitability claims. Phase 3 has not started.
 
 ## 3. Milestones
 
@@ -173,7 +176,7 @@ A product is complete only when:
 
 ### Now
 
-- Business Idea Validator central orchestration Phase 1 local validation: verify the single decision route across normal evaluation, eligibility, ambiguous finance, guided follow-up, explicit PET specialist analysis, and non-PET cross-domain ideas before production approval.
+- Prepare the approved Business Idea Validator v2 Phase 2 local checkpoint for owner review and production decision. Phase 2 route-contract manual QA has passed; broader BIV v2 report-language limitations remain deferred to later report phases.
 
 ### Next
 
@@ -224,4 +227,4 @@ A product is complete only when:
 | Product Suite | Current | 35% | Stabilize active products before adding the next product. |
 | Quality and Release Candidate | Completed | 100% | Preserve regression checks while planning the next product. |
 | Public Launch | Completed | 100% | Prepare public launch communication and post-launch monitoring. |
-| Business Idea Validator v2 | In local validation | Phase 2 + general reasoning + guided feasibility follow-up | Validate the industrial report, evidence/assumption reasoning, regulatory/approval dependency reasoning, and unified guided feasibility follow-up in browser QA before approving production deployment. |
+| Business Idea Validator v2 | Phase 2 local QA passed | Phase 2 central orchestration hardening + general reasoning + guided feasibility follow-up | Review and approve the local Phase 2 checkpoint before any production deployment; Phase 3 has not started. |

@@ -12,6 +12,9 @@ import {
   industrialClarificationSteps,
 } from "./requestUnderstanding.js";
 
+const pageSource = readFileSync(new URL("../../../src/pages/BusinessIdeaValidatorPage.jsx", import.meta.url), "utf8");
+const styleSource = readFileSync(new URL("../../../src/styles.css", import.meta.url), "utf8");
+
 const cases = [
   {
     name: "strong English",
@@ -1100,6 +1103,263 @@ if (!guidedFeasibilityPassed) {
   process.exitCode = 1;
 }
 
+const completePetIndustrialDetails = {
+  plasticWasteType: "pet",
+  intendedOutput: "washed_flakes",
+  targetProductionCapacity: "1 ton per day",
+  availableBudgetSar: "750,000 SAR",
+  preferredCityRegion: "Riyadh",
+  existingPremises: "yes",
+  wasteSourceQuantity: "Supplier agreement for 20 tons monthly",
+  industrialExperienceTeam: "One operations supervisor and two technicians",
+  expectedBuyers: "Packaging factories that accept PET flakes",
+  salesScope: "local",
+};
+
+const orchestrationCases = [
+  {
+    name: "validation errors stop later analysis",
+    language: "en",
+    input: { businessIdea: "", targetCustomer: "", problem: "", monetization: "" },
+    expectRoute: "validation_error",
+    expectNoPayload: true,
+  },
+  {
+    name: "ineligible stops scoring and report generation",
+    language: "en",
+    input: {
+      businessIdea: "A phishing scam service that steals login details",
+      targetCustomer: "People trying to commit identity theft",
+      problem: "They need better ways to steal accounts.",
+      monetization: "Monthly fee.",
+    },
+    expectRoute: "ineligible",
+    expectExecutionStatus: "ineligible",
+    expectNoScore: true,
+  },
+  {
+    name: "ambiguous financing stops scoring and report generation",
+    language: "en",
+    input: {
+      businessIdea:
+        "A platform connects small businesses seeking funding with people providing funds in exchange for a periodic financial return.",
+      targetCustomer: "Small businesses seeking funding",
+      problem: "They need funding quickly.",
+      monetization: "Fee on funded amounts with repayment period.",
+    },
+    expectRoute: "needs_clarification",
+    expectExecutionStatus: "needs_clarification",
+    expectNoScore: true,
+  },
+  {
+    name: "guided follow-up does not fall through",
+    language: "ar",
+    input: {
+      businessIdea: "مغسلة سيارات آلية",
+      targetCustomer: "",
+      problem: "",
+      monetization: "",
+    },
+    expectRoute: "guided_follow_up",
+    expectExecutionStatus: "feasibility_followup",
+    expectNoScore: true,
+  },
+  {
+    name: "explicit PET recycling case can use specialist",
+    language: "en",
+    input: {
+      businessIdea: "A PET plastic recycling plant",
+      targetCustomer: "Packaging factories that buy recycled plastic flakes",
+      problem: "Factories need consistent recycled PET feedstock.",
+      monetization: "Sell washed flakes to local factories.",
+    },
+    industrialDetails: completePetIndustrialDetails,
+    expectRoute: "specialist_analysis",
+    expectExecutionStatus: "industrial_assessment",
+    expectSpecialist: "pet_plastic_recycling",
+  },
+  {
+    name: "generic industrial idea does not use PET",
+    language: "en",
+    input: {
+      businessIdea: "A small workshop producing custom metal brackets",
+      targetCustomer: "Local contractors",
+      problem: "Contractors wait too long for small custom batches.",
+      monetization: "Pay per approved order.",
+    },
+    expectRoute: "normal_evaluation",
+    forbiddenSpecialist: "pet_plastic_recycling",
+  },
+  {
+    name: "car wash receives guided questions, not plastic questions",
+    language: "en",
+    input: {
+      businessIdea: "An automated car wash",
+      targetCustomer: "",
+      problem: "",
+      monetization: "",
+    },
+    expectRoute: "guided_follow_up",
+    forbiddenText: ["plastic waste", "PET", "washed flakes"],
+  },
+  {
+    name: "grocery store does not receive manufacturing machinery questions",
+    language: "en",
+    input: {
+      businessIdea: "A neighborhood grocery store",
+      targetCustomer: "",
+      problem: "",
+      monetization: "",
+    },
+    expectRoute: "guided_follow_up",
+    forbiddenText: ["production line", "raw materials", "machinery"],
+  },
+  {
+    name: "digital idea avoids raw-material questions",
+    language: "en",
+    input: {
+      businessIdea: "A SaaS dashboard for weekly sales reporting",
+      targetCustomer: "",
+      problem: "",
+      monetization: "",
+    },
+    expectRoute: "guided_follow_up",
+    forbiddenText: ["raw materials", "machinery", "plastic"],
+  },
+  {
+    name: "marketplace keeps two-sided considerations",
+    language: "en",
+    input: {
+      businessIdea: "A marketplace platform connecting homeowners with maintenance providers",
+      targetCustomer: "",
+      problem: "",
+      monetization: "",
+    },
+    expectRoute: "guided_follow_up",
+    requiredText: ["provider", "buyer", "payment", "trust"],
+  },
+  {
+    name: "normal simple idea still evaluates",
+    language: "en",
+    input: {
+      businessIdea: "A guided meal prep planner for busy parents",
+      targetCustomer: "Busy parents who cook at home",
+      problem: "They lose time every week deciding meals and grocery lists.",
+      monetization: "Monthly subscription paid by the parent.",
+    },
+    expectRoute: "normal_evaluation",
+    expectExecutionStatus: "evaluated",
+  },
+  {
+    name: "arabic normal route equivalent",
+    language: "ar",
+    input: {
+      businessIdea: "تطبيق يساعد الأسر على تنظيم الوجبات الأسبوعية",
+      targetCustomer: "الأسر المشغولة في المدن الكبيرة",
+      problem: "يضيعون وقتاً كل أسبوع في اختيار الوجبات وكتابة قائمة المشتريات.",
+      monetization: "اشتراك شهري تدفعه الأسرة.",
+    },
+    expectRoute: "normal_evaluation",
+    expectExecutionStatus: "evaluated",
+  },
+];
+
+const routePrecedence = [
+  "validation_error",
+  "ineligible",
+  "needs_clarification",
+  "guided_follow_up",
+  "research_required",
+  "specialist_analysis",
+  "normal_evaluation",
+];
+
+const orchestrationResults = orchestrationCases.map((testCase) => {
+  const decision = orchestrateBusinessIdeaValidation({
+    rawInput: testCase.input,
+    language: testCase.language,
+    industrialDetails: testCase.industrialDetails || {},
+  });
+  const execution = executeValidation(
+    testCase.input,
+    testCase.language,
+    testCase.industrialDetails || {}
+  );
+  const flowText = JSON.stringify(decision.guidedFeasibility?.clarificationFlow || decision.requestAssessment?.clarificationFlow || {});
+  const primaryRouteKeys = Object.keys(decision).filter((key) => key === "route" || key === "selectedRoute");
+  const liveRoutes = [decision.route].filter(Boolean);
+  const futureRoutesAreDormant =
+    Array.isArray(decision.futureRoutes) &&
+    decision.futureRoutes.every((item) => item.implemented === false) &&
+    !decision.futureRoutes.some((item) => liveRoutes.includes(item.route));
+
+  return {
+    name: testCase.name,
+    route: decision.route,
+    hasCanonicalRouteOnly: primaryRouteKeys.length === 1 && primaryRouteKeys[0] === "route",
+    hasExactlyOnePrimaryRoute: liveRoutes.length === 1 && new Set(liveRoutes).size === 1,
+    routePrecedenceMatches: JSON.stringify(decision.routePrecedence) === JSON.stringify(routePrecedence),
+    locale: decision.locale,
+    direction: decision.direction,
+    eligibilityStatus: decision.eligibilityStatus,
+    specialist: decision.matchedSpecialist?.id || "",
+    specialistCandidate: decision.specialistCandidate?.id || "",
+    specialistEligible: decision.specialistEligible,
+    analysisPayloadPermitted: Boolean(decision.analysisPayload?.permitted),
+    allowedActions: decision.allowedActions || [],
+    blockedActions: decision.blockedActions || [],
+    executionStatus: execution.evaluationStatus || execution.state,
+    hasScore: Boolean(execution.score),
+    hasReport: Boolean(execution.report || execution.industrialReport),
+    forbiddenTextFound: (testCase.forbiddenText || []).filter((text) => flowText.includes(text)),
+    requiredTextFound: (testCase.requiredText || []).filter((text) => flowText.includes(text)),
+    futureRoutesAreDormant,
+    expected: testCase,
+  };
+});
+
+const pageUsesSharedExecutionAdapter =
+  pageSource.includes("executeBusinessIdeaValidation") &&
+  !pageSource.includes("orchestrateBusinessIdeaValidation") &&
+  !pageSource.includes("buildIndustrialPreliminaryAnalysis") &&
+  !pageSource.includes("scoreBusinessIdea");
+
+const pageReadsCanonicalRouteOnly =
+  pageSource.includes("executeBusinessIdeaValidation") &&
+  !pageSource.includes("selectedRoute");
+
+const orchestrationPassed =
+  orchestrationResults.every((result) => result.route === result.expected.expectRoute) &&
+  orchestrationResults.every((result) => result.hasCanonicalRouteOnly && result.hasExactlyOnePrimaryRoute) &&
+  orchestrationResults.every((result) => result.routePrecedenceMatches) &&
+  orchestrationResults.every((result) => result.locale === result.expected.language) &&
+  orchestrationResults.every((result) => result.direction === (result.expected.language === "ar" ? "rtl" : "ltr")) &&
+  orchestrationResults.every((result) =>
+    result.expected.expectExecutionStatus ? result.executionStatus === result.expected.expectExecutionStatus : true
+  ) &&
+  orchestrationResults.every((result) => result.expected.expectNoScore ? !result.hasScore && !result.hasReport : true) &&
+  orchestrationResults.every((result) => result.expected.expectNoPayload ? !result.analysisPayloadPermitted : true) &&
+  orchestrationResults.every((result) =>
+    result.expected.expectSpecialist ? result.specialist === result.expected.expectSpecialist && result.specialistEligible : true
+  ) &&
+  orchestrationResults.every((result) =>
+    result.expected.forbiddenSpecialist ? result.specialist !== result.expected.forbiddenSpecialist : true
+  ) &&
+  orchestrationResults.every((result) => result.forbiddenTextFound.length === 0) &&
+  orchestrationResults.every((result) => result.requiredTextFound.length === (result.expected.requiredText || []).length) &&
+  orchestrationResults.every((result) => result.futureRoutesAreDormant) &&
+  orchestrationResults
+    .filter((result) => ["ineligible", "needs_clarification", "guided_follow_up", "validation_error"].includes(result.route))
+    .every((result) => result.blockedActions.includes("score") && result.blockedActions.includes("report")) &&
+  pageUsesSharedExecutionAdapter &&
+  pageReadsCanonicalRouteOnly;
+
+console.log(JSON.stringify({ orchestrationPassed, pageUsesSharedExecutionAdapter, pageReadsCanonicalRouteOnly, orchestrationResults }, null, 2));
+
+if (!orchestrationPassed) {
+  process.exitCode = 1;
+}
+
 const allowedOrchestratorRoutes = new Set([
   "ineligible",
   "needs_clarification",
@@ -1308,7 +1568,7 @@ const crossDomainResults = crossDomainCases.map((testCase) => {
   return {
     name: testCase.name,
     route: decision.route,
-    selectedRoute: decision.selectedRoute,
+    hasCanonicalRouteOnly: Object.keys(decision).filter((key) => key === "route" || key === "selectedRoute").length === 1,
     reasonText: decision.reasonText,
     businessType: decision.businessType,
     matchedSpecialist: decision.matchedSpecialist?.id || "",
@@ -1320,7 +1580,7 @@ const crossDomainResults = crossDomainCases.map((testCase) => {
 
 const crossDomainPassed =
   crossDomainResults.every((result) => allowedOrchestratorRoutes.has(result.route)) &&
-  crossDomainResults.every((result) => result.route === result.selectedRoute) &&
+  crossDomainResults.every((result) => result.hasCanonicalRouteOnly) &&
   crossDomainResults.every((result) => typeof result.reasonText === "string" && result.reasonText.length > 10) &&
   crossDomainResults.every((result) => result.expected.expectRoute ? result.route === result.expected.expectRoute : true) &&
   crossDomainResults.every((result) => result.expected.expectType ? result.businessType === result.expected.expectType : true) &&
@@ -2226,8 +2486,6 @@ const fixedInterestLending = eligibilityResults.find((result) => result.name ===
 const lawfulPartnership = eligibilityResults.find((result) => result.name === "lawful profit and loss partnership is eligible");
 const donationCrowdfunding = eligibilityResults.find((result) => result.name === "donation crowdfunding no return is eligible");
 const educationInterestAwareness = eligibilityResults.find((result) => result.name === "educational interest awareness is eligible");
-const pageSource = readFileSync(new URL("../../../src/pages/BusinessIdeaValidatorPage.jsx", import.meta.url), "utf8");
-const styleSource = readFileSync(new URL("../../../src/styles.css", import.meta.url), "utf8");
 const refusalCount = (arabicIneligible?.presentationText.match(/لا يمكن لـ AI Source Hub تقييم هذه الفكرة/g) || []).length;
 const clarificationUiRegressionPassed =
   ambiguousFunding?.actualStatus === "needs_clarification" &&

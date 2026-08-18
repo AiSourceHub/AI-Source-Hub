@@ -10,16 +10,14 @@ import { inputSchema } from "./questions.js";
 import contentEn from "./content.en.js";
 import contentAr from "./content.ar.js";
 import { validateForExecution } from "./analyzer.js";
-import { buildBusinessIdeaReport, buildBusinessIdeaReportText } from "./report.js";
-import { buildIndustrialPreliminaryAnalysis, buildIndustrialReportText } from "./industrialAnalysis.js";
-import { buildBusinessIdeaRecommendation, refineBusinessIdeaCriteria } from "./recommendations.js";
-import { buildImprovedIdeaStatement, scoreBusinessIdea } from "./scoring.js";
+import { buildBusinessIdeaReportText } from "./report.js";
+import { buildIndustrialReportText } from "./industrialAnalysis.js";
 import {
   applyDocumentLocale,
   bindLanguageSwitcher,
   getInitialLanguage,
 } from "../../../core/localization.js";
-import { orchestrateBusinessIdeaValidation } from "./validatorOrchestrator.js";
+import { executeBusinessIdeaValidation } from "./executionResult.js";
 
 const contents = { en: contentEn, ar: contentAr };
 const app = typeof document !== "undefined" ? document.querySelector("#app") : null;
@@ -132,167 +130,13 @@ function validateInputs(rawInput, language) {
 }
 
 export function executeValidation(rawInput, language = "en", industrialDetails = {}, feasibilityAnswers = {}) {
-  const decision = orchestrateBusinessIdeaValidation({
+  return executeBusinessIdeaValidation({
     rawInput,
     language,
     industrialDetails,
     feasibilityAnswers,
-  });
-  const { analysis, validation } = decision;
-
-  if (decision.route === "validation_error") {
-    return {
-      ok: false,
-      state: "invalid",
-      analysis,
-      validation,
-      orchestrationDecision: decision,
-    };
-  }
-
-  if (["ineligible", "needs_clarification"].includes(decision.route) && decision.eligibility) {
-    const eligibility = decision.eligibility;
-    return {
-      ok: true,
-      state: eligibility.status === "ineligible" ? "ineligible" : "clarification",
-      evaluationStatus: eligibility.status,
-      analysis,
-      validation,
-      eligibility,
-      message: eligibility.message,
-      policyText: eligibility.policyText,
-      title: eligibility.title,
-      presentation: eligibility.presentation,
-      orchestrationDecision: decision,
-    };
-  }
-
-  if (decision.route === "needs_clarification" && decision.requestAssessment) {
-    const requestAssessment = decision.requestAssessment;
-    return {
-      ok: true,
-      state: "clarification",
-      evaluationStatus: "needs_clarification",
-      analysis,
-      validation,
-      requestAssessment,
-      message: requestAssessment.message,
-      title: requestAssessment.title,
-      presentation: requestAssessment.presentation,
-      clarificationFlow: requestAssessment.clarificationFlow,
-      feasibilityFoundation: decision.feasibilityFoundation,
-      orchestrationDecision: decision,
-    };
-  }
-
-  if (decision.route === "specialist_analysis") {
-    const requestAssessment = decision.requestAssessment;
-    const industrialReport = buildIndustrialPreliminaryAnalysis({
-      rawInput,
-      requestAssessment,
-      industrialDetails,
-      language,
-    });
-    return {
-      ok: true,
-      state: "industrial_report",
-      evaluationStatus: "industrial_assessment",
-      analysis,
-      validation,
-      requestAssessment,
-      message: industrialReport.decision.label,
-      title: industrialReport.title,
-      industrialReport,
-      industrialDetails,
-      feasibilityFoundation: decision.feasibilityFoundation,
-      orchestrationDecision: decision,
-    };
-  }
-
-  if (decision.route === "guided_follow_up") {
-    const guidedFeasibility = decision.guidedFeasibility;
-    return {
-      ok: true,
-      state: "clarification",
-      evaluationStatus:
-        guidedFeasibility.status === "ready_for_preliminary_feasibility"
-          ? "feasibility_ready"
-          : "feasibility_followup",
-      analysis,
-      validation,
-      message: guidedFeasibility.message,
-      title: guidedFeasibility.title,
-      presentation: guidedFeasibility.presentation,
-      clarificationFlow: guidedFeasibility.clarificationFlow,
-      feasibilityFoundation: decision.feasibilityFoundation,
-      feasibilityGuidance: guidedFeasibility,
-      orchestrationDecision: decision,
-    };
-  }
-
-  const {
-    ruleContext,
-    score,
-    criteria,
-    lowestCriterion,
-    verdictKey,
-    confidence,
-  } = scoreBusinessIdea(analysis, language, {
-    currentSolution: rawInput.currentSolution,
-    competitiveAdvantage: rawInput.competitiveAdvantage,
-    stage: rawInput.stage,
-  });
-  const recommendation = buildBusinessIdeaRecommendation({
-    score,
-    criteria,
-    lowestCriterion,
-    verdictKey,
-    confidence,
-    language,
-    input: {
-      ...ruleContext.input,
-      businessName: rawInput.businessName,
-      currentSolution: rawInput.currentSolution,
-      competitiveAdvantage: rawInput.competitiveAdvantage,
-      stakeholderRoles: ruleContext.stakeholderRoles,
-      evidenceSignals: ruleContext.evidenceSignals,
-      regulatoryDependencies: ruleContext.regulatoryDependencies,
-    },
-    stage: rawInput.stage,
-  });
-  const reportCriteria = refineBusinessIdeaCriteria(criteria, recommendation, language);
-  const improvedIdea = buildImprovedIdeaStatement(ruleContext.input, language);
-  const status = confidence.level === "low" ? "partial" : "success";
-  const report = buildBusinessIdeaReport({
-    productConfig,
     content: contents[language],
-    language,
-    score,
-    criteria: reportCriteria,
-    recommendation,
-    verdictKey,
   });
-  report.status = status;
-
-  return {
-    ok: true,
-    state: status,
-    evaluationStatus: "evaluated",
-    analysis,
-    validation,
-    criteria: reportCriteria,
-    score,
-    verdictKey,
-    confidence,
-    recommendation,
-    biggestRisk: recommendation.reason,
-    nextAction: recommendation.action,
-    improvedIdea,
-    report,
-    contradictions: ruleContext.contradictions,
-    feasibilityFoundation: decision.feasibilityFoundation,
-    orchestrationDecision: decision,
-  };
 }
 
 function renderResult(result) {

@@ -8,13 +8,33 @@ import {
 } from "./requestUnderstanding.js";
 
 const ROUTES = {
+  VALIDATION_ERROR: "validation_error",
   INELIGIBLE: "ineligible",
   NEEDS_CLARIFICATION: "needs_clarification",
   GUIDED_FOLLOW_UP: "guided_follow_up",
+  RESEARCH_REQUIRED: "research_required",
   SPECIALIST_ANALYSIS: "specialist_analysis",
   NORMAL_EVALUATION: "normal_evaluation",
-  VALIDATION_ERROR: "validation_error",
+  FREE_PREVIEW: "free_preview",
+  PAID_REPORT_READY: "paid_report_ready",
+  PAID_REPORT_BLOCKED: "paid_report_blocked",
 };
+
+export const BIV_ROUTE_PRECEDENCE = [
+  ROUTES.VALIDATION_ERROR,
+  ROUTES.INELIGIBLE,
+  ROUTES.NEEDS_CLARIFICATION,
+  ROUTES.GUIDED_FOLLOW_UP,
+  ROUTES.RESEARCH_REQUIRED,
+  ROUTES.SPECIALIST_ANALYSIS,
+  ROUTES.NORMAL_EVALUATION,
+];
+
+export const BIV_FUTURE_ROUTES = [
+  ROUTES.FREE_PREVIEW,
+  ROUTES.PAID_REPORT_READY,
+  ROUTES.PAID_REPORT_BLOCKED,
+];
 
 const routeText = {
   en: {
@@ -395,19 +415,53 @@ function buildDecision({
   missingInformation = [],
   nextRequiredAction = "",
 }) {
+  const normalizedRoute = Object.values(ROUTES).includes(route) ? route : ROUTES.NORMAL_EVALUATION;
+  const eligibilityStatus = eligibility?.status || "eligible";
+  const specialistCandidate = classification.specialistCandidate || null;
+  const confirmedSpecialist = matchedSpecialist || classification.matchedSpecialist || null;
+  const actions = buildActionPolicy({ route: normalizedRoute, guidedFeasibility, requestAssessment });
+  const diagnosticReasonCodes = [
+    reasonCode,
+    eligibilityStatus !== "eligible" ? eligibilityStatus : "",
+    classification.classificationConfidence ? `classification_${classification.classificationConfidence}` : "",
+    confirmedSpecialist ? "specialist_confirmed" : "",
+    specialistCandidate && !confirmedSpecialist ? "specialist_candidate_unconfirmed" : "",
+  ].filter(Boolean);
+
   return {
-    route,
-    selectedRoute: route,
+    route: normalizedRoute,
+    routePrecedence: BIV_ROUTE_PRECEDENCE,
     reasonCode,
     reasonText,
+    diagnosticReasonCodes,
+    locale: language,
     language,
+    direction: language === "ar" ? "rtl" : "ltr",
+    eligibilityStatus,
     businessType: classification.businessType,
     operatingModel: classification.operatingModel,
     sectorSignals: classification.sectorSignals,
     classificationConfidence: classification.classificationConfidence,
-    matchedSpecialist: matchedSpecialist || classification.matchedSpecialist || null,
+    specialistCandidate,
+    matchedSpecialist: confirmedSpecialist,
+    specialistEligible: Boolean(confirmedSpecialist),
+    userContext: buildUserContext({ analysis, classification, feasibilityFoundation, guidedFeasibility, requestAssessment }),
     missingInformation,
+    requiredMissingInformation: missingInformation,
+    optionalRefinementInformation: feasibilityFoundation?.optionalQuestions?.map((question) => question.category) || [],
+    evidenceState: buildEvidenceState(feasibilityFoundation, guidedFeasibility),
     nextRequiredAction,
+    allowedActions: actions.allowedActions,
+    blockedActions: actions.blockedActions,
+    messageKey: reasonCode,
+    userFacingMessage: reasonText,
+    analysisPayload: [ROUTES.SPECIALIST_ANALYSIS, ROUTES.NORMAL_EVALUATION].includes(normalizedRoute)
+      ? { permitted: true, route: normalizedRoute }
+      : null,
+    futureRoutes: BIV_FUTURE_ROUTES.map((futureRoute) => ({
+      route: futureRoute,
+      implemented: false,
+    })),
     classification,
     analysis,
     validation,
@@ -416,6 +470,63 @@ function buildDecision({
     guidedFeasibility,
     requestAssessment,
   };
+}
+
+function buildUserContext({ analysis, classification, feasibilityFoundation, guidedFeasibility, requestAssessment }) {
+  const input = analysis?.input || {};
+  return {
+    projectStage: classification.projectStage || input.stage || "idea",
+    userProfile: guidedFeasibility?.userProfile || null,
+    requestType: requestAssessment?.requestType || "business_idea",
+    originalInputKeys: Object.keys(input).filter((key) => String(input[key] || "").trim()),
+    feasibilityBusinessType: feasibilityFoundation?.businessType || classification.businessType,
+  };
+}
+
+function buildEvidenceState(feasibilityFoundation, guidedFeasibility) {
+  if (!feasibilityFoundation) {
+    return {
+      available: false,
+      categories: [],
+      missingRequired: [],
+      estimateReadiness: null,
+      guidedStatus: "not_requested",
+    };
+  }
+
+  return {
+    available: true,
+    categories: feasibilityFoundation.categories?.map((item) => ({
+      category: item.category,
+      evidenceType: item.evidenceType,
+      required: Boolean(item.required),
+    })) || [],
+    missingRequired: feasibilityFoundation.missingRequired || [],
+    estimateReadiness: feasibilityFoundation.estimateReadiness || null,
+    guidedStatus: guidedFeasibility?.status || "not_requested",
+  };
+}
+
+function buildActionPolicy({ route, guidedFeasibility, requestAssessment }) {
+  const canClarify = Boolean(guidedFeasibility?.clarificationFlow || requestAssessment?.clarificationFlow);
+  const allowedByRoute = {
+    [ROUTES.VALIDATION_ERROR]: ["edit_input"],
+    [ROUTES.INELIGIBLE]: ["reset"],
+    [ROUTES.NEEDS_CLARIFICATION]: canClarify ? ["answer_clarification", "reset"] : ["reset"],
+    [ROUTES.GUIDED_FOLLOW_UP]: ["answer_followup", "reset"],
+    [ROUTES.RESEARCH_REQUIRED]: ["edit_input", "reset"],
+    [ROUTES.SPECIALIST_ANALYSIS]: ["copy_report", "download_report", "reset"],
+    [ROUTES.NORMAL_EVALUATION]: ["copy_report", "download_report", "reset"],
+  };
+  const allowedActions = allowedByRoute[route] || ["reset"];
+  const blockedActions = ["score", "report", "copy_report", "download_report"].filter((action) => {
+    if (action === "score" || action === "report") {
+      return ![ROUTES.SPECIALIST_ANALYSIS, ROUTES.NORMAL_EVALUATION].includes(route);
+    }
+    return !allowedActions.includes(action);
+  });
+
+  return { allowedActions, blockedActions };
 }
 
 function buildSourceFields(rawInput = {}, details = {}, options = {}) {

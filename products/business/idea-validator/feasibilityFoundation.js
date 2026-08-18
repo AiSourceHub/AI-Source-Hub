@@ -1257,13 +1257,25 @@ function buildGuidedFields({ foundation, input, answers, userProfile, language, 
       if (field.id === "knownFacts" && hasOriginalMonetization && knownCategoryStatus.startupCapital !== "unresolved_unknown") return false;
       return true;
     })
-    .map((field) => localizeGuidedField(field, language, answers, userProfile));
+    .map((field) =>
+      localizeGuidedField(
+        {
+          ...field,
+          typeSpecificHelp: typeSpecificQuestions[foundation.businessType]?.[field.category],
+        },
+        language,
+        answers,
+        userProfile
+      )
+    );
 
   return [...classificationField, ...adaptiveFields];
 }
 
 function localizeGuidedField(field, language, answers, userProfile) {
   const adapted = adaptFieldForProfile(field, language, userProfile);
+  const contextualHelp = localize(field.typeSpecificHelp, language);
+  const baseHelp = localize(adapted.help || field.help, language);
   return {
     id: field.id,
     type: adapted.type || field.type || "textarea",
@@ -1272,7 +1284,7 @@ function localizeGuidedField(field, language, answers, userProfile) {
     sourceLabel: localize(sourceLabels[field.source], language),
     required: field.required,
     labelText: localize(adapted.label || field.label, language),
-    helpText: localize(adapted.help || field.help, language),
+    helpText: [contextualHelp, baseHelp].filter(Boolean).join(" "),
     placeholderText: localize(adapted.placeholder || field.placeholder, language),
     value: answers[field.id] || "",
     options: (adapted.options || field.options)?.map((option) => ({
