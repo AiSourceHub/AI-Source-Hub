@@ -138,7 +138,7 @@ Business classification must remain domain-agnostic. The taxonomy includes:
 
 - Retail
 - Wholesale/import/distribution
-- Field service
+- Service
 - Professional service
 - Manufacturing/industrial
 - Food and beverage
@@ -158,6 +158,15 @@ Classification dimensions:
 - Project stage
 - Specialist candidate
 - Classification confidence
+
+Operating model must be tracked separately from the primary business type:
+
+- Fixed location
+- Mobile or customer-site delivery
+- Digital or remote
+- Home-based
+- Mixed
+- Unknown
 
 Specialist modules must be invoked by one central orchestrator. No specialist module may override or bypass the unified journey. PET/recycling remains a specialist example only, never an industrial default.
 

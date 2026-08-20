@@ -13,7 +13,7 @@ const refusalMessages = {
 };
 
 const clarificationMessages = {
-  general: {
+  eligibility: {
     en:
       "Before evaluating this idea, please clarify that the activity is lawful, ethical, respectful of revealed religions, and does not involve exploitation, harm, indecency, fraud, or illegal conduct.",
     ar:
@@ -44,8 +44,14 @@ const closingMessages = {
     ar: "يمكنك تعديل الفكرة لتكون نشاطاً مشروعاً وأخلاقياً ونافعاً.",
   },
   needs_clarification: {
-    en: "After clarifying the contract and return structure, the idea can be evaluated again.",
-    ar: "بعد توضيح طبيعة العقد والعائد، يمكن إعادة تقييم الفكرة.",
+    eligibility: {
+      en: "After clarifying the nature of the activity and its content, the idea can be evaluated again.",
+      ar: "بعد توضيح طبيعة النشاط ومحتواه، يمكن إعادة تقييم الفكرة.",
+    },
+    financing: {
+      en: "After clarifying the contract and return structure, the idea can be evaluated again.",
+      ar: "بعد توضيح طبيعة العقد والعائد، يمكن إعادة تقييم الفكرة.",
+    },
   },
 };
 
@@ -156,8 +162,8 @@ export function evaluateIdeaEligibility(input = {}, language = "en") {
   return buildEligibilityResult("eligible", language);
 }
 
-function buildEligibilityResult(status, language, clarificationType = "general") {
-  const clarificationMessage = clarificationMessages[clarificationType] || clarificationMessages.general;
+function buildEligibilityResult(status, language, clarificationType = "eligibility") {
+  const clarificationMessage = clarificationMessages[clarificationType] || clarificationMessages.eligibility;
   const message =
     status === "ineligible"
       ? refusalMessages[language] || refusalMessages.en
@@ -166,10 +172,17 @@ function buildEligibilityResult(status, language, clarificationType = "general")
         : "";
   const title = resultTitles[status]?.[language] || "";
   const policyText = eligibilityPolicyText[language] || eligibilityPolicyText.en;
+  const closing =
+    status === "needs_clarification"
+      ? (closingMessages.needs_clarification[clarificationType]?.[language] ||
+          closingMessages.needs_clarification.eligibility[language] ||
+          closingMessages.needs_clarification.eligibility.en)
+      : closingMessages[status]?.[language] || "";
 
   return {
     status,
     ok: status === "eligible",
+    clarificationType: status === "needs_clarification" ? clarificationType : "",
     policyText,
     title,
     message,
@@ -180,7 +193,7 @@ function buildEligibilityResult(status, language, clarificationType = "general")
             heading: title,
             body: message,
             policy: policyText,
-            closing: closingMessages[status]?.[language] || "",
+            closing,
           },
   };
 }

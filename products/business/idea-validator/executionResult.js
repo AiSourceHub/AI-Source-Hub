@@ -5,6 +5,123 @@ import { buildBusinessIdeaRecommendation, refineBusinessIdeaCriteria } from "./r
 import { buildImprovedIdeaStatement, scoreBusinessIdea } from "./scoring.js";
 import { orchestrateBusinessIdeaValidation } from "./validatorOrchestrator.js";
 
+export const BIV_JOURNEY_STATES = {
+  PROFILE_INPUT: "profile_input",
+  IDEA_INPUT: "idea_input",
+  VALIDATION_ERROR: "validation_error",
+  INELIGIBLE: "ineligible",
+  ELIGIBILITY_CLARIFICATION: "eligibility_clarification",
+  FINANCING_CLARIFICATION: "financing_clarification",
+  CLASSIFICATION_REVIEW: "classification_review",
+  CLASSIFICATION_CORRECTION: "classification_correction",
+  GUIDED_FOLLOWUP: "guided_followup",
+  SPECIALIST_CLARIFICATION: "specialist_clarification",
+  SPECIALIST_ANALYSIS: "specialist_analysis",
+  NORMAL_EVALUATION: "normal_evaluation",
+};
+
+export const BIV_VALID_JOURNEY_STATES = new Set(Object.values(BIV_JOURNEY_STATES));
+
+export function resolveBusinessIdeaJourneyState(decision = {}) {
+  if (decision.route === "validation_error") {
+    return BIV_JOURNEY_STATES.VALIDATION_ERROR;
+  }
+
+  if (decision.route === "ineligible") {
+    return BIV_JOURNEY_STATES.INELIGIBLE;
+  }
+
+  if (decision.route === "needs_clarification") {
+    if (decision.requestAssessment) {
+      return BIV_JOURNEY_STATES.SPECIALIST_CLARIFICATION;
+    }
+
+    const clarificationType = decision.eligibility?.clarificationType;
+    if (clarificationType === "eligibility") {
+      return BIV_JOURNEY_STATES.ELIGIBILITY_CLARIFICATION;
+    }
+    if (clarificationType === "financing") {
+      return BIV_JOURNEY_STATES.FINANCING_CLARIFICATION;
+    }
+
+    throw new Error(`Missing or unsupported eligibility clarificationType: ${clarificationType || "missing"}`);
+  }
+
+  if (decision.route === "specialist_analysis") {
+    return BIV_JOURNEY_STATES.SPECIALIST_ANALYSIS;
+  }
+
+  if (decision.route === "normal_evaluation") {
+    return BIV_JOURNEY_STATES.NORMAL_EVALUATION;
+  }
+
+  if (decision.route === "guided_follow_up") {
+    if (hasPendingProfileFields(decision)) {
+      return BIV_JOURNEY_STATES.PROFILE_INPUT;
+    }
+
+    if (hasPendingIdeaFields(decision)) {
+      return BIV_JOURNEY_STATES.IDEA_INPUT;
+    }
+
+    if (decision.reasonCode === "classification_confirmation_required") {
+      return hasClassificationCorrectionFields(decision)
+        ? BIV_JOURNEY_STATES.CLASSIFICATION_CORRECTION
+        : BIV_JOURNEY_STATES.CLASSIFICATION_REVIEW;
+    }
+
+    return BIV_JOURNEY_STATES.GUIDED_FOLLOWUP;
+  }
+
+  return BIV_JOURNEY_STATES.NORMAL_EVALUATION;
+}
+
+function hasPendingProfileFields(decision) {
+  const fields = collectClarificationFields(decision);
+  return fields.some((field) =>
+    ["userExperienceLevel", "firstProject", "projectStageIntent", "country", "city", "decisionObjective"].includes(field.id)
+  );
+}
+
+function hasPendingIdeaFields(decision) {
+  const fields = collectClarificationFields(decision);
+  return fields.some((field) =>
+    [
+      "ideaDescription",
+      "businessIdea",
+      "targetCustomer",
+      "problemSolved",
+      "problem",
+      "currentSolution",
+      "competitiveAdvantage",
+      "revenueModel",
+      "monetization",
+    ].includes(field.id)
+  );
+}
+
+function hasClassificationCorrectionFields(decision) {
+  const fields = collectClarificationFields(decision);
+  return fields.some((field) => ["projectTypeCorrection", "operatingModelCorrection", "classificationCorrectionReason"].includes(field.id));
+}
+
+function collectClarificationFields(decision) {
+  const renderedFields = (decision.guidedFeasibility?.clarificationFlow?.steps || decision.requestAssessment?.clarificationFlow?.steps || [])
+    .flatMap((step) => step.fields || []);
+  const missingFields = (decision.guidedFeasibility?.clarificationFlow?.missingFieldIds || decision.guidedFeasibility?.missingFieldIds || []).map((id) => ({ id }));
+
+  return [...renderedFields, ...missingFields];
+}
+
+function withJourneyState(result, decision) {
+  const journeyState = resolveBusinessIdeaJourneyState(decision);
+  return {
+    ...result,
+    route: decision.route,
+    journeyState,
+  };
+}
+
 export function executeBusinessIdeaValidation({
   rawInput = {},
   language = "en",
@@ -22,17 +139,17 @@ export function executeBusinessIdeaValidation({
   const { analysis, validation } = decision;
 
   if (decision.route === "validation_error") {
-    return {
+    return withJourneyState({
       ok: false,
       state: "invalid",
       analysis,
       validation,
       orchestrationDecision: decision,
-    };
+    }, decision);
   }
 
   if (decision.route === "ineligible" && decision.eligibility) {
-    return {
+    return withJourneyState({
       ok: true,
       state: "ineligible",
       evaluationStatus: "ineligible",
@@ -44,12 +161,12 @@ export function executeBusinessIdeaValidation({
       title: decision.eligibility.title,
       presentation: decision.eligibility.presentation,
       orchestrationDecision: decision,
-    };
+    }, decision);
   }
 
   if (decision.route === "needs_clarification") {
     if (decision.eligibility) {
-      return {
+      return withJourneyState({
         ok: true,
         state: "clarification",
         evaluationStatus: "needs_clarification",
@@ -61,11 +178,11 @@ export function executeBusinessIdeaValidation({
         title: decision.eligibility.title,
         presentation: decision.eligibility.presentation,
         orchestrationDecision: decision,
-      };
+      }, decision);
     }
 
     if (decision.requestAssessment) {
-      return {
+      return withJourneyState({
         ok: true,
         state: "clarification",
         evaluationStatus: "needs_clarification",
@@ -78,13 +195,13 @@ export function executeBusinessIdeaValidation({
         clarificationFlow: decision.requestAssessment.clarificationFlow,
         feasibilityFoundation: decision.feasibilityFoundation,
         orchestrationDecision: decision,
-      };
+      }, decision);
     }
   }
 
   if (decision.route === "guided_follow_up") {
     const guidedFeasibility = decision.guidedFeasibility;
-    return {
+    return withJourneyState({
       ok: true,
       state: "clarification",
       evaluationStatus:
@@ -100,7 +217,7 @@ export function executeBusinessIdeaValidation({
       feasibilityFoundation: decision.feasibilityFoundation,
       feasibilityGuidance: guidedFeasibility,
       orchestrationDecision: decision,
-    };
+    }, decision);
   }
 
   if (decision.route === "specialist_analysis") {
@@ -111,7 +228,7 @@ export function executeBusinessIdeaValidation({
       industrialDetails,
       language: lang,
     });
-    return {
+    return withJourneyState({
       ok: true,
       state: "industrial_report",
       evaluationStatus: "industrial_assessment",
@@ -124,17 +241,17 @@ export function executeBusinessIdeaValidation({
       industrialDetails,
       feasibilityFoundation: decision.feasibilityFoundation,
       orchestrationDecision: decision,
-    };
+    }, decision);
   }
 
-  return buildNormalEvaluationResult({
+  return withJourneyState(buildNormalEvaluationResult({
     decision,
     rawInput,
     language: lang,
     content,
     analysis,
     validation,
-  });
+  }), decision);
 }
 
 function buildNormalEvaluationResult({ decision, rawInput, language, content, analysis, validation }) {

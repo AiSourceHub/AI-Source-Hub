@@ -27,6 +27,7 @@ export const contentAr = {
   processing: "جارٍ تحليل الفكرة...",
   fields: {
     businessName: "اسم العمل",
+    ideaDescription: "صف فكرة المشروع باختصار",
     industry: "القطاع",
     targetCustomer: "العميل المستهدف",
     problemSolved: "ما المشكلة التي تريد حلها؟",
@@ -36,6 +37,7 @@ export const contentAr = {
     stage: "مرحلة المشروع",
   },
   helpText: {
+    ideaDescription: "ماذا سيقدم المشروع، ولمن، وهل تأتي الخدمة إلى العميل أم يذهب العميل إلى موقع المشروع؟",
     problemSolved: "صف المشكلة التي يواجهها العميل باختصار.",
     currentSolution: "مثال: يبحث بنفسه، يسأل الآخرين، يستخدم خدمة أخرى، أو لا يفعل شيئًا.",
   },
@@ -46,7 +48,7 @@ export const contentAr = {
   },
   actions: {
     previous: "السابق",
-    next: "التالي",
+    next: "متابعة",
     submit: "قيّم الفكرة",
     validating: "جارٍ التقييم...",
   },
@@ -88,7 +90,66 @@ export const contentAr = {
     relatedProducts: "منتجات ذات صلة",
     originalInputs: "المدخلات الأصلية",
   },
-  steps: ["السياق", "المشكلة والحل", "التموضع والجدوى الاقتصادية"],
+  steps: ["سياقك", "فكرتك", "تصنيف المشروع"],
+  journey: {
+    steps: ["سياقك", "فكرتك", "تصنيف المشروع"],
+    continue: "متابعة",
+    aboutTitle: "سياقك",
+    ideaTitle: "فكرتك",
+    classificationTitle: "تصنيف المشروع",
+    classificationWaiting:
+      "أكمل وصف الفكرة والعميل والمشكلة وطريقة الإيرادات أولاً، ثم سنقترح تصنيفاً مناسباً.",
+    required: "هذا الحقل مطلوب للمتابعة.",
+    fields: {
+      userExperienceLevel: {
+        label: "أي وصف يناسبك أكثر؟",
+        help: "اختر الوصف الأقرب. يمكنك تغييره لاحقاً.",
+        placeholder: "اختر مستوى الخبرة",
+        options: [
+          ["first_time_beginner", "هذه أول تجربة لي في إنشاء مشروع"],
+          ["limited_experience", "لدي خبرة محدودة وأقيّم فكرة جديدة"],
+        ],
+      },
+      firstProject: {
+        label: "هل هذا أول مشروع لك؟",
+        help: "يساعدنا ذلك على جعل الإرشاد مناسباً لمستوى خبرتك.",
+        placeholder: "اختر الإجابة",
+        options: [
+          ["yes", "نعم"],
+          ["no", "لا"],
+          ["not_sure", "غير متأكد"],
+        ],
+      },
+      projectStageIntent: {
+        label: "في أي مرحلة يوجد المشروع؟",
+        help: "المرحلة والخبرة أمران منفصلان.",
+        placeholder: "اختر مرحلة المشروع",
+        options: [
+          ["initial_idea", "فكرة أولية"],
+          ["researching", "مرحلة البحث"],
+          ["preparing_to_launch", "الاستعداد للإطلاق"],
+          ["operating", "مشروع يعمل حاليًا"],
+          ["improving", "تطوير مشروع قائم"],
+          ["expanding", "التوسع"],
+        ],
+      },
+      country: {
+        label: "الدولة",
+        help: "يكفي اسم الدولة الآن. سيؤثر ذلك لاحقاً في البحث والتراخيص ونطاقات التكلفة.",
+        placeholder: "مثال: السعودية",
+      },
+      city: {
+        label: "المدينة أو المنطقة",
+        help: "أضفها إذا كانت مهمة. يمكنك كتابة «لم أحدد بعد».",
+        placeholder: "مثال: جدة",
+      },
+      decisionObjective: {
+        label: "ما القرار الذي تريد المساعدة فيه؟",
+        help: "مثلاً: أبدأ، أتوقف، أقدّر التكلفة، أختار الموقع، أو أفهم المخاطر.",
+        placeholder: "مثال: أعرف هل أستمر قبل أن أصرف مالاً",
+      },
+    },
+  },
   signalValues: {
     high: "مرتفع",
     medium: "متوسط",

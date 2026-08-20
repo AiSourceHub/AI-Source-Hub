@@ -8,7 +8,7 @@ import { buildBusinessIdeaReportText } from '../../products/business/idea-valida
 import { buildIndustrialReportText } from '../../products/business/idea-validator/industrialAnalysis.js';
 import { inputSchema } from '../../products/business/idea-validator/questions.js';
 import { applyDocumentLocale, bindLanguageSwitcher } from '../../core/localization.js';
-import { executeBusinessIdeaValidation } from '../../products/business/idea-validator/executionResult.js';
+import { BIV_JOURNEY_STATES, executeBusinessIdeaValidation } from '../../products/business/idea-validator/executionResult.js';
 
 const contentMap = { en: contentEn, ar: contentAr };
 
@@ -28,6 +28,7 @@ const defaultPageContent = {
   },
   fields: {
     businessName: 'Business name',
+    ideaDescription: 'Describe the business idea briefly',
     industry: 'Industry',
     targetCustomer: 'Target customer',
     problemSolved: 'Problem solved',
@@ -37,6 +38,7 @@ const defaultPageContent = {
     stage: 'Stage',
   },
   helpText: {
+    ideaDescription: 'What will the business provide, to whom, and does the service travel to the customer or does the customer visit the business location?',
     problemSolved: 'Briefly describe the problem the customer has.',
     currentSolution: 'Describe the customer’s current workaround or alternative.',
   },
@@ -47,7 +49,7 @@ const defaultPageContent = {
   },
   actions: {
     previous: 'Previous',
-    next: 'Next',
+    next: 'Continue',
     submit: 'Validate idea',
     validating: 'Validating...',
   },
@@ -69,7 +71,7 @@ const defaultPageContent = {
     startAgain: 'Start again',
     noStrengths: 'No strengths yet',
   },
-  steps: ['Context', 'Problem & solution', 'Positioning & economics'],
+  steps: ['About You', 'Your Idea', 'Classification'],
   signalValues: {
     high: 'High',
     medium: 'Medium',
@@ -84,6 +86,7 @@ const defaultPageContent = {
 
 const initialFormData = {
   businessName: '',
+  ideaDescription: '',
   industry: '',
   targetCustomer: '',
   problemSolved: '',
@@ -123,6 +126,7 @@ function buildEngineInput(formData, language = 'en') {
         };
   const businessIdea = [
     formData.businessName,
+    formData.ideaDescription,
     formData.industry ? `${fieldPrefixes.industry}: ${formData.industry}` : '',
     formData.currentSolution ? `${fieldPrefixes.currentSolution}: ${formData.currentSolution}` : '',
     formData.competitiveAdvantage ? `${fieldPrefixes.competitiveAdvantage}: ${formData.competitiveAdvantage}` : '',
@@ -135,10 +139,16 @@ function buildEngineInput(formData, language = 'en') {
     targetCustomer: formData.targetCustomer,
     problem: formData.problemSolved,
     monetization: formData.revenueModel,
-    stage: formData.stage,
+    stage: mapJourneyStageToEngineStage(formData.stage),
     currentSolution: formData.currentSolution,
     competitiveAdvantage: formData.competitiveAdvantage,
   };
+}
+
+function mapJourneyStageToEngineStage(stage = 'idea') {
+  if (['operating', 'improving', 'expanding', 'launched'].includes(stage)) return 'launched';
+  if (['preparing_to_launch', 'mvp'].includes(stage)) return 'mvp';
+  return 'idea';
 }
 
 function deriveReportSignals(result, formData, content) {
@@ -215,6 +225,7 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
       verdicts: { ...defaultPageContent.verdicts, ...(baseContent?.verdicts || {}) },
       confidence: { ...defaultPageContent.confidence, ...(baseContent?.confidence || {}) },
       report: { ...defaultPageContent.report, ...(baseContent?.report || {}) },
+      journey: baseContent?.journey || contentMap.en.journey,
     };
   }, [language]);
   const [formData, setFormData] = useState(initialFormData);
@@ -232,6 +243,7 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [result, setResult] = useState(null);
   const [reportText, setReportText] = useState('');
+  const journeyCopy = pageContent.journey;
 
   useEffect(() => {
     applyDocumentLocale(language);
@@ -259,19 +271,24 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
     if (!result) return;
 
     const localizedResult = executeBusinessValidation(buildEngineInput(formData, language), language, industrialDetails, feasibilityAnswers);
-    if (!localizedResult.ok) return;
-
     setResult(localizedResult);
-    setReportText(buildResultText(localizedResult, pageContent, language));
+    setReportText(localizedResult.ok ? buildResultText(localizedResult, pageContent, language) : '');
   }, [language]);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
     setFormData((current) => ({ ...current, [name]: value }));
     setErrors((current) => ({ ...current, [name]: '' }));
-    if (['businessName', 'industry', 'problemSolved'].includes(name)) {
+    if (['businessName', 'ideaDescription', 'industry', 'targetCustomer', 'problemSolved', 'currentSolution', 'competitiveAdvantage', 'revenueModel'].includes(name)) {
       setIndustrialDetails(initialIndustrialDetails);
-      setFeasibilityAnswers(initialFeasibilityAnswers);
+      setFeasibilityAnswers((current) => ({
+        userExperienceLevel: current.userExperienceLevel || '',
+        firstProject: current.firstProject || '',
+        projectStageIntent: current.projectStageIntent || '',
+        country: current.country || '',
+        city: current.city || '',
+        decisionObjective: current.decisionObjective || '',
+      }));
       setIndustrialClarificationStep(1);
       setClarificationErrors({});
     }
@@ -280,14 +297,149 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
     }
   };
 
+  const handleJourneyAnswerChange = (event) => {
+    const { name, value } = event.target;
+    setFeasibilityAnswers((current) => ({ ...current, [name]: value }));
+    if (name === 'projectStageIntent') {
+      setFormData((current) => ({ ...current, stage: mapJourneyStageToEngineStage(value) }));
+    }
+    setErrors((current) => ({ ...current, [name]: '' }));
+    setClarificationErrors((current) => ({ ...current, [name]: '' }));
+    if (
+      (name === 'classificationConfirmation' && value === 'correct') ||
+      ['projectTypeCorrection', 'operatingModelCorrection', 'classificationCorrectionReason'].includes(name)
+    ) {
+      const nextAnswers = { ...feasibilityAnswers, [name]: value };
+      const validationResult = executeBusinessValidation(buildEngineInput(formData, language), language, industrialDetails, nextAnswers);
+      if (validationResult.ok) {
+        setResult(validationResult);
+        setReportText(buildResultText(validationResult, pageContent, language));
+      }
+    } else if (name === 'classificationConfirmation' && value !== 'correct') {
+      setFeasibilityAnswers((current) => ({
+        ...current,
+        classificationConfirmation: value,
+        projectTypeCorrection: '',
+        operatingModelCorrection: '',
+        classificationCorrectionReason: '',
+      }));
+    }
+    if (status.tone !== 'info' || status.message !== pageContent.states.idle) {
+      setStatus({ tone: 'info', stateKey: 'input', message: pageContent.states.input });
+    }
+  };
+
+  const validateCurrentJourneyStep = () => {
+    const nextErrors = {};
+    if (currentStep === 1) {
+      ['userExperienceLevel', 'firstProject', 'projectStageIntent', 'country', 'decisionObjective'].forEach((fieldId) => {
+        if (!String(feasibilityAnswers[fieldId] || '').trim()) {
+          nextErrors[fieldId] = journeyCopy.required;
+        }
+      });
+    }
+
+    if (currentStep === 2) {
+      [
+        ['ideaDescription', 10],
+        ['targetCustomer', 5],
+        ['problemSolved', 8],
+        ['currentSolution', 3],
+        ['competitiveAdvantage', 3],
+        ['revenueModel', 4],
+      ].forEach(([fieldId, minLength]) => {
+        if (String(formData[fieldId] || '').trim().length < minLength) {
+          nextErrors[fieldId] = journeyCopy.required;
+        }
+      });
+    }
+
+    if (currentStep === 3) {
+      if (!String(feasibilityAnswers.classificationConfirmation || '').trim()) {
+        nextErrors.classificationConfirmation = journeyCopy.required;
+      }
+      if (feasibilityAnswers.classificationConfirmation === 'correct' && !String(feasibilityAnswers.projectTypeCorrection || '').trim()) {
+        nextErrors.projectTypeCorrection = journeyCopy.required;
+      }
+      if (feasibilityAnswers.classificationConfirmation === 'correct' && !String(feasibilityAnswers.operatingModelCorrection || '').trim()) {
+        nextErrors.operatingModelCorrection = journeyCopy.required;
+      }
+    }
+
+    setErrors((current) => ({ ...current, ...nextErrors }));
+    setClarificationErrors((current) => ({ ...current, ...nextErrors }));
+    return Object.keys(nextErrors).length === 0;
+  };
+
+  const prepareClassificationStep = () => {
+    const validationResult = executeBusinessValidation(buildEngineInput(formData, language), language, industrialDetails, feasibilityAnswers);
+    if (!validationResult.ok) {
+      const fieldErrors = {};
+      validationResult.validation.errors.forEach((error) => {
+        const mappedField = error.field === 'businessIdea' ? 'ideaDescription' : error.field === 'problem' ? 'problemSolved' : error.field;
+        fieldErrors[mappedField] = journeyCopy.required;
+      });
+      setErrors((current) => ({ ...current, ...fieldErrors }));
+      setResult(validationResult);
+      setReportText('');
+      setStatus({ tone: 'error', stateKey: 'invalid', message: pageContent.states.invalid });
+      return false;
+    }
+
+    setResult(validationResult);
+    setReportText(buildResultText(validationResult, pageContent, language));
+    if (['ineligible', 'needs_clarification'].includes(validationResult.evaluationStatus)) {
+      setStatus({ tone: validationResult.evaluationStatus === 'ineligible' ? 'error' : 'info', message: validationResult.message || pageContent.states.input });
+      return false;
+    }
+    return true;
+  };
+
+  const handleJourneyContinue = () => {
+    if (!validateCurrentJourneyStep()) {
+      setStatus({ tone: 'error', stateKey: 'invalid', message: pageContent.states.invalid });
+      return;
+    }
+
+    if (currentStep === 1) {
+      setCurrentStep(2);
+      setStatus({ tone: 'info', stateKey: 'input', message: pageContent.states.input });
+      return;
+    }
+
+    if (currentStep === 2) {
+      if (prepareClassificationStep()) {
+        setCurrentStep(3);
+        setStatus({ tone: 'info', stateKey: 'input', message: pageContent.states.input });
+      }
+      return;
+    }
+
+    handleSubmit({ preventDefault() {} });
+  };
+
   const handleClarificationDetailChange = (event) => {
     const { name, value } = event.target;
+    const nextFeasibilityAnswers =
+      result?.clarificationFlow?.type === 'feasibility_guided'
+        ? { ...feasibilityAnswers, [name]: value }
+        : feasibilityAnswers;
+
     if (result?.clarificationFlow?.type === 'feasibility_guided') {
-      setFeasibilityAnswers((current) => ({ ...current, [name]: value }));
+      setFeasibilityAnswers(nextFeasibilityAnswers);
     } else {
       setIndustrialDetails((current) => ({ ...current, [name]: value }));
     }
     setClarificationErrors((current) => ({ ...current, [name]: '' }));
+
+    if (name === 'classificationConfirmation') {
+      const engineInput = buildEngineInput(formData, language);
+      const validationResult = executeBusinessValidation(engineInput, language, industrialDetails, nextFeasibilityAnswers);
+      if (validationResult.ok) {
+        setResult(validationResult);
+        setReportText(buildResultText(validationResult, pageContent, language));
+      }
+    }
   };
 
   const handleSubmit = async (event) => {
@@ -310,7 +462,8 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
             `${fieldDef ? fieldDef.label[language] : error.field}: ${pageContent.states.invalid}`;
         });
         setErrors(fieldErrors);
-        setResult(null);
+        setResult(validationResult);
+        setReportText('');
         setStatus({ tone: 'error', stateKey: 'invalid', message: pageContent.states.invalid });
         setIsSubmitting(false);
         return;
@@ -340,7 +493,7 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
       const nextErrors = missingFields.reduce((messages, field) => {
         const source = validationResult.clarificationFlow?.type === 'feasibility_guided' ? feasibilityAnswers : industrialDetails;
         if (field.required && !source[field.id]) {
-          messages[field.id] = language === 'ar' ? 'هذا الحقل مطلوب للمتابعة.' : 'This field is required to continue.';
+          messages[field.id] = pageContent.journey.required;
         }
         return messages;
       }, {});
@@ -389,23 +542,130 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
     setStatus({ tone: 'info', stateKey: 'reset', message: pageContent.states.reset });
   };
 
-  const isEligibilityResult = result?.evaluationStatus && !['evaluated', 'industrial_assessment'].includes(result.evaluationStatus);
+  const journeyState =
+    result?.journeyState ||
+    (currentStep === 1
+      ? BIV_JOURNEY_STATES.PROFILE_INPUT
+      : currentStep === 2
+        ? BIV_JOURNEY_STATES.IDEA_INPUT
+        : BIV_JOURNEY_STATES.CLASSIFICATION_REVIEW);
+  const inputJourneyStates = new Set([
+    BIV_JOURNEY_STATES.PROFILE_INPUT,
+    BIV_JOURNEY_STATES.IDEA_INPUT,
+    BIV_JOURNEY_STATES.VALIDATION_ERROR,
+    BIV_JOURNEY_STATES.CLASSIFICATION_REVIEW,
+    BIV_JOURNEY_STATES.CLASSIFICATION_CORRECTION,
+  ]);
+  const clarificationJourneyStates = new Set([
+    BIV_JOURNEY_STATES.INELIGIBLE,
+    BIV_JOURNEY_STATES.ELIGIBILITY_CLARIFICATION,
+    BIV_JOURNEY_STATES.FINANCING_CLARIFICATION,
+    BIV_JOURNEY_STATES.GUIDED_FOLLOWUP,
+    BIV_JOURNEY_STATES.SPECIALIST_CLARIFICATION,
+  ]);
+  const reportJourneyStates = new Set([
+    BIV_JOURNEY_STATES.NORMAL_EVALUATION,
+    BIV_JOURNEY_STATES.SPECIALIST_ANALYSIS,
+  ]);
+  const showFormRegion = inputJourneyStates.has(journeyState);
+  const showClarificationCard = clarificationJourneyStates.has(journeyState);
+  const showGenericStatusPanel = false;
+  const isReportState = reportJourneyStates.has(journeyState);
+  const allowedActions = result?.orchestrationDecision?.allowedActions || [];
+  const canCopyReport = isReportState && allowedActions.includes('copy_report');
+  const canDownloadReport = isReportState && allowedActions.includes('download_report');
   const eligibilityPresentation = result?.presentation || {
     heading: result?.title,
     body: result?.message,
     policy: result?.policyText,
     closing: '',
   };
-  const reportSignals = result?.evaluationStatus === 'evaluated' ? deriveReportSignals(result, formData, pageContent) : null;
-  const industrialReport = result?.evaluationStatus === 'industrial_assessment' ? result.industrialReport : null;
+  const reportSignals = journeyState === BIV_JOURNEY_STATES.NORMAL_EVALUATION ? deriveReportSignals(result, formData, pageContent) : null;
+  const industrialReport = journeyState === BIV_JOURNEY_STATES.SPECIALIST_ANALYSIS ? result.industrialReport : null;
   const clarificationFlow = result?.clarificationFlow;
   const clarificationSteps = clarificationFlow?.steps || [];
   const currentClarificationStep = clarificationSteps[Math.min(industrialClarificationStep, clarificationSteps.length) - 1];
   const activeClarificationDetails = clarificationFlow?.type === 'feasibility_guided' ? feasibilityAnswers : industrialDetails;
+  const classificationFields =
+    [BIV_JOURNEY_STATES.CLASSIFICATION_REVIEW, BIV_JOURNEY_STATES.CLASSIFICATION_CORRECTION].includes(journeyState)
+      ? (clarificationFlow?.steps || [])
+          .flatMap((step) => step.fields || [])
+          .filter((field) => ['classificationConfirmation', 'projectTypeCorrection', 'operatingModelCorrection', 'classificationCorrectionReason'].includes(field.id))
+      : [];
+  const proposedClassification = result?.orchestrationDecision?.proposedClassification;
+  const journeyStepLabels = journeyCopy.steps;
+  const profileFields = ['userExperienceLevel', 'firstProject', 'projectStageIntent', 'country', 'city', 'decisionObjective'];
+
+  const renderJourneyField = (fieldId) => {
+    const field = journeyCopy.fields[fieldId];
+    if (!field) return null;
+    const value = feasibilityAnswers[fieldId] || '';
+    const common = {
+      className: 'field__control',
+      name: fieldId,
+      value,
+      onChange: handleJourneyAnswerChange,
+      required: fieldId !== 'city',
+    };
+
+    return (
+      <label className="field" key={fieldId}>
+        <span className="field__label">{field.label}</span>
+        {field.help ? <span className="field__help">{field.help}</span> : null}
+        {field.options ? (
+          <select {...common}>
+            <option value="">{field.placeholder}</option>
+            {field.options.map(([optionValue, optionLabel]) => (
+              <option key={optionValue} value={optionValue}>
+                {optionLabel}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <input {...common} placeholder={field.placeholder} />
+        )}
+        <span className="field__error">{errors[fieldId] || clarificationErrors[fieldId] || ''}</span>
+      </label>
+    );
+  };
+
+  const renderClassificationField = (field) => (
+    <label className="field" key={field.id}>
+      <span className="field__label">{field.labelText}</span>
+      {field.helpText ? <span className="field__help">{field.helpText}</span> : null}
+      {field.type === 'select' ? (
+        <select
+          className="field__control"
+          name={field.id}
+          value={feasibilityAnswers[field.id] || ''}
+          onChange={handleJourneyAnswerChange}
+          required={field.required}
+        >
+          <option value="">{field.placeholderText}</option>
+          {field.options.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.labelText}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <textarea
+          className="field__control field__control--textarea"
+          name={field.id}
+          value={feasibilityAnswers[field.id] || ''}
+          onChange={handleJourneyAnswerChange}
+          placeholder={field.placeholderText}
+          required={field.required}
+        />
+      )}
+      <span className="field__error">{errors[field.id] || clarificationErrors[field.id] || ''}</span>
+    </label>
+  );
 
   const main = (
     <div className="validator-shell">
       <div className="validator-panel">
+        {showFormRegion ? (
         <section className="card" aria-labelledby="validator-form-title">
           <div className="card__body">
             <div className="validator-stepper" aria-label={pageContent.labels.stepperLabel || 'Form steps'}>
@@ -415,10 +675,11 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
                   type="button"
                   className={`step-pill ${currentStep === step ? 'is-active' : ''}`}
                   onClick={() => setCurrentStep(step)}
+                  disabled={step > currentStep}
                   aria-current={currentStep === step ? 'step' : undefined}
                 >
                   <span>{step}</span>
-                  <span>{pageContent?.steps?.[step - 1] || `Step ${step}`}</span>
+                  <span>{journeyStepLabels[step - 1] || `Step ${step}`}</span>
                 </button>
               ))}
             </div>
@@ -429,6 +690,12 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
             <form className="validator-form" onSubmit={handleSubmit} noValidate>
               {currentStep === 1 && (
                 <div className="validator-step-grid">
+                  {profileFields.map(renderJourneyField)}
+                </div>
+              )}
+
+              {currentStep === 2 && (
+                <div className="validator-step-grid">
                   <label className="field">
                     <span className="field__label">{pageContent?.fields?.businessName || 'Business name'}</span>
                     <input
@@ -436,20 +703,20 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
                       name="businessName"
                       value={formData.businessName}
                       onChange={handleChange}
-                      required
                     />
                     <span className="field__error">{errors.businessName || ''}</span>
                   </label>
                   <label className="field">
-                    <span className="field__label">{pageContent?.fields?.industry || 'Industry'}</span>
-                    <input
-                      className="field__control"
-                      name="industry"
-                      value={formData.industry}
+                    <span className="field__label">{pageContent?.fields?.ideaDescription || 'Describe the business idea briefly'}</span>
+                    <span className="field__help">{pageContent?.helpText?.ideaDescription || ''}</span>
+                    <textarea
+                      className="field__control field__control--textarea"
+                      name="ideaDescription"
+                      value={formData.ideaDescription}
                       onChange={handleChange}
                       required
                     />
-                    <span className="field__error">{errors.industry || ''}</span>
+                    <span className="field__error">{errors.ideaDescription || ''}</span>
                   </label>
                   <label className="field">
                     <span className="field__label">{pageContent?.fields?.targetCustomer || 'Target customer'}</span>
@@ -462,11 +729,6 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
                     />
                     <span className="field__error">{errors.targetCustomer || ''}</span>
                   </label>
-                </div>
-              )}
-
-              {currentStep === 2 && (
-                <div className="validator-step-grid">
                   <label className="field">
                     <span className="field__label">{pageContent?.fields?.problemSolved || 'Problem solved'}</span>
                     <span className="field__help">{pageContent?.helpText?.problemSolved || ''}</span>
@@ -491,11 +753,6 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
                     />
                     <span className="field__error">{errors.currentSolution || ''}</span>
                   </label>
-                </div>
-              )}
-
-              {currentStep === 3 && (
-                <div className="validator-step-grid">
                   <label className="field">
                     <span className="field__label">{pageContent?.fields?.competitiveAdvantage || 'Competitive advantage'}</span>
                     <textarea
@@ -518,20 +775,23 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
                     />
                     <span className="field__error">{errors.revenueModel || ''}</span>
                   </label>
-                  <label className="field">
-                    <span className="field__label">{pageContent?.fields?.stage || 'Stage'}</span>
-                    <select
-                      className="field__control"
-                      name="stage"
-                      value={formData.stage}
-                      onChange={handleChange}
-                    >
-                      <option value="idea">{pageContent?.stageOptions?.idea || 'Idea'}</option>
-                      <option value="mvp">{pageContent?.stageOptions?.mvp || 'MVP'}</option>
-                      <option value="launched">{pageContent?.stageOptions?.launched || 'Launched'}</option>
-                    </select>
-                    <span className="field__error">{errors.stage || ''}</span>
-                  </label>
+                </div>
+              )}
+
+              {currentStep === 3 && (
+                <div className="validator-step-grid">
+                  <div className="report-section">
+                    <h3>{journeyCopy.classificationTitle}</h3>
+                    {proposedClassification ? (
+                      <>
+                        <p><strong>{proposedClassification.label}</strong></p>
+                        <p>{proposedClassification.reason}</p>
+                      </>
+                    ) : (
+                      <p>{journeyCopy.classificationWaiting}</p>
+                    )}
+                  </div>
+                  {classificationFields.map(renderClassificationField)}
                 </div>
               )}
 
@@ -539,9 +799,9 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
                 <button className="button button--secondary" type="button" onClick={() => setCurrentStep((step) => Math.max(step - 1, 1))} disabled={currentStep === 1}>
                   {pageContent?.actions?.previous || 'Previous'}
                 </button>
-                {currentStep < 3 ? (
-                  <button className="button button--primary" type="button" onClick={() => setCurrentStep((step) => Math.min(step + 1, 3))}>
-                    {pageContent?.actions?.next || 'Next'}
+                {currentStep < 3 || [BIV_JOURNEY_STATES.CLASSIFICATION_REVIEW, BIV_JOURNEY_STATES.CLASSIFICATION_CORRECTION].includes(journeyState) ? (
+                  <button className="button button--primary" type="button" onClick={handleJourneyContinue} disabled={isSubmitting}>
+                    {journeyCopy.continue}
                   </button>
                 ) : (
                   <button className="button button--primary" type="submit" disabled={isSubmitting}>
@@ -552,9 +812,10 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
             </form>
           </div>
         </section>
+        ) : null}
 
         <aside className="validator-status-panel">
-          {!isEligibilityResult && !industrialReport ? (
+          {showGenericStatusPanel ? (
             <section className="card" aria-live="polite">
               <div className="card__body">
                 <p className="eyebrow">{pageContent.labels.status}</p>
@@ -567,7 +828,7 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
             </section>
           ) : null}
 
-          {isEligibilityResult ? (
+          {showClarificationCard ? (
             <section className="card" aria-labelledby="validator-policy-title">
               <div className="card__body">
                 <p className="eyebrow">{pageContent.labels.status}</p>
@@ -737,12 +998,16 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
                 </div>
 
                 <div className="report-actions">
+                  {canCopyReport ? (
                   <button className="button button--secondary" type="button" onClick={handleCopy}>
                     {pageContent.labels.copyReport}
                   </button>
+                  ) : null}
+                  {canDownloadReport ? (
                   <button className="button button--secondary" type="button" onClick={handleDownload}>
                     {pageContent.labels.downloadReport}
                   </button>
+                  ) : null}
                   <button className="button button--secondary" type="button" onClick={handleReset}>
                     {pageContent.labels.startAgain}
                   </button>
@@ -826,12 +1091,16 @@ function BusinessIdeaValidatorPage({ locale, product, content }) {
                 </div>
 
                 <div className="report-actions">
+                  {canCopyReport ? (
                   <button className="button button--secondary" type="button" onClick={handleCopy}>
                     {pageContent.labels.copyReport}
                   </button>
+                  ) : null}
+                  {canDownloadReport ? (
                   <button className="button button--secondary" type="button" onClick={handleDownload}>
                     {pageContent.labels.downloadReport}
                   </button>
+                  ) : null}
                   <button className="button button--secondary" type="button" onClick={handleReset}>
                     {pageContent.labels.startAgain}
                   </button>

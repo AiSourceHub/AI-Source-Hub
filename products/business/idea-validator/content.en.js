@@ -27,6 +27,7 @@ export const contentEn = {
   processing: "Analyzing the idea...",
   fields: {
     businessName: "Business name",
+    ideaDescription: "Describe the business idea briefly",
     industry: "Industry",
     targetCustomer: "Target customer",
     problemSolved: "Problem solved",
@@ -36,6 +37,7 @@ export const contentEn = {
     stage: "Stage",
   },
   helpText: {
+    ideaDescription: "What will the business provide, to whom, and does the service travel to the customer or does the customer visit the business location?",
     problemSolved: "Briefly describe the problem the customer has.",
     currentSolution: "Example: they search manually, ask others, use another service, or do nothing.",
   },
@@ -46,7 +48,7 @@ export const contentEn = {
   },
   actions: {
     previous: "Previous",
-    next: "Next",
+    next: "Continue",
     submit: "Validate idea",
     validating: "Validating...",
   },
@@ -88,7 +90,66 @@ export const contentEn = {
     relatedProducts: "Related Products",
     originalInputs: "Original Inputs",
   },
-  steps: ["Context", "Problem & solution", "Positioning & economics"],
+  steps: ["About You", "Your Idea", "Classification"],
+  journey: {
+    steps: ["About You", "Your Idea", "Classification"],
+    continue: "Continue",
+    aboutTitle: "About You",
+    ideaTitle: "Your Idea",
+    classificationTitle: "Classification",
+    classificationWaiting:
+      "Complete the idea description, customer, problem, and revenue model first, then AI Source Hub will propose the right classification.",
+    required: "This field is required to continue.",
+    fields: {
+      userExperienceLevel: {
+        label: "Which description fits you best?",
+        help: "Choose the closest answer. You can change it later.",
+        placeholder: "Select your experience level",
+        options: [
+          ["first_time_beginner", "This is my first business"],
+          ["limited_experience", "I have limited experience and I’m evaluating a new idea"],
+        ],
+      },
+      firstProject: {
+        label: "Is this your first project?",
+        help: "This helps us keep the guidance at the right level.",
+        placeholder: "Select answer",
+        options: [
+          ["yes", "Yes"],
+          ["no", "No"],
+          ["not_sure", "Not sure"],
+        ],
+      },
+      projectStageIntent: {
+        label: "What stage is this project in?",
+        help: "Stage and experience are separate.",
+        placeholder: "Select project stage",
+        options: [
+          ["initial_idea", "initial idea"],
+          ["researching", "researching"],
+          ["preparing_to_launch", "preparing to launch"],
+          ["operating", "operating"],
+          ["improving", "improving"],
+          ["expanding", "expanding"],
+        ],
+      },
+      country: {
+        label: "Country",
+        help: "A country is enough for now. It affects later research, permits, and cost ranges.",
+        placeholder: "Example: Saudi Arabia",
+      },
+      city: {
+        label: "City or region",
+        help: "Add it if relevant. You can write 'not selected yet'.",
+        placeholder: "Example: Jeddah",
+      },
+      decisionObjective: {
+        label: "What decision do you want help with?",
+        help: "For example: start, pause, estimate cost, choose location, or understand risks.",
+        placeholder: "Example: know whether to continue before spending money",
+      },
+    },
+  },
   signalValues: {
     high: "High",
     medium: "Medium",

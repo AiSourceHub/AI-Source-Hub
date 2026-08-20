@@ -1,4 +1,4 @@
-import { executeValidation } from "./index.js";
+import { executeValidation as executeProductValidation } from "./index.js";
 import contentAr from "./content.ar.js";
 import contentEn from "./content.en.js";
 import { inputSchema } from "./schema.js";
@@ -6,6 +6,7 @@ import { readFileSync } from "node:fs";
 import { buildIndustrialReportText } from "./industrialAnalysis.js";
 import { buildFeasibilityFoundation } from "./feasibilityFoundation.js";
 import { orchestrateBusinessIdeaValidation } from "./validatorOrchestrator.js";
+import { BIV_VALID_JOURNEY_STATES, resolveBusinessIdeaJourneyState } from "./executionResult.js";
 import {
   assessBusinessIdeaRequest,
   industrialClarificationFields,
@@ -14,6 +15,42 @@ import {
 
 const pageSource = readFileSync(new URL("../../../src/pages/BusinessIdeaValidatorPage.jsx", import.meta.url), "utf8");
 const styleSource = readFileSync(new URL("../../../src/styles.css", import.meta.url), "utf8");
+const orchestratorSource = readFileSync(new URL("./validatorOrchestrator.js", import.meta.url), "utf8");
+
+const defaultPhase3Answers = {
+  userExperienceLevel: "first_time_beginner",
+  firstProject: "yes",
+  projectStageIntent: "initial_idea",
+  country: "Saudi Arabia",
+  city: "Riyadh",
+  decisionObjective: "Decide whether to continue testing before spending money.",
+  classificationConfirmation: "confirm",
+};
+
+const defaultPhase3AnswersAr = {
+  userExperienceLevel: "first_time_beginner",
+  firstProject: "yes",
+  projectStageIntent: "initial_idea",
+  country: "السعودية",
+  city: "الرياض",
+  decisionObjective: "أريد معرفة هل أستمر قبل صرف المال.",
+  classificationConfirmation: "confirm",
+};
+
+function phase3DefaultsFor(language = "en") {
+  return language === "ar" ? defaultPhase3AnswersAr : defaultPhase3Answers;
+}
+
+function executeValidation(rawInput, language = "en", industrialDetails = {}, feasibilityAnswers = {}) {
+  return executeProductValidation(rawInput, language, industrialDetails, {
+    ...phase3DefaultsFor(language),
+    ...feasibilityAnswers,
+  });
+}
+
+function executeUnconfirmedValidation(rawInput, language = "en", industrialDetails = {}, feasibilityAnswers = {}) {
+  return executeProductValidation(rawInput, language, industrialDetails, feasibilityAnswers);
+}
 
 const cases = [
   {
@@ -853,7 +890,7 @@ if (!feasibilityFoundationPassed || !feasibilityIntegrationPassed) {
   process.exitCode = 1;
 }
 
-const guidedFeasibilityArabicSeed = executeValidation(
+const guidedFeasibilityArabicSeed = executeUnconfirmedValidation(
   {
     businessIdea: "مغسلة سيارات آلية",
     targetCustomer: "",
@@ -863,7 +900,7 @@ const guidedFeasibilityArabicSeed = executeValidation(
   "ar"
 );
 
-const guidedFeasibilityQuestion = executeValidation(
+const guidedFeasibilityQuestion = executeUnconfirmedValidation(
   {
     businessIdea: "مغسلة سيارات آلية",
     targetCustomer: "أصحاب السيارات في الأحياء السكنية",
@@ -873,19 +910,23 @@ const guidedFeasibilityQuestion = executeValidation(
   "ar"
 );
 
-const guidedFeasibilityCompleted = executeValidation(
+const guidedFeasibilityCompleted = executeProductValidation(
   {
-    businessIdea: "مغسلة سيارات آلية",
-    targetCustomer: "",
-    problem: "",
-    monetization: "",
+    businessIdea: "مغسلة سيارات آلية في موقع ثابت",
+    targetCustomer: "أصحاب السيارات في الأحياء السكنية",
+    problem: "يريدون غسل السيارة بسرعة وبجودة ثابتة دون انتظار طويل.",
+    monetization: "يدفع العميل مقابل كل عملية غسيل.",
   },
   "ar",
   {},
   {
-    userExperienceLevel: "beginner_first_business",
+    userExperienceLevel: "first_time_beginner",
+    firstProject: "yes",
     projectStageIntent: "initial_idea",
-    countryCity: "السعودية، الرياض",
+    country: "السعودية",
+    city: "الرياض",
+    decisionObjective: "أريد معرفة هل أستمر قبل صرف المال.",
+    classificationConfirmation: "confirm",
     operatingFormat: "fixed_site",
     deliveryModel: "آلي مع إشراف عاملين",
     targetCustomerPromise: "أصحاب السيارات يحصلون على غسيل سريع ومنظم",
@@ -904,7 +945,7 @@ const guidedFeasibilityCompleted = executeValidation(
   }
 );
 
-const guidedFeasibilityEnglishQuestion = executeValidation(
+const guidedFeasibilityEnglishQuestion = executeUnconfirmedValidation(
   {
     businessIdea: "An automated car wash",
     targetCustomer: "Drivers near residential neighborhoods",
@@ -914,7 +955,45 @@ const guidedFeasibilityEnglishQuestion = executeValidation(
   "en"
 );
 
-const beginnerInitialIdea = executeValidation(
+const phase3FixedCarWashAr = executeUnconfirmedValidation(
+  {
+    businessIdea: "أريد إنشاء مغسلة سيارات آلية في موقع ثابت بمدينة جدة، ويأتي العملاء بسياراتهم إلى المغسلة.",
+    targetCustomer: "أصحاب السيارات في مدينة جدة",
+    problem: "يريدون غسل السيارة بسرعة وبجودة ثابتة بدون انتظار طويل.",
+    monetization: "يدفع العميل مقابل كل عملية غسيل.",
+  },
+  "ar",
+  {},
+  {
+    userExperienceLevel: "first_time_beginner",
+    firstProject: "yes",
+    projectStageIntent: "initial_idea",
+    country: "السعودية",
+    city: "جدة",
+    decisionObjective: "أريد معرفة هل أستمر.",
+  }
+);
+
+const phase3MobileCarWashAr = executeUnconfirmedValidation(
+  {
+    businessIdea: "أريد إنشاء خدمة متنقلة لغسيل السيارات، وينتقل العامل والمعدات إلى منزل العميل أو موقف عمله.",
+    targetCustomer: "أصحاب السيارات المشغولون",
+    problem: "لا يجدون وقتاً مناسباً للذهاب إلى مغسلة سيارات.",
+    monetization: "يدفع العميل مقابل كل زيارة.",
+  },
+  "ar",
+  {},
+  {
+    userExperienceLevel: "first_time_beginner",
+    firstProject: "yes",
+    projectStageIntent: "initial_idea",
+    country: "السعودية",
+    city: "جدة",
+    decisionObjective: "أريد معرفة هل أستمر.",
+  }
+);
+
+const beginnerInitialIdea = executeUnconfirmedValidation(
   {
     businessIdea: "A simple home baking service",
     targetCustomer: "",
@@ -924,12 +1003,16 @@ const beginnerInitialIdea = executeValidation(
   "en",
   {},
   {
-    userExperienceLevel: "beginner_first_business",
+    userExperienceLevel: "first_time_beginner",
+    firstProject: "yes",
     projectStageIntent: "initial_idea",
+    country: "Saudi Arabia",
+    decisionObjective: "Know whether to continue.",
+    classificationConfirmation: "confirm",
   }
 );
 
-const experiencedInitialIdea = executeValidation(
+const limitedExperienceInitialIdea = executeUnconfirmedValidation(
   {
     businessIdea: "A SaaS app for independent clinic scheduling",
     targetCustomer: "",
@@ -939,12 +1022,16 @@ const experiencedInitialIdea = executeValidation(
   "en",
   {},
   {
-    userExperienceLevel: "experienced_new_idea",
+    userExperienceLevel: "limited_experience",
+    firstProject: "no",
     projectStageIntent: "initial_idea",
+    country: "Saudi Arabia",
+    decisionObjective: "Evaluate the idea before building.",
+    classificationConfirmation: "confirm",
   }
 );
 
-const beginnerOperatingBusiness = executeValidation(
+const beginnerOperatingBusiness = executeUnconfirmedValidation(
   {
     businessIdea: "A neighborhood laundry shop that already operates",
     targetCustomer: "",
@@ -954,12 +1041,16 @@ const beginnerOperatingBusiness = executeValidation(
   "en",
   {},
   {
-    userExperienceLevel: "beginner_first_business",
+    userExperienceLevel: "first_time_beginner",
+    firstProject: "yes",
     projectStageIntent: "operating",
+    country: "Saudi Arabia",
+    decisionObjective: "Improve the current business.",
+    classificationConfirmation: "confirm",
   }
 );
 
-const existingOwnerImproving = executeValidation(
+const existingOwnerImproving = executeUnconfirmedValidation(
   {
     businessIdea: "A salon owner wants to reduce waiting time and improve repeat bookings",
     targetCustomer: "",
@@ -969,12 +1060,16 @@ const existingOwnerImproving = executeValidation(
   "en",
   {},
   {
-    userExperienceLevel: "existing_business_owner",
+    userExperienceLevel: "experienced_new_idea",
+    firstProject: "no",
     projectStageIntent: "improving",
+    country: "Saudi Arabia",
+    decisionObjective: "Improve the current business.",
+    classificationConfirmation: "confirm",
   }
 );
 
-const experiencedOwnerExpanding = executeValidation(
+const experiencedOwnerExpanding = executeUnconfirmedValidation(
   {
     businessIdea: "A profitable catering business wants to expand to a second production kitchen",
     targetCustomer: "",
@@ -985,11 +1080,15 @@ const experiencedOwnerExpanding = executeValidation(
   {},
   {
     userExperienceLevel: "experienced_new_idea",
+    firstProject: "no",
     projectStageIntent: "expanding",
+    country: "Saudi Arabia",
+    decisionObjective: "Evaluate expansion.",
+    classificationConfirmation: "confirm",
   }
 );
 
-const switchedProfile = executeValidation(
+const switchedProfile = executeUnconfirmedValidation(
   {
     businessIdea: "مغسلة سيارات آلية",
     targetCustomer: "",
@@ -999,9 +1098,13 @@ const switchedProfile = executeValidation(
   "ar",
   {},
   {
-    userExperienceLevel: "existing_business_owner",
+    userExperienceLevel: "limited_experience",
+    firstProject: "no",
     projectStageIntent: "improving",
-    countryCity: "الرياض",
+    country: "السعودية",
+    city: "الرياض",
+    decisionObjective: "أريد تطوير المشروع.",
+    classificationConfirmation: "confirm",
   }
 );
 
@@ -1040,35 +1143,40 @@ const guidedFeasibilityPassed =
   guidedFeasibilityArabicSeed.evaluationStatus === "feasibility_followup" &&
   guidedFeasibilityArabicSeed.presentation.heading === "دعنا نفهم فكرتك بشكل أدق" &&
   guidedFeasibilityArabicSeed.clarificationFlow?.steps?.[0]?.fields?.some((field) => field.labelText === "أي وصف يناسبك أكثر؟") &&
+  !guidedFeasibilityArabicSeed.clarificationFlow?.steps?.[0]?.fields?.some((field) => field.labelText === "هل هذا التصنيف يصف مشروعك بشكل صحيح؟") &&
   guidedFeasibilityArabicSeed.clarificationFlow?.steps?.[0]?.fields?.some((field) => field.labelText === "في أي مرحلة يوجد المشروع؟") &&
-  guidedFeasibilityArabicSeed.clarificationFlow?.steps?.some((step) => step.title === "إعداد الفكرة") &&
-  guidedFeasibilityArabicSeed.clarificationFlow?.steps?.some((step) => step.title === "رأس المال والمعدات") &&
-  guidedFeasibilityArabicSeed.clarificationFlow?.steps?.some((step) => step.title === "التشغيل") &&
-  guidedFeasibilityArabicSeed.clarificationFlow?.steps?.some((step) => step.title === "الأدلة والبحث") &&
+  !guidedFeasibilityArabicSeed.clarificationFlow?.steps?.some((step) => step.title === "رأس المال والمعدات") &&
+  !guidedFeasibilityArabicSeed.clarificationFlow?.steps?.some((step) => step.title === "التشغيل") &&
+  !guidedFeasibilityArabicSeed.clarificationFlow?.steps?.some((step) => step.title === "الأدلة والبحث") &&
   guidedFeasibilityQuestion.evaluationStatus === "feasibility_followup" &&
+  guidedFeasibilityQuestion.clarificationFlow?.steps?.[0]?.fields?.some((field) => field.labelText === "هل هذا التصنيف يصف مشروعك بشكل صحيح؟") &&
   !guidedFeasibilityQuestion.score &&
   !guidedFeasibilityQuestion.biggestRisk &&
   !guidedFeasibilityQuestion.report &&
-  guidedFeasibilityCompleted.evaluationStatus === "feasibility_ready" &&
-  !guidedFeasibilityCompleted.score &&
-  guidedFeasibilityCompleted.feasibilityGuidance?.structuredReadiness?.originalInput.problem === "" &&
+  guidedFeasibilityCompleted.evaluationStatus === "evaluated" &&
+  Boolean(guidedFeasibilityCompleted.score) &&
   guidedFeasibilityEnglishQuestion.evaluationStatus === "feasibility_followup" &&
   guidedFeasibilityEnglishQuestion.presentation.heading === "Let’s understand your idea more clearly" &&
+  guidedFeasibilityEnglishQuestion.clarificationFlow?.steps?.[0]?.fields?.some((field) => field.labelText === "Does this classification describe your business correctly?") &&
+  phase3FixedCarWashAr.orchestrationDecision?.proposedClassification?.type === "field_service" &&
+  phase3FixedCarWashAr.orchestrationDecision?.proposedClassification?.primaryType === "service" &&
+  phase3FixedCarWashAr.orchestrationDecision?.proposedClassification?.operatingModel === "fixed_location" &&
+  phase3FixedCarWashAr.orchestrationDecision?.proposedClassification?.reason.includes("موقع المشروع") &&
+  phase3MobileCarWashAr.orchestrationDecision?.proposedClassification?.type === "field_service" &&
+  phase3MobileCarWashAr.orchestrationDecision?.proposedClassification?.primaryType === "service" &&
+  phase3MobileCarWashAr.orchestrationDecision?.proposedClassification?.operatingModel === "mobile_or_customer_site" &&
   beginnerInitialIdea.feasibilityGuidance?.userProfile?.adaptationStyle === "beginner" &&
-  JSON.stringify(beginnerInitialIdea.clarificationFlow?.steps || []).includes("Simple answer is fine") &&
-  experiencedInitialIdea.feasibilityGuidance?.userProfile?.adaptationStyle === "experienced" &&
-  JSON.stringify(experiencedInitialIdea.clarificationFlow?.steps || []).includes("unit economics") &&
+  !beginnerInitialIdea.score &&
+  limitedExperienceInitialIdea.feasibilityGuidance?.userProfile?.adaptationStyle === "limited_experience" &&
+  !limitedExperienceInitialIdea.score &&
   beginnerOperatingBusiness.feasibilityGuidance?.userProfile?.isBeginner === true &&
   beginnerOperatingBusiness.feasibilityGuidance?.userProfile?.isExistingBusinessPath === true &&
-  JSON.stringify(beginnerOperatingBusiness.clarificationFlow?.steps || []).includes("Current revenue") &&
   existingOwnerImproving.feasibilityGuidance?.userProfile?.adaptationStyle === "existing_business" &&
-  JSON.stringify(existingOwnerImproving.clarificationFlow?.steps || []).includes("Current costs and margins") &&
   experiencedOwnerExpanding.feasibilityGuidance?.userProfile?.isExperienced === true &&
   experiencedOwnerExpanding.feasibilityGuidance?.userProfile?.isExistingBusinessPath === true &&
-  JSON.stringify(experiencedOwnerExpanding.clarificationFlow?.steps || []).includes("Current bottlenecks") &&
-  switchedProfile.feasibilityGuidance?.userProfile?.experienceLevel === "existing_business_owner" &&
+  switchedProfile.feasibilityGuidance?.userProfile?.experienceLevel === "limited_experience" &&
   switchedProfile.feasibilityGuidance?.userProfile?.projectStageIntent === "improving" &&
-  switchedProfile.feasibilityGuidance?.answers?.countryCity === "الرياض" &&
+  switchedProfile.feasibilityGuidance?.answers?.city === "الرياض" &&
   !switchedProfile.report &&
   !switchedProfile.biggestRisk &&
   guidedNormalIdea.evaluationStatus === "evaluated" &&
@@ -1086,6 +1194,10 @@ console.log(
         heading: guidedFeasibilityArabicSeed.presentation?.heading,
         steps: guidedFeasibilityArabicSeed.clarificationFlow?.steps?.map((step) => step.title),
       },
+      phase3CarWashClassification: {
+        fixed: phase3FixedCarWashAr.orchestrationDecision?.proposedClassification,
+        mobile: phase3MobileCarWashAr.orchestrationDecision?.proposedClassification,
+      },
       guidedFeasibilityCompleted: {
         status: guidedFeasibilityCompleted.evaluationStatus,
         heading: guidedFeasibilityCompleted.presentation?.heading,
@@ -1100,6 +1212,665 @@ console.log(
 );
 
 if (!guidedFeasibilityPassed) {
+  process.exitCode = 1;
+}
+
+const phase3FullInput = {
+  businessIdea: "A mobile app guided meal prep planner for busy parents",
+  targetCustomer: "Busy parents who cook at home",
+  problem: "They lose time every week deciding meals and grocery lists.",
+  monetization: "Monthly subscription paid by the parent.",
+};
+
+const phase3Unconfirmed = executeUnconfirmedValidation(phase3FullInput, "en");
+const phase3ArabicUnconfirmed = executeUnconfirmedValidation(
+  {
+    businessIdea: "تطبيق يساعد الأسر على تنظيم الوجبات الأسبوعية",
+    targetCustomer: "الأسر المشغولة في المدن الكبيرة",
+    problem: "يضيعون وقتاً كل أسبوع في اختيار الوجبات وكتابة قائمة المشتريات.",
+    monetization: "اشتراك شهري تدفعه الأسرة.",
+  },
+  "ar"
+);
+const phase3Confirmed = executeValidation(phase3FullInput, "en");
+const phase3Limited = executeProductValidation(phase3FullInput, "en", {}, {
+  ...defaultPhase3Answers,
+  userExperienceLevel: "limited_experience",
+  firstProject: "no",
+});
+const phase3CorrectionStep = executeUnconfirmedValidation(
+  {
+    businessIdea: "A neighborhood grocery store for families in a residential area",
+    targetCustomer: "Families living near the store",
+    problem: "They need convenient daily groceries close to home.",
+    monetization: "Customers pay per grocery purchase.",
+  },
+  "en",
+  {},
+  {
+    ...defaultPhase3Answers,
+    classificationConfirmation: "correct",
+    projectTypeCorrection: "",
+  }
+);
+const phase3CorrectedRetail = executeProductValidation(
+  {
+    businessIdea: "A neighborhood grocery store",
+    targetCustomer: "",
+    problem: "",
+    monetization: "",
+  },
+  "en",
+  {},
+  {
+    ...defaultPhase3Answers,
+    classificationConfirmation: "confirm",
+  }
+);
+const phase3CorrectedManufacturing = executeProductValidation(
+  {
+    businessIdea: "A neighborhood grocery store",
+    targetCustomer: "",
+    problem: "",
+    monetization: "",
+  },
+  "en",
+  {},
+  {
+    ...defaultPhase3Answers,
+    classificationConfirmation: "correct",
+    projectTypeCorrection: "manufacturing_industrial",
+    operatingModelCorrection: "fixed_location",
+    classificationCorrectionReason: "The store will manufacture packed foods on-site.",
+  }
+);
+const phase3CarWashFieldService = executeProductValidation(
+  {
+    businessIdea: "An automated car wash",
+    targetCustomer: "",
+    problem: "",
+    monetization: "",
+  },
+  "en",
+  {},
+  {
+    ...defaultPhase3Answers,
+    classificationConfirmation: "correct",
+    projectTypeCorrection: "field_service",
+    operatingModelCorrection: "fixed_location",
+  }
+);
+const phase3GenericManufacturing = executeProductValidation(
+  {
+    businessIdea: "A small manufacturing workshop",
+    targetCustomer: "",
+    problem: "",
+    monetization: "",
+  },
+  "en",
+  {},
+  {
+    ...defaultPhase3Answers,
+    classificationConfirmation: "correct",
+    projectTypeCorrection: "manufacturing_industrial",
+    operatingModelCorrection: "fixed_location",
+  }
+);
+const phase3LegacyLocationBasedService = executeProductValidation(
+  {
+    businessIdea: "A fixed-location service business for busy drivers",
+    targetCustomer: "",
+    problem: "",
+    monetization: "",
+  },
+  "en",
+  {},
+  {
+    ...defaultPhase3Answers,
+    classificationConfirmation: "correct",
+    projectTypeCorrection: "location_based_service",
+  }
+);
+const phase3MediumPlasticCandidate = executeProductValidation(
+  {
+    businessIdea: "An online store selling plastic storage boxes",
+    targetCustomer: "Apartment renters and families",
+    problem: "They need affordable storage products delivered quickly.",
+    monetization: "Customers pay per order.",
+  },
+  "en",
+  {},
+  {
+    ...defaultPhase3Answers,
+    classificationConfirmation: "",
+  }
+);
+const phase3CompletePetIndustrialDetails = {
+  plasticWasteType: "pet",
+  intendedOutput: "washed_flakes",
+  targetProductionCapacity: "1 ton per day",
+  availableBudgetSar: "750,000 SAR",
+  preferredCityRegion: "Riyadh",
+  existingPremises: "yes",
+  wasteSourceQuantity: "Supplier agreement for 20 tons monthly",
+  industrialExperienceTeam: "One operations supervisor and two technicians",
+  expectedBuyers: "Packaging factories that accept PET flakes",
+  salesScope: "local",
+};
+const phase3ExplicitPet = executeProductValidation(
+  {
+    businessIdea: "A PET plastic recycling plant",
+    targetCustomer: "Packaging factories that buy recycled plastic flakes",
+    problem: "Factories need consistent recycled PET feedstock.",
+    monetization: "Sell washed flakes to local factories.",
+  },
+  "en",
+  phase3CompletePetIndustrialDetails,
+  defaultPhase3Answers
+);
+const phase3IneligiblePriority = executeUnconfirmedValidation(
+  {
+    businessIdea: "A betting marketplace for sports gambling",
+    targetCustomer: "People who want to gamble",
+    problem: "They need easier betting.",
+    monetization: "Commission on bets.",
+  },
+  "en"
+);
+const phase3FinancingPriority = executeUnconfirmedValidation(
+  {
+    businessIdea:
+      "A platform connects small businesses seeking funding with people providing funds in exchange for a periodic financial return.",
+    targetCustomer: "Small businesses seeking funding",
+    problem: "They need funding quickly.",
+    monetization: "Fee on funded amounts with repayment period.",
+  },
+  "en"
+);
+
+const classificationMatrixCases = [
+  {
+    name: "fixed car wash en",
+    language: "en",
+    input: {
+      businessIdea: "An automatic wash service at a fixed location where customers visit with their cars.",
+      targetCustomer: "Drivers near residential neighborhoods",
+      problem: "They need faster vehicle cleaning without long waiting.",
+      monetization: "Customers pay per wash.",
+    },
+    expectedPrimaryType: "service",
+    expectedOperatingModel: "fixed_location",
+  },
+  {
+    name: "fixed car wash ar",
+    language: "ar",
+    input: {
+      businessIdea: "أريد إنشاء مغسلة سيارات آلية في موقع ثابت بمدينة جدة، ويأتي العملاء بسياراتهم إلى المغسلة.",
+      targetCustomer: "أصحاب السيارات في جدة",
+      problem: "يريدون تنظيف السيارة بسرعة وبجودة ثابتة دون انتظار طويل.",
+      monetization: "يدفع العميل مقابل كل عملية غسيل.",
+    },
+    expectedPrimaryType: "service",
+    expectedOperatingModel: "fixed_location",
+  },
+  {
+    name: "mobile car wash en",
+    language: "en",
+    input: {
+      businessIdea: "A mobile vehicle wash service where the provider travels to the customer at home or work.",
+      targetCustomer: "Busy drivers",
+      problem: "They do not have time to visit a cleaning location.",
+      monetization: "Customers pay per visit.",
+    },
+    expectedPrimaryType: "service",
+    expectedOperatingModel: "mobile_or_customer_site",
+  },
+  {
+    name: "mobile car wash ar",
+    language: "ar",
+    input: {
+      businessIdea: "أريد إنشاء خدمة متنقلة لغسيل السيارات، وينتقل العامل والمعدات إلى منزل العميل أو موقف عمله.",
+      targetCustomer: "أصحاب السيارات المشغولون",
+      problem: "لا يجدون وقتاً مناسباً للذهاب إلى موقع تنظيف.",
+      monetization: "يدفع العميل مقابل كل زيارة.",
+    },
+    expectedPrimaryType: "service",
+    expectedOperatingModel: "mobile_or_customer_site",
+  },
+  {
+    name: "undecided fixed or customer-site service ar",
+    language: "ar",
+    input: {
+      businessIdea: "مشروع يقدم خدمات متنوعة للسيارات في جدة، ولم أحدد بعد هل يحصل العميل على الخدمة في موقع ثابت أم تصل الخدمة إليه.",
+      targetCustomer: "أصحاب السيارات في جدة",
+      problem: "يحتاجون إلى خدمة سيارات واضحة ومناسبة.",
+      monetization: "يدفع العميل مقابل الخدمة.",
+    },
+    expectedPrimaryType: "service",
+    expectedOperatingModel: "unknown",
+  },
+  {
+    name: "undecided fixed or mobile service en",
+    language: "en",
+    input: {
+      businessIdea: "A vehicle service business in Jeddah. The delivery model is not decided yet: either fixed location or mobile at the customer site.",
+      targetCustomer: "Vehicle owners in Jeddah",
+      problem: "They need a clearer and more convenient car service.",
+      monetization: "Customers pay per service.",
+    },
+    expectedPrimaryType: "service",
+    expectedOperatingModel: "unknown",
+  },
+  {
+    name: "alternative fixed and mobile wording ar",
+    language: "ar",
+    input: {
+      businessIdea: "قد يكون المشروع في موقع ثابت أو يقدم الخدمة عند العميل، ولم أقرر النموذج بعد.",
+      targetCustomer: "أصحاب المنازل",
+      problem: "يحتاجون إلى خدمة أسهل.",
+      monetization: "الدفع مقابل الخدمة.",
+    },
+    expectedPrimaryType: "service",
+    expectedOperatingModel: "unknown",
+  },
+  {
+    name: "alternative fixed and mobile wording en",
+    language: "en",
+    input: {
+      businessIdea: "A service business that could be at our location or the customer site; the operating model is not determined.",
+      targetCustomer: "Local customers",
+      problem: "They need easier service access.",
+      monetization: "Customers pay per job.",
+    },
+    expectedPrimaryType: "service",
+    expectedOperatingModel: "unknown",
+  },
+  {
+    name: "barbershop en",
+    language: "en",
+    input: {
+      businessIdea: "A barbershop in a fixed neighborhood location where customers visit for grooming services.",
+      targetCustomer: "Men living nearby",
+      problem: "They need reliable appointments close to home.",
+      monetization: "Customers pay per haircut.",
+    },
+    expectedPrimaryType: "service",
+    expectedOperatingModel: "fixed_location",
+  },
+  {
+    name: "barbershop ar",
+    language: "ar",
+    input: {
+      businessIdea: "صالون حلاقة في موقع ثابت داخل الحي ويأتي العملاء للحصول على الخدمة.",
+      targetCustomer: "رجال يسكنون بالقرب من الموقع",
+      problem: "يحتاجون إلى مواعيد حلاقة قريبة ومنظمة.",
+      monetization: "يدفع العميل مقابل كل خدمة.",
+    },
+    expectedPrimaryType: "service",
+    expectedOperatingModel: "fixed_location",
+  },
+  {
+    name: "home plumber en",
+    language: "en",
+    input: {
+      businessIdea: "A plumbing service where technicians travel to homes to fix urgent leaks.",
+      targetCustomer: "Homeowners",
+      problem: "They need reliable help at home when a pipe leaks.",
+      monetization: "Customers pay per repair visit.",
+    },
+    expectedPrimaryType: "service",
+    expectedOperatingModel: "mobile_or_customer_site",
+  },
+  {
+    name: "home plumber ar",
+    language: "ar",
+    input: {
+      businessIdea: "خدمة سباكة منزلية ينتقل فيها الفني إلى منزل العميل لإصلاح التسربات.",
+      targetCustomer: "أصحاب المنازل",
+      problem: "يحتاجون إلى فني موثوق يصل إلى المنزل عند حدوث تسرب.",
+      monetization: "يدفع العميل مقابل الزيارة أو الإصلاح.",
+    },
+    expectedPrimaryType: "service",
+    expectedOperatingModel: "mobile_or_customer_site",
+  },
+  {
+    name: "grocery store en",
+    language: "en",
+    input: {
+      businessIdea: "A neighborhood grocery store in a fixed shop where customers buy daily household products.",
+      targetCustomer: "Families in the neighborhood",
+      problem: "They need quick access to daily groceries close to home.",
+      monetization: "Revenue from product sales.",
+    },
+    expectedPrimaryType: "retail",
+    expectedOperatingModel: "fixed_location",
+  },
+  {
+    name: "grocery store ar",
+    language: "ar",
+    input: {
+      businessIdea: "متجر بقالة في محل ثابت داخل الحي يشتري منه العملاء احتياجاتهم اليومية.",
+      targetCustomer: "الأسر في الحي",
+      problem: "يحتاجون إلى شراء المنتجات اليومية بسرعة بالقرب من المنزل.",
+      monetization: "الإيرادات من بيع المنتجات.",
+    },
+    expectedPrimaryType: "retail",
+    expectedOperatingModel: "fixed_location",
+  },
+  {
+    name: "restaurant en",
+    language: "en",
+    input: {
+      businessIdea: "A restaurant in a fixed location where customers visit for healthy meals.",
+      targetCustomer: "Office workers",
+      problem: "They need a fast healthy lunch option nearby.",
+      monetization: "Customers pay per meal.",
+    },
+    expectedPrimaryType: "food_and_beverage",
+    expectedOperatingModel: "fixed_location",
+  },
+  {
+    name: "restaurant ar",
+    language: "ar",
+    input: {
+      businessIdea: "مطعم في موقع ثابت يقدم وجبات صحية ويأتي العملاء لتناولها أو استلامها.",
+      targetCustomer: "موظفو المكاتب",
+      problem: "يحتاجون إلى وجبة غداء صحية وسريعة بالقرب من العمل.",
+      monetization: "يدفع العميل مقابل كل وجبة.",
+    },
+    expectedPrimaryType: "food_and_beverage",
+    expectedOperatingModel: "fixed_location",
+  },
+  {
+    name: "medical clinic en",
+    language: "en",
+    input: {
+      businessIdea: "A medical clinic in a fixed location where patients visit licensed doctors.",
+      targetCustomer: "Patients needing routine care",
+      problem: "They need appointments without long delays.",
+      monetization: "Patients or insurers pay per consultation.",
+    },
+    expectedPrimaryType: "healthcare",
+    expectedOperatingModel: "fixed_location",
+  },
+  {
+    name: "medical clinic ar",
+    language: "ar",
+    input: {
+      businessIdea: "عيادة طبية في موقع ثابت يزورها المرضى للحصول على استشارة من أطباء مرخصين.",
+      targetCustomer: "مرضى يحتاجون إلى رعاية دورية",
+      problem: "يحتاجون إلى مواعيد أسرع دون انتظار طويل.",
+      monetization: "يدفع المريض أو شركة التأمين مقابل الاستشارة.",
+    },
+    expectedPrimaryType: "healthcare",
+    expectedOperatingModel: "fixed_location",
+  },
+  {
+    name: "saas accounting en",
+    language: "en",
+    input: {
+      businessIdea: "A SaaS accounting product delivered online for small shops.",
+      targetCustomer: "Small shop owners",
+      problem: "They struggle to track sales and expenses.",
+      monetization: "Monthly software subscription.",
+    },
+    expectedPrimaryType: "digital_software",
+    expectedOperatingModel: "digital_remote",
+  },
+  {
+    name: "saas accounting ar",
+    language: "ar",
+    input: {
+      businessIdea: "منتج محاسبة برمجي يقدم عبر الإنترنت للمتاجر الصغيرة.",
+      targetCustomer: "أصحاب المتاجر الصغيرة",
+      problem: "يجدون صعوبة في متابعة المبيعات والمصروفات.",
+      monetization: "اشتراك شهري في البرنامج.",
+    },
+    expectedPrimaryType: "digital_software",
+    expectedOperatingModel: "digital_remote",
+  },
+  {
+    name: "pet sorting facility en",
+    language: "en",
+    input: {
+      businessIdea: "A PET sorting and baling facility in a fixed industrial site.",
+      targetCustomer: "Factories buying recycled PET bales",
+      problem: "They need consistent PET material supply.",
+      monetization: "Sell sorted PET bales per ton.",
+    },
+    expectedPrimaryType: "manufacturing_industrial",
+    expectedOperatingModel: "fixed_location",
+    expectedSpecialistCandidate: "pet_plastic_recycling",
+  },
+  {
+    name: "pet sorting facility ar",
+    language: "ar",
+    input: {
+      businessIdea: "منشأة لفرز وكبس عبوات PET في موقع صناعي ثابت.",
+      targetCustomer: "مصانع تشتري بالات PET المعاد تدويرها",
+      problem: "تحتاج إلى توريد ثابت من مادة PET.",
+      monetization: "بيع بالات PET بالطن.",
+    },
+    expectedPrimaryType: "manufacturing_industrial",
+    expectedOperatingModel: "fixed_location",
+    expectedSpecialistCandidate: "pet_plastic_recycling",
+  },
+  {
+    name: "generic furniture factory en",
+    language: "en",
+    input: {
+      businessIdea: "A furniture factory in a fixed industrial site producing custom tables.",
+      targetCustomer: "Interior designers and offices",
+      problem: "They wait too long for custom furniture.",
+      monetization: "Paid manufacturing orders.",
+    },
+    expectedPrimaryType: "manufacturing_industrial",
+    expectedOperatingModel: "fixed_location",
+    forbidSpecialist: "pet_plastic_recycling",
+  },
+  {
+    name: "generic furniture factory ar",
+    language: "ar",
+    input: {
+      businessIdea: "مصنع أثاث في موقع صناعي ثابت لإنتاج طاولات حسب الطلب.",
+      targetCustomer: "مصممو الديكور والمكاتب",
+      problem: "ينتظرون وقتاً طويلاً للحصول على أثاث مخصص.",
+      monetization: "الدفع مقابل أوامر التصنيع.",
+    },
+    expectedPrimaryType: "manufacturing_industrial",
+    expectedOperatingModel: "fixed_location",
+    forbidSpecialist: "pet_plastic_recycling",
+  },
+  {
+    name: "technician marketplace en",
+    language: "en",
+    input: {
+      businessIdea: "A marketplace app connecting technicians and customers through a digital booking flow.",
+      targetCustomer: "Homeowners and maintenance technicians",
+      problem: "Customers need trusted technicians and providers need steady jobs.",
+      monetization: "Commission on completed bookings.",
+    },
+    expectedPrimaryType: "marketplace_platform",
+    expectedOperatingModels: ["digital_remote", "mixed"],
+    forbidPrimaryType: "service",
+  },
+  {
+    name: "technician marketplace ar",
+    language: "ar",
+    input: {
+      businessIdea: "تطبيق سوق يربط الفنيين بالعملاء من خلال حجز رقمي.",
+      targetCustomer: "أصحاب المنازل والفنيون",
+      problem: "العملاء يحتاجون إلى فني موثوق والفنيون يحتاجون إلى طلبات مستمرة.",
+      monetization: "عمولة على الحجوزات المنجزة.",
+    },
+    expectedPrimaryType: "marketplace_platform",
+    expectedOperatingModels: ["digital_remote", "mixed"],
+    forbidPrimaryType: "service",
+  },
+  {
+    name: "ambiguous car service ar",
+    language: "ar",
+    input: {
+      businessIdea: "مشروع لخدمة السيارات في جدة",
+      targetCustomer: "أصحاب السيارات",
+      problem: "يحتاجون إلى خدمة أفضل.",
+      monetization: "الدفع مقابل الخدمة.",
+    },
+    expectedPrimaryType: "service",
+    expectedOperatingModel: "unknown",
+  },
+  {
+    name: "ambiguous car service en",
+    language: "en",
+    input: {
+      businessIdea: "A vehicle service business in Jeddah",
+      targetCustomer: "Vehicle owners",
+      problem: "They need better service.",
+      monetization: "Customers pay for the service.",
+    },
+    expectedPrimaryType: "service",
+    expectedOperatingModel: "unknown",
+  },
+];
+
+const classificationMatrixResults = classificationMatrixCases.map((testCase) => {
+  const result = executeUnconfirmedValidation(testCase.input, testCase.language, {}, {
+    ...phase3DefaultsFor(testCase.language),
+    classificationConfirmation: "",
+  });
+  const proposed = result.orchestrationDecision?.proposedClassification || {};
+  const specialistCandidate = result.orchestrationDecision?.specialistCandidate?.id || "";
+  return {
+    name: testCase.name,
+    primaryType: proposed.primaryType,
+    operatingModel: proposed.operatingModel,
+    specialistCandidate,
+    ok:
+      proposed.primaryType === testCase.expectedPrimaryType &&
+      (testCase.expectedOperatingModels
+        ? testCase.expectedOperatingModels.includes(proposed.operatingModel)
+        : proposed.operatingModel === testCase.expectedOperatingModel) &&
+      (testCase.expectedSpecialistCandidate ? specialistCandidate === testCase.expectedSpecialistCandidate : true) &&
+      (testCase.forbidSpecialist ? specialistCandidate !== testCase.forbidSpecialist : true) &&
+      (testCase.forbidPrimaryType ? proposed.primaryType !== testCase.forbidPrimaryType : true) &&
+      result.evaluationStatus === "feasibility_followup" &&
+      !result.score &&
+      !result.report,
+  };
+});
+const classificationMatrixPassed = classificationMatrixResults.every((item) => item.ok);
+const runtimeHasNoCarWashSpecificRule = !/(car wash|automatic wash|mobile wash|مغسلة)/iu.test(orchestratorSource);
+
+const phase3CorrectionText = JSON.stringify(phase3CorrectionStep.clarificationFlow?.steps || []);
+const phase3CorrectionOptions = phase3CorrectionStep.clarificationFlow?.steps
+  ?.flatMap((step) => step.fields || [])
+  ?.find((field) => field.id === "projectTypeCorrection")?.options || [];
+const phase3RetailText = JSON.stringify(phase3CorrectedRetail.clarificationFlow?.steps || []);
+const phase3ManufacturingText = JSON.stringify(phase3CorrectedManufacturing.clarificationFlow?.steps || []);
+const phase3CarWashText = JSON.stringify(phase3CarWashFieldService.clarificationFlow?.steps || []);
+const phase3GenericManufacturingText = JSON.stringify(phase3GenericManufacturing.clarificationFlow?.steps || []);
+const pageHasNoIndependentClassificationLogic =
+  !pageSource.includes("classifyValidatorRequest") &&
+  !pageSource.includes("buildClassificationPrompt") &&
+  pageSource.includes("executeBusinessIdeaValidation");
+const pageUsesSinglePhase3Journey =
+  pageSource.includes("const journeyStepLabels = journeyCopy.steps") &&
+  pageSource.includes("profileFields.map(renderJourneyField)") &&
+  pageSource.includes("name=\"ideaDescription\"") &&
+  pageSource.includes("classificationFields.map(renderClassificationField)") &&
+  pageSource.includes("disabled={step > currentStep}") &&
+  !pageSource.includes("pageContent?.steps?.[step - 1]") &&
+  !pageSource.includes("name=\"industry\"") &&
+  !pageSource.includes("name=\"stage\"");
+const pageBlocksNormalEvaluationBeforeConfirmation =
+  pageSource.includes("BIV_JOURNEY_STATES.CLASSIFICATION_REVIEW") &&
+  pageSource.includes("BIV_JOURNEY_STATES.CLASSIFICATION_CORRECTION") &&
+  pageSource.includes("showGenericStatusPanel = false") &&
+  pageSource.includes("handleJourneyContinue") &&
+  !pageSource.includes("currentStep < 3 ? (");
+
+const phase3ClassificationPassed =
+  phase3Unconfirmed.evaluationStatus === "feasibility_followup" &&
+  phase3Unconfirmed.orchestrationDecision?.proposedClassification?.label === "Digital or software" &&
+  phase3Unconfirmed.clarificationFlow?.steps?.[0]?.fields?.some((field) => field.id === "classificationConfirmation") &&
+  phase3Unconfirmed.clarificationFlow?.steps?.length === 1 &&
+  !phase3Unconfirmed.score &&
+  phase3ArabicUnconfirmed.evaluationStatus === "feasibility_followup" &&
+  phase3ArabicUnconfirmed.clarificationFlow?.steps?.[0]?.fields?.some((field) => field.labelText === "هل هذا التصنيف يصف مشروعك بشكل صحيح؟") &&
+  phase3Confirmed.evaluationStatus === "evaluated" &&
+  phase3Confirmed.orchestrationDecision?.classificationConfirmed === true &&
+  phase3Limited.evaluationStatus === "evaluated" &&
+  phase3Limited.orchestrationDecision?.experienceLevel === "limited_experience" &&
+  phase3CorrectionStep.evaluationStatus === "feasibility_followup" &&
+  phase3CorrectionText.includes("Which business type fits better?") &&
+  phase3CorrectionText.includes("Which operating model fits better?") &&
+  phase3CorrectionOptions.every((option) => option.value !== "location_based_service") &&
+  phase3LegacyLocationBasedService.orchestrationDecision?.confirmedClassification?.primaryType === "service" &&
+  phase3LegacyLocationBasedService.orchestrationDecision?.confirmedClassification?.operatingModel === "fixed_location" &&
+  phase3CorrectedRetail.orchestrationDecision?.businessType === "retail_trading" &&
+  !/machinery|production line|raw materials/i.test(phase3RetailText) &&
+  phase3CorrectedManufacturing.orchestrationDecision?.businessType === "industrial_manufacturing" &&
+  !/Capital and equipment|Operations|Evidence and research|production capacity/i.test(phase3ManufacturingText) &&
+  phase3MediumPlasticCandidate.orchestrationDecision?.specialistCandidate?.confidence === "medium" &&
+  phase3MediumPlasticCandidate.orchestrationDecision?.proposedClassification?.primaryType !== "manufacturing_industrial" &&
+  phase3MediumPlasticCandidate.orchestrationDecision?.matchedSpecialist === null &&
+  phase3CarWashFieldService.orchestrationDecision?.businessType === "service" &&
+  phase3CarWashFieldService.orchestrationDecision?.confirmedClassification?.type === "field_service" &&
+  !/PET|plastic waste|washed flakes/i.test(phase3CarWashText) &&
+  phase3GenericManufacturing.orchestrationDecision?.businessType === "industrial_manufacturing" &&
+  !/PET|plastic waste|washed flakes/i.test(phase3GenericManufacturingText) &&
+  phase3ExplicitPet.evaluationStatus === "industrial_assessment" &&
+  phase3ExplicitPet.orchestrationDecision?.matchedSpecialist?.id === "pet_plastic_recycling" &&
+  phase3IneligiblePriority.evaluationStatus === "ineligible" &&
+  phase3FinancingPriority.evaluationStatus === "needs_clarification" &&
+  pageHasNoIndependentClassificationLogic &&
+  pageUsesSinglePhase3Journey &&
+  pageBlocksNormalEvaluationBeforeConfirmation &&
+  classificationMatrixPassed &&
+  runtimeHasNoCarWashSpecificRule;
+
+console.log(
+  JSON.stringify(
+    {
+      phase3ClassificationPassed,
+      phase3Unconfirmed: {
+        status: phase3Unconfirmed.evaluationStatus,
+        proposed: phase3Unconfirmed.orchestrationDecision?.proposedClassification,
+      },
+      phase3Confirmed: {
+        status: phase3Confirmed.evaluationStatus,
+        confirmed: phase3Confirmed.orchestrationDecision?.confirmedClassification,
+      },
+      phase3CorrectionStep: {
+        status: phase3CorrectionStep.evaluationStatus,
+        asksCorrection:
+          phase3CorrectionText.includes("Which business type fits better?") &&
+          phase3CorrectionText.includes("Which operating model fits better?"),
+        exposesLegacyLocationBasedService: phase3CorrectionOptions.some((option) => option.value === "location_based_service"),
+      },
+      phase3LegacyLocationBasedService: {
+        primaryType: phase3LegacyLocationBasedService.orchestrationDecision?.confirmedClassification?.primaryType,
+        operatingModel: phase3LegacyLocationBasedService.orchestrationDecision?.confirmedClassification?.operatingModel,
+      },
+      phase3MediumPlasticCandidate: {
+        candidate: phase3MediumPlasticCandidate.orchestrationDecision?.specialistCandidate,
+        proposed: phase3MediumPlasticCandidate.orchestrationDecision?.proposedClassification,
+        matched: phase3MediumPlasticCandidate.orchestrationDecision?.matchedSpecialist,
+      },
+      phase3ExplicitPet: phase3ExplicitPet.evaluationStatus,
+      pageHasNoIndependentClassificationLogic,
+      pageUsesSinglePhase3Journey,
+      pageBlocksNormalEvaluationBeforeConfirmation,
+      runtimeHasNoCarWashSpecificRule,
+      classificationMatrixPassed,
+      classificationMatrixResults,
+    },
+    null,
+    2
+  )
+);
+
+if (!phase3ClassificationPassed) {
   process.exitCode = 1;
 }
 
@@ -1236,7 +2007,6 @@ const orchestrationCases = [
       monetization: "",
     },
     expectRoute: "guided_follow_up",
-    requiredText: ["provider", "buyer", "payment", "trust"],
   },
   {
     name: "normal simple idea still evaluates",
@@ -1275,19 +2045,27 @@ const routePrecedence = [
 ];
 
 const orchestrationResults = orchestrationCases.map((testCase) => {
+  const flowAnswers = {
+    ...phase3DefaultsFor(testCase.language),
+    ...(testCase.feasibilityAnswers || {}),
+  };
   const decision = orchestrateBusinessIdeaValidation({
     rawInput: testCase.input,
     language: testCase.language,
     industrialDetails: testCase.industrialDetails || {},
+    feasibilityAnswers: flowAnswers,
   });
   const execution = executeValidation(
     testCase.input,
     testCase.language,
-    testCase.industrialDetails || {}
+    testCase.industrialDetails || {},
+    testCase.feasibilityAnswers || {}
   );
   const flowText = JSON.stringify(decision.guidedFeasibility?.clarificationFlow || decision.requestAssessment?.clarificationFlow || {});
   const primaryRouteKeys = Object.keys(decision).filter((key) => key === "route" || key === "selectedRoute");
+  const executionPrimaryRouteKeys = Object.keys(execution).filter((key) => key === "route" || key === "selectedRoute");
   const liveRoutes = [decision.route].filter(Boolean);
+  const expectedJourneyState = testCase.expectJourneyState || resolveBusinessIdeaJourneyState(decision);
   const futureRoutesAreDormant =
     Array.isArray(decision.futureRoutes) &&
     decision.futureRoutes.every((item) => item.implemented === false) &&
@@ -1296,7 +2074,12 @@ const orchestrationResults = orchestrationCases.map((testCase) => {
   return {
     name: testCase.name,
     route: decision.route,
+    executionRoute: execution.route,
+    journeyState: execution.journeyState,
+    expectedJourneyState,
     hasCanonicalRouteOnly: primaryRouteKeys.length === 1 && primaryRouteKeys[0] === "route",
+    executionHasCanonicalRouteOnly: executionPrimaryRouteKeys.length === 1 && executionPrimaryRouteKeys[0] === "route",
+    hasExactlyOneJourneyState: BIV_VALID_JOURNEY_STATES.has(execution.journeyState) && !("selectedJourneyState" in execution),
     hasExactlyOnePrimaryRoute: liveRoutes.length === 1 && new Set(liveRoutes).size === 1,
     routePrecedenceMatches: JSON.stringify(decision.routePrecedence) === JSON.stringify(routePrecedence),
     locale: decision.locale,
@@ -1328,9 +2111,21 @@ const pageReadsCanonicalRouteOnly =
   pageSource.includes("executeBusinessIdeaValidation") &&
   !pageSource.includes("selectedRoute");
 
+const pageReadsCanonicalJourneyState =
+  pageSource.includes("result?.journeyState") &&
+  pageSource.includes("showFormRegion") &&
+  pageSource.includes("showClarificationCard") &&
+  pageSource.includes("showGenericStatusPanel = false") &&
+  pageSource.includes("canCopyReport") &&
+  pageSource.includes("canDownloadReport") &&
+  !pageSource.includes("selectedJourneyState");
+
 const orchestrationPassed =
   orchestrationResults.every((result) => result.route === result.expected.expectRoute) &&
+  orchestrationResults.every((result) => result.executionRoute === result.route) &&
+  orchestrationResults.every((result) => result.journeyState === result.expectedJourneyState) &&
   orchestrationResults.every((result) => result.hasCanonicalRouteOnly && result.hasExactlyOnePrimaryRoute) &&
+  orchestrationResults.every((result) => result.executionHasCanonicalRouteOnly && result.hasExactlyOneJourneyState) &&
   orchestrationResults.every((result) => result.routePrecedenceMatches) &&
   orchestrationResults.every((result) => result.locale === result.expected.language) &&
   orchestrationResults.every((result) => result.direction === (result.expected.language === "ar" ? "rtl" : "ltr")) &&
@@ -1352,11 +2147,352 @@ const orchestrationPassed =
     .filter((result) => ["ineligible", "needs_clarification", "guided_follow_up", "validation_error"].includes(result.route))
     .every((result) => result.blockedActions.includes("score") && result.blockedActions.includes("report")) &&
   pageUsesSharedExecutionAdapter &&
-  pageReadsCanonicalRouteOnly;
+  pageReadsCanonicalRouteOnly &&
+  pageReadsCanonicalJourneyState;
 
-console.log(JSON.stringify({ orchestrationPassed, pageUsesSharedExecutionAdapter, pageReadsCanonicalRouteOnly, orchestrationResults }, null, 2));
+console.log(JSON.stringify({ orchestrationPassed, pageUsesSharedExecutionAdapter, pageReadsCanonicalRouteOnly, pageReadsCanonicalJourneyState, orchestrationResults }, null, 2));
 
 if (!orchestrationPassed) {
+  process.exitCode = 1;
+}
+
+function executeJourney(rawInput, language = "en", industrialDetails = {}, feasibilityAnswers = {}) {
+  return executeProductValidation(rawInput, language, industrialDetails, feasibilityAnswers);
+}
+
+const journeyStateCases = [
+  {
+    name: "validation error",
+    result: executeJourney({ businessIdea: "", targetCustomer: "", problem: "", monetization: "" }, "en", {}, phase3DefaultsFor("en")),
+    expectedJourneyState: "validation_error",
+    expectReport: false,
+  },
+  {
+    name: "ineligible",
+    result: executeJourney(
+      {
+        businessIdea: "An online casino and betting platform",
+        targetCustomer: "Consumers",
+        problem: "They want fast gambling access.",
+        monetization: "Commission on bets.",
+      },
+      "en",
+      {},
+      phase3DefaultsFor("en")
+    ),
+    expectedJourneyState: "ineligible",
+    expectReport: false,
+  },
+  {
+    name: "eligibility clarification",
+    result: executeJourney(
+      {
+        businessIdea: "A private membership app for adult entertainment and nightlife events",
+        targetCustomer: "Adults looking for premium entertainment",
+        problem: "They want curated venues and exclusive events.",
+        monetization: "Membership subscription.",
+      },
+      "en",
+      {},
+      phase3DefaultsFor("en")
+    ),
+    expectedJourneyState: "eligibility_clarification",
+    expectClarificationType: "eligibility",
+    expectReport: false,
+  },
+  {
+    name: "financing clarification",
+    result: executeJourney(
+      {
+        businessIdea: "A platform connects small businesses seeking funding with people providing funds in exchange for a periodic financial return.",
+        targetCustomer: "Small businesses and funders",
+        problem: "Funding access is unclear.",
+        monetization: "Arrangement fee.",
+      },
+      "en",
+      {},
+      phase3DefaultsFor("en")
+    ),
+    expectedJourneyState: "financing_clarification",
+    expectClarificationType: "financing",
+    expectReport: false,
+  },
+  {
+    name: "arabic eligibility clarification",
+    result: executeJourney(
+      {
+        businessIdea: "تطبيق عضوية خاص لفعاليات ترفيه ليلي للكبار",
+        targetCustomer: "بالغون يبحثون عن ترفيه خاص",
+        problem: "يريدون فعاليات مختارة واشتراكات حصرية.",
+        monetization: "اشتراك عضوية.",
+      },
+      "ar",
+      {},
+      phase3DefaultsFor("ar")
+    ),
+    expectedJourneyState: "eligibility_clarification",
+    expectClarificationType: "eligibility",
+    expectReport: false,
+  },
+  {
+    name: "arabic financing clarification",
+    result: executeJourney(
+      {
+        businessIdea: "منصة تربط الشركات الصغيرة التي تبحث عن تمويل مع أشخاص يقدمون التمويل مقابل عائد مالي دوري ومدة سداد.",
+        targetCustomer: "الشركات الصغيرة ومقدمو التمويل",
+        problem: "تحتاج الشركات إلى تمويل ويريد الممولون عائداً دورياً.",
+        monetization: "رسوم منصة من اتفاقيات التمويل.",
+      },
+      "ar",
+      {},
+      phase3DefaultsFor("ar")
+    ),
+    expectedJourneyState: "financing_clarification",
+    expectClarificationType: "financing",
+    expectReport: false,
+  },
+  {
+    name: "profile input",
+    result: executeJourney(
+      {
+        businessIdea: "A simple booking service for neighborhood cleaners.",
+        targetCustomer: "",
+        problem: "",
+        monetization: "",
+      },
+      "en"
+    ),
+    expectedJourneyState: "profile_input",
+    expectReport: false,
+  },
+  {
+    name: "idea input",
+    result: executeJourney(
+      {
+        businessIdea: "A simple booking service for neighborhood cleaners.",
+        targetCustomer: "",
+        problem: "",
+        monetization: "",
+      },
+      "en",
+      {},
+      phase3DefaultsFor("en")
+    ),
+    expectedJourneyState: "idea_input",
+    expectReport: false,
+  },
+  {
+    name: "classification review",
+    result: executeJourney(
+      {
+        businessIdea: "A SaaS accounting product for small shops.",
+        targetCustomer: "Small shop owners",
+        problem: "They lose time with manual accounting.",
+        monetization: "Monthly subscription.",
+      },
+      "en",
+      {},
+      { ...phase3DefaultsFor("en"), classificationConfirmation: "" }
+    ),
+    expectedJourneyState: "classification_review",
+    expectReport: false,
+  },
+  {
+    name: "classification correction",
+    result: executeJourney(
+      {
+        businessIdea: "A SaaS accounting product for small shops.",
+        targetCustomer: "Small shop owners",
+        problem: "They lose time with manual accounting.",
+        monetization: "Monthly subscription.",
+      },
+      "en",
+      {},
+      { ...phase3DefaultsFor("en"), classificationConfirmation: "correct" }
+    ),
+    expectedJourneyState: "classification_correction",
+    expectReport: false,
+  },
+  {
+    name: "specialist clarification",
+    result: executeJourney(
+      {
+        businessIdea: "A PET plastic recycling facility that sorts and bales bottles.",
+        targetCustomer: "Plastic buyers",
+        problem: "They need sorted PET supply.",
+        monetization: "Sale of sorted bales.",
+      },
+      "en",
+      {},
+      phase3DefaultsFor("en")
+    ),
+    expectedJourneyState: "specialist_clarification",
+    expectReport: false,
+  },
+  {
+    name: "specialist analysis",
+    result: executeJourney(
+      {
+        businessIdea: "A PET plastic recycling facility that sorts and bales bottles.",
+        targetCustomer: "Plastic buyers",
+        problem: "They need sorted PET supply.",
+        monetization: "Sale of sorted bales.",
+      },
+      "en",
+      {
+        plasticWasteType: "PET bottles",
+        intendedOutput: "sorted_baled",
+        targetProductionCapacity: "2 tons per day",
+        availableBudgetSar: "600000",
+        preferredCityRegion: "Riyadh",
+        existingPremises: "leased warehouse",
+        wasteSourceQuantity: "municipal supplier, 3 tons per day",
+        industrialExperienceTeam: "operations manager and two technicians",
+        expectedBuyers: "local plastic processors",
+        salesScope: "local",
+      },
+      phase3DefaultsFor("en")
+    ),
+    expectedJourneyState: "specialist_analysis",
+    expectReport: true,
+  },
+  {
+    name: "normal evaluation",
+    result: executeJourney(
+      {
+        businessIdea: "A meal planning app for busy parents.",
+        targetCustomer: "Busy parents",
+        problem: "They lose time planning weekly meals.",
+        monetization: "Monthly subscription.",
+      },
+      "en",
+      {},
+      phase3DefaultsFor("en")
+    ),
+    expectedJourneyState: "normal_evaluation",
+    expectReport: true,
+  },
+];
+
+const journeyStateResults = journeyStateCases.map((testCase) => {
+  const result = testCase.result;
+  const keys = Object.keys(result).filter((key) => key === "journeyState" || key === "selectedJourneyState");
+  const routeKeys = Object.keys(result).filter((key) => key === "route" || key === "selectedRoute");
+  const hasReportOutput = Boolean(result.report || result.industrialReport || result.score);
+  const allowedActions = result.orchestrationDecision?.allowedActions || [];
+  return {
+    name: testCase.name,
+    route: result.route,
+    journeyState: result.journeyState,
+    canonicalJourneyStateOnly: keys.length === 1 && keys[0] === "journeyState",
+    canonicalRouteOnly: routeKeys.length === 1 && routeKeys[0] === "route",
+    journeyStateValid: BIV_VALID_JOURNEY_STATES.has(result.journeyState),
+    hasReportOutput,
+    hasCopyDownloadActions: allowedActions.includes("copy_report") || allowedActions.includes("download_report"),
+    clarificationType: result.eligibility?.clarificationType || "",
+    presentationText: [
+      result.presentation?.heading,
+      result.presentation?.body,
+      result.presentation?.policy,
+      result.presentation?.closing,
+    ]
+      .filter(Boolean)
+      .join(" "),
+    expectedJourneyState: testCase.expectedJourneyState,
+    expectedClarificationType: testCase.expectClarificationType || "",
+    expectReport: testCase.expectReport,
+  };
+});
+
+const arabicClassificationJourney = executeJourney(
+  {
+    businessIdea: "تطبيق محاسبة بسيط لأصحاب المتاجر الصغيرة",
+    targetCustomer: "أصحاب المتاجر الصغيرة",
+    problem: "يضيعون وقتاً في المحاسبة اليدوية.",
+    monetization: "اشتراك شهري.",
+  },
+  "ar",
+  {},
+  { ...phase3DefaultsFor("ar"), classificationConfirmation: "" }
+);
+
+const pageRenderingGuardrailsPassed =
+  pageSource.includes("const journeyState =") &&
+  pageSource.includes("showFormRegion") &&
+  pageSource.includes("showClarificationCard") &&
+  pageSource.includes("showGenericStatusPanel = false") &&
+  pageSource.includes("journeyState === BIV_JOURNEY_STATES.NORMAL_EVALUATION") &&
+  pageSource.includes("journeyState === BIV_JOURNEY_STATES.SPECIALIST_ANALYSIS") &&
+  pageSource.includes("{canCopyReport ? (") &&
+  pageSource.includes("{canDownloadReport ? (") &&
+  !pageSource.includes("{!isEligibilityResult && !industrialReport ? (") &&
+  !pageSource.includes("const isEligibilityResult") &&
+  !pageSource.includes("selectedRoute") &&
+  !pageSource.includes("selectedJourneyState");
+
+const englishEligibilityClarification = journeyStateResults.find((result) => result.name === "eligibility clarification");
+const arabicEligibilityClarification = journeyStateResults.find((result) => result.name === "arabic eligibility clarification");
+const englishFinancingClarification = journeyStateResults.find((result) => result.name === "financing clarification");
+const arabicFinancingClarification = journeyStateResults.find((result) => result.name === "arabic financing clarification");
+const eligibilityClarificationCopyPassed =
+  englishEligibilityClarification?.presentationText.includes("nature of the activity and its content") &&
+  arabicEligibilityClarification?.presentationText.includes("طبيعة النشاط ومحتواه") &&
+  englishEligibilityClarification?.presentationText.includes("lawful, ethical") &&
+  arabicEligibilityClarification?.presentationText.includes("النشاط مشروع وأخلاقي") &&
+  !/\b(contract|return|repayment|financing structure)\b/i.test(englishEligibilityClarification?.presentationText || "") &&
+  !/(العقد|العائد|السداد|صيغة التمويل|طبيعة العقد)/u.test(arabicEligibilityClarification?.presentationText || "");
+const financingClarificationCopyPassed =
+  englishFinancingClarification?.presentationText.includes("contract and return structure") &&
+  arabicFinancingClarification?.presentationText.includes("طبيعة العقد والعائد") &&
+  !englishFinancingClarification?.presentationText.includes("nature of the activity and its content") &&
+  !arabicFinancingClarification?.presentationText.includes("طبيعة النشاط ومحتواه");
+
+let missingClarificationSubtypeThrows = false;
+try {
+  resolveBusinessIdeaJourneyState({
+    route: "needs_clarification",
+    eligibility: { status: "needs_clarification" },
+  });
+} catch {
+  missingClarificationSubtypeThrows = true;
+}
+
+const journeyStateContractPassed =
+  journeyStateResults.every((result) => result.journeyState === result.expectedJourneyState) &&
+  journeyStateResults.every((result) => result.canonicalJourneyStateOnly && result.canonicalRouteOnly && result.journeyStateValid) &&
+  journeyStateResults.every((result) =>
+    result.expectedClarificationType ? result.clarificationType === result.expectedClarificationType : true
+  ) &&
+  journeyStateResults.every((result) => (result.expectReport ? result.hasReportOutput : !result.hasReportOutput)) &&
+  journeyStateResults
+    .filter((result) => !result.expectReport)
+    .every((result) => !result.hasCopyDownloadActions) &&
+  journeyStateResults
+    .filter((result) => result.expectReport)
+    .every((result) => result.hasCopyDownloadActions) &&
+  arabicClassificationJourney.journeyState ===
+    journeyStateResults.find((result) => result.name === "classification review")?.journeyState &&
+  pageRenderingGuardrailsPassed &&
+  eligibilityClarificationCopyPassed &&
+  financingClarificationCopyPassed &&
+  missingClarificationSubtypeThrows;
+
+console.log(
+  JSON.stringify(
+    {
+      journeyStateContractPassed,
+      pageRenderingGuardrailsPassed,
+      eligibilityClarificationCopyPassed,
+      financingClarificationCopyPassed,
+      missingClarificationSubtypeThrows,
+      journeyStateResults,
+    },
+    null,
+    2
+  )
+);
+
+if (!journeyStateContractPassed) {
   process.exitCode = 1;
 }
 
@@ -1414,7 +2550,8 @@ const crossDomainCases = [
       problem: "How much will it cost and what equipment and license do I need?",
       monetization: "Pay per wash.",
     },
-    expectRoute: "guided_follow_up",
+    expectRoute: "normal_evaluation",
+    expectExecutionStatus: "evaluated",
     expectType: "service",
     forbidPet: true,
   },
@@ -1557,10 +2694,14 @@ const crossDomainCases = [
 ];
 
 const crossDomainResults = crossDomainCases.map((testCase) => {
+  const flowAnswers = {
+    ...phase3DefaultsFor(testCase.language),
+    ...(testCase.feasibilityAnswers || {}),
+  };
   const decision = orchestrateBusinessIdeaValidation({
     rawInput: testCase.input,
     language: testCase.language,
-    feasibilityAnswers: testCase.feasibilityAnswers || {},
+    feasibilityAnswers: flowAnswers,
   });
   const result = executeValidation(testCase.input, testCase.language, {}, testCase.feasibilityAnswers || {});
   const text = textFromDecisionResult(result);
@@ -1622,7 +2763,11 @@ const correctionDecision = orchestrateBusinessIdeaValidation({
     monetization: "",
   },
   language: "en",
-  feasibilityAnswers: { projectTypeCorrection: "digital_software" },
+  feasibilityAnswers: {
+    classificationConfirmation: "correct",
+    projectTypeCorrection: "digital_software",
+    operatingModelCorrection: "digital_remote",
+  },
 });
 const ineligiblePriorityDecision = orchestrateBusinessIdeaValidation({
   rawInput: {
@@ -1648,7 +2793,13 @@ const staleStatePassed =
   correctionDecision.businessType === "digital_software" &&
   correctionDecision.route === "guided_follow_up" &&
   ineligiblePriorityDecision.route === "ineligible" &&
-  financePriorityDecision.route === "needs_clarification";
+  ineligiblePriorityDecision.classificationConfidence === "not_evaluated" &&
+  ineligiblePriorityDecision.proposedClassification?.confidence === "not_evaluated" &&
+  !ineligiblePriorityDecision.analysisPayload &&
+  financePriorityDecision.route === "needs_clarification" &&
+  financePriorityDecision.classificationConfidence === "not_evaluated" &&
+  financePriorityDecision.proposedClassification?.confidence === "not_evaluated" &&
+  !financePriorityDecision.analysisPayload;
 
 console.log(JSON.stringify({ crossDomainPassed, staleStatePassed, crossDomainResults }, null, 2));
 
@@ -2538,8 +3689,11 @@ const eligibilityUiRegressionPassed =
   !arabicIneligible?.presentationText.includes(contentAr.labels.reportTitle) &&
   !arabicIneligible?.presentationText.includes(contentAr.labels.copyReport) &&
   !arabicIneligible?.presentationText.includes(contentAr.labels.downloadReport) &&
-  pageSource.includes("{!isEligibilityResult && !industrialReport ? (") &&
-  pageSource.includes("{result && reportSignals ? (") &&
+  pageSource.includes("showClarificationCard") &&
+  pageSource.includes("showGenericStatusPanel = false") &&
+  pageSource.includes("journeyState === BIV_JOURNEY_STATES.NORMAL_EVALUATION") &&
+  pageSource.includes("{canCopyReport ? (") &&
+  pageSource.includes("{canDownloadReport ? (") &&
   !pageSource.includes("result.evaluationStatus === 'ineligible' ? pageContent.states.error");
 
 const industrialClarificationPresentationPassed =

@@ -59,14 +59,160 @@ const routeText = {
   },
 };
 
-const correctionOptions = new Set([
-  "industrial_manufacturing",
-  "service",
-  "retail_trading",
-  "digital_software",
-  "marketplace_platform",
-  "generic",
-]);
+const classificationChoices = {
+  retail: {
+    engineType: "retail_trading",
+    primaryType: "retail",
+    label: { en: "Retail", ar: "بيع بالتجزئة" },
+    reason: {
+      en: "the idea sells products directly to customers.",
+      ar: "لأن الفكرة تبيع منتجات مباشرة للعملاء.",
+    },
+  },
+  wholesale_import_distribution: {
+    engineType: "retail_trading",
+    primaryType: "wholesale_import_distribution",
+    label: { en: "Wholesale, import, or distribution", ar: "جملة أو استيراد أو توزيع" },
+    reason: {
+      en: "the idea depends on sourcing, stock movement, or selling to other sellers.",
+      ar: "لأن الفكرة تعتمد على التوريد أو حركة المخزون أو البيع لتجار آخرين.",
+    },
+  },
+  field_service: {
+    engineType: "service",
+    primaryType: "service",
+    label: { en: "Service", ar: "خدمة" },
+    reason: {
+      en: "the idea mainly provides a service rather than selling goods or manufacturing products.",
+      ar: "لأن الفكرة تقدم خدمة في الأساس، وليست بيع منتجات أو تصنيعها.",
+    },
+  },
+  professional_service: {
+    engineType: "service",
+    primaryType: "professional_service",
+    label: { en: "Professional service", ar: "خدمات مهنية" },
+    reason: {
+      en: "the value depends mainly on expertise, service delivery, or specialist labor.",
+      ar: "لأن القيمة تعتمد أساساً على الخبرة أو تقديم الخدمة أو العمالة المتخصصة.",
+    },
+  },
+  manufacturing_industrial: {
+    engineType: "industrial_manufacturing",
+    primaryType: "manufacturing_industrial",
+    label: { en: "Manufacturing or industrial", ar: "تصنيع أو مشروع صناعي" },
+    reason: {
+      en: "the idea appears to involve production, a facility, machinery, or operating capacity.",
+      ar: "لأن الفكرة تبدو مرتبطة بالإنتاج أو المقر أو المعدات أو الطاقة التشغيلية.",
+    },
+  },
+  food_beverage: {
+    engineType: "service",
+    primaryType: "food_and_beverage",
+    label: { en: "Food and beverage", ar: "الأغذية والمشروبات" },
+    reason: {
+      en: "the idea appears to sell or prepare food, drinks, meals, or catering services.",
+      ar: "لأن الفكرة تبدو مرتبطة ببيع أو إعداد الطعام أو المشروبات أو الوجبات.",
+    },
+  },
+  digital_software: {
+    engineType: "digital_software",
+    primaryType: "digital_software",
+    label: { en: "Digital or software", ar: "رقمي أو برمجي" },
+    reason: {
+      en: "the idea is delivered mainly through software, an app, website, automation, or digital workflow.",
+      ar: "لأن الفكرة تُقدَّم أساساً عبر برنامج أو تطبيق أو موقع أو أتمتة رقمية.",
+    },
+  },
+  marketplace_platform: {
+    engineType: "marketplace_platform",
+    primaryType: "marketplace_platform",
+    label: { en: "Marketplace or platform", ar: "منصة أو سوق يربط بين طرفين" },
+    reason: {
+      en: "the idea connects two or more sides such as buyers, sellers, users, or providers.",
+      ar: "لأن الفكرة تربط بين طرفين أو أكثر مثل العملاء أو البائعين أو المستخدمين أو مقدمي الخدمة.",
+    },
+  },
+  healthcare: {
+    engineType: "service",
+    primaryType: "healthcare",
+    label: { en: "Healthcare", ar: "رعاية صحية" },
+    reason: {
+      en: "the idea involves patients, clinics, care delivery, or health-related services.",
+      ar: "لأن الفكرة مرتبطة بالمرضى أو العيادات أو تقديم الرعاية أو الخدمات الصحية.",
+    },
+  },
+  real_estate: {
+    engineType: "service",
+    primaryType: "real_estate",
+    label: { en: "Real estate", ar: "عقار" },
+    reason: {
+      en: "the idea appears connected to property, sites, rentals, facilities, or real-estate decisions.",
+      ar: "لأن الفكرة تبدو مرتبطة بالعقار أو المواقع أو الإيجارات أو المرافق.",
+    },
+  },
+  generic: {
+    engineType: "generic",
+    primaryType: "generic",
+    label: { en: "General or not sure", ar: "عام أو غير متأكد" },
+    reason: {
+      en: "the current description is broad, so a general path is safer until you clarify it.",
+      ar: "لأن الوصف الحالي واسع، لذلك يكون المسار العام أكثر أماناً إلى أن توضحه.",
+    },
+  },
+};
+
+const correctionOptions = new Set(Object.keys(classificationChoices));
+const operatingModelChoices = {
+  fixed_location: {
+    label: { en: "Fixed location", ar: "موقع ثابت" },
+    reason: {
+      en: "customers appear to visit a business location to receive the product or service.",
+      ar: "لأن العملاء يذهبون إلى موقع المشروع للحصول على المنتج أو الخدمة.",
+    },
+  },
+  mobile_or_customer_site: {
+    label: { en: "Mobile or customer-site", ar: "متنقل أو في موقع العميل" },
+    reason: {
+      en: "the provider appears to travel to the customer or deliver at the customer's site.",
+      ar: "لأن مقدم الخدمة ينتقل إلى العميل أو يقدم العمل في موقع العميل.",
+    },
+  },
+  digital_remote: {
+    label: { en: "Digital or remote", ar: "رقمي أو عن بُعد" },
+    reason: {
+      en: "delivery appears to happen mainly through software, an app, website, or remote workflow.",
+      ar: "لأن تقديم القيمة يبدو عبر برنامج أو تطبيق أو موقع أو عمل عن بُعد.",
+    },
+  },
+  home_based: {
+    label: { en: "Home-based", ar: "من المنزل" },
+    reason: {
+      en: "the work appears to be operated from home.",
+      ar: "لأن تشغيل المشروع يبدو من المنزل.",
+    },
+  },
+  mixed: {
+    label: { en: "Mixed", ar: "مختلط" },
+    reason: {
+      en: "the idea appears to combine more than one delivery model.",
+      ar: "لأن الفكرة تبدو تجمع أكثر من طريقة تشغيل أو تقديم.",
+    },
+  },
+  unknown: {
+    label: { en: "Unknown", ar: "غير واضح" },
+    reason: {
+      en: "the current input does not clearly state where or how delivery happens.",
+      ar: "لأن المدخل الحالي لا يوضح أين أو كيف يتم تقديم المنتج أو الخدمة.",
+    },
+  },
+};
+const operatingModelCorrectionOptions = new Set(Object.keys(operatingModelChoices));
+const legacyCorrectionAliases = {
+  retail_trading: "retail",
+  service: "field_service",
+  industrial_manufacturing: "manufacturing_industrial",
+  location_based_service: "field_service",
+};
 
 const validatorSourceFields = [
   "businessIdea",
@@ -90,15 +236,15 @@ const signalPatterns = {
     ],
     healthcare: [
       { pattern: /\b(clinic|medical|healthcare|patient|doctor|nurse|therapy|treatment)\b/i, concept: "healthcare", weight: 2 },
-      { pattern: /(عيادة|طبي|صحي|مرضى|مريض|طبيب|ممرض|علاج|تأهيل)/u, concept: "healthcare", weight: 2 },
+      { pattern: /(عيادة|طبي|مرضى|مريض|طبيب|ممرض|علاج|تأهيل)/u, concept: "healthcare", weight: 2 },
     ],
     food: [
       { pattern: /\b(restaurant|food|meal|kitchen|cafe|catering)\b/i, concept: "food", weight: 2 },
       { pattern: /(مطعم|طعام|وجبات|مطبخ|مقهى|تموين|إعاشة)/u, concept: "food", weight: 2 },
     ],
     automotive: [
-      { pattern: /\b(car wash|vehicle|car|auto|automotive|garage|workshop)\b/i, concept: "automotive", weight: 2 },
-      { pattern: /(مغسلة سيارات|سيارات|مركبات|ورشة سيارات|كراج)/u, concept: "automotive", weight: 2 },
+      { pattern: /\b(vehicle|car|auto|automotive|garage|workshop)\b/i, concept: "automotive", weight: 2 },
+      { pattern: /(سيارات|مركبات|ورشة سيارات|كراج)/u, concept: "automotive", weight: 2 },
     ],
     construction: [
       { pattern: /\b(construction|contractor|renovation|building|maintenance)\b/i, concept: "construction_services", weight: 2 },
@@ -123,28 +269,36 @@ const signalPatterns = {
       { pattern: /(متجر|تجزئة|تجارة|استيراد|تصدير|جملة|بيع منتجات|بيع بالتجزئة)/u, concept: "retail_trading", weight: 3 },
     ],
     service: [
-      { pattern: /\b(service|consulting|agency|clinic|restaurant|maintenance|repair|delivery|cleaning|washing|coaching|training|professional service|car wash)\b/i, concept: "service", weight: 3 },
-      { pattern: /(خدمة|استشارة|وكالة|عيادة|مطعم|صيانة|إصلاح|اصلاح|توصيل|تنظيف|غسيل|مغسلة|تدريب|خدمات مهنية)/u, concept: "service", weight: 3 },
+      { pattern: /\b(service|consulting|agency|clinic|restaurant|maintenance|repair|delivery|cleaning|wash|washing|barber|barbershop|salon|grooming|coaching|training|professional service)\b/i, concept: "service", weight: 3 },
+      { pattern: /(خدمة|استشارة|وكالة|عيادة|مطعم|صيانة|إصلاح|اصلاح|توصيل|تنظيف|غسيل|حلاقة|صالون|تدريب|خدمات مهنية)/u, concept: "service", weight: 3 },
     ],
   },
   operatingModel: {
-    fixed_site: [
-      { pattern: /\b(location|site|premises|shop|store|clinic|restaurant|factory|workshop|car wash|laundry)\b/i, concept: "fixed_site", weight: 2 },
-      { pattern: /(موقع|مقر|محل|متجر|عيادة|مطعم|مصنع|ورشة|مغسلة|مستودع)/u, concept: "fixed_site", weight: 2 },
+    fixed_location: [
+      { pattern: /\b(fixed location|fixed site|fixed shop|fixed store|fixed .* site|customer visits|customers visit|visit the (?:shop|store|location|site|premises)|customers come to|walk-in|physical branch|physical location)\b/i, concept: "fixed_location", weight: 3 },
+      { pattern: /(موقع ثابت|موقع .* ثابت|محل ثابت|متجر ثابت|يأتي العملاء|يذهب العملاء|يحضر العملاء|يزور العملاء|إلى موقع المشروع|الى موقع المشروع|فرع ثابت|مقر ثابت)/u, concept: "fixed_location", weight: 3 },
     ],
-    mobile: [
-      { pattern: /\b(mobile|on-site|at home|delivery)\b/i, concept: "mobile", weight: 2 },
-      { pattern: /(متنقل|في المنزل|للمنازل|توصيل|ميداني)/u, concept: "mobile", weight: 2 },
+    mobile_or_customer_site: [
+      { pattern: /\b(mobile (?:service|provider|team|crew|unit|truck|vehicle)|provider travels|travels to (?:the )?customer|on-site|customer site|at home|home visit|delivery to customer)\b/i, concept: "mobile_or_customer_site", weight: 3 },
+      { pattern: /(متنقل|ينتقل .* إلى|ينتقل .* الى|في موقع العميل|عند العميل|إلى منزل العميل|الى منزل العميل|للمنازل|زيارة منزلية|ميداني)/u, concept: "mobile_or_customer_site", weight: 3 },
     ],
-    digital: [
-      { pattern: /\b(online|web|app|software|saas|digital)\b/i, concept: "digital", weight: 2 },
-      { pattern: /(أونلاين|اونلاين|تطبيق|برمج|رقمي|إلكتروني|الكتروني)/u, concept: "digital", weight: 2 },
+    digital_remote: [
+      { pattern: /\b(online|web|app|software|saas|digital|remote)\b/i, concept: "digital_remote", weight: 3 },
+      { pattern: /(أونلاين|اونلاين|تطبيق|برمج|رقمي|إلكتروني|الكتروني|عن بعد|عن بُعد)/u, concept: "digital_remote", weight: 3 },
+    ],
+    home_based: [
+      { pattern: /\b(home-based|from home|home kitchen|home workshop)\b/i, concept: "home_based", weight: 3 },
+      { pattern: /(مشروع منزلي|مطبخ منزلي|ورشة منزلية|تشغيله من المنزل|تعمل من المنزل|أعمل من المنزل|اعمل من المنزل)/u, concept: "home_based", weight: 3 },
+    ],
+    mixed: [
+      { pattern: /\b(hybrid|mixed|online and offline|both online and physical)\b/i, concept: "mixed", weight: 2 },
+      { pattern: /(مختلط|هجين|رقمي وميداني|أونلاين وحضوري|اونلاين وحضوري)/u, concept: "mixed", weight: 2 },
     ],
   },
   assetIntensity: {
     high: [
-      { pattern: /\b(factory|plant|machinery|machine|equipment|vehicle workshop|car wash|laundry|production line)\b/i, concept: "asset_intensive", weight: 2 },
-      { pattern: /(مصنع|معدات|مكائن|آلات|ورشة|مغسلة|خط إنتاج|خط انتاج)/u, concept: "asset_intensive", weight: 2 },
+      { pattern: /\b(factory|plant|machinery|machine|equipment|vehicle workshop|laundry|production line)\b/i, concept: "asset_intensive", weight: 2 },
+      { pattern: /(مصنع|معدات|مكائن|آلات|ورشة|خط إنتاج|خط انتاج)/u, concept: "asset_intensive", weight: 2 },
     ],
   },
   customerModel: {
@@ -188,11 +342,8 @@ export function orchestrateBusinessIdeaValidation({
 } = {}) {
   const lang = language === "ar" ? "ar" : "en";
   const { analysis, validation } = validateForExecution(rawInput, lang);
-  const classification = classifyValidatorRequest(rawInput, {
-    language: lang,
-    details: { ...industrialDetails, ...feasibilityAnswers },
-  });
-  const validationDecision = buildValidationDecision({ rawInput, analysis, validation, classification, language: lang });
+  const unclassifiedContext = buildUnclassifiedContext(lang);
+  const validationDecision = buildValidationDecision({ rawInput, analysis, validation, classification: unclassifiedContext, language: lang });
 
   if (validationDecision) return validationDecision;
 
@@ -204,7 +355,7 @@ export function orchestrateBusinessIdeaValidation({
       reasonCode: eligibility.status === "ineligible" ? "ethical_policy_ineligible" : "policy_or_financing_clarification",
       reasonText: routeText[lang][eligibility.status === "ineligible" ? "ineligible" : "policy_clarification"],
       language: lang,
-      classification,
+      classification: unclassifiedContext,
       analysis,
       validation,
       eligibility,
@@ -213,14 +364,22 @@ export function orchestrateBusinessIdeaValidation({
     });
   }
 
+  const classification = classifyValidatorRequest(rawInput, {
+    language: lang,
+    details: { ...industrialDetails, ...feasibilityAnswers },
+  });
+
   const foundation = buildFeasibilityFoundation(rawInput, lang, {
     details: { ...industrialDetails, ...feasibilityAnswers },
     businessTypeOverride: classification.businessType,
   });
   const hasTruncatedInput = sourceHasTruncatedPhrase(rawInput);
-
   const specialist = matchSpecialist(classification);
-  if (specialist?.confidence === "high" && !hasTruncatedInput) {
+  const classificationPrompt = shouldAskForClassificationConfirmation(classification, specialist, feasibilityAnswers, validation)
+    ? buildClassificationPrompt(classification, specialist, lang, feasibilityAnswers)
+    : null;
+
+  if (!classificationPrompt && specialist?.confidence === "high" && !hasTruncatedInput) {
     const requestAssessment = assessBusinessIdeaRequest(rawInput, lang, industrialDetails);
     if (requestAssessment.status === "ready_for_industrial_analysis") {
       return buildDecision({
@@ -294,16 +453,13 @@ export function orchestrateBusinessIdeaValidation({
     });
   }
 
-  const classificationPrompt = shouldAskForClassificationConfirmation(classification, specialist, feasibilityAnswers, validation)
-    ? buildClassificationPrompt(classification, specialist, lang)
-    : null;
-
   const guidedFeasibility = buildGuidedFeasibilityFlow(rawInput, lang, {
     foundation,
     answers: feasibilityAnswers,
     validation,
     classificationPrompt,
     forceGuide: hasTruncatedInput,
+    phase3Only: true,
   });
 
   if (guidedFeasibility.shouldGuide) {
@@ -346,12 +502,38 @@ export function classifyValidatorRequest(rawInput = {}, options = {}) {
   const fieldSignals = collectFieldSignals(sourceFields);
   const originalSourceFields = buildSourceFields(rawInput, {}, { includeDetails: false });
   const specialistCandidate = matchSpecialistFromSourceFields(originalSourceFields, language);
-  const correction = String(options.details?.projectTypeCorrection || "").trim();
+  const rawCorrection = String(options.details?.projectTypeCorrection || "").trim();
+  const correction = normalizeClassificationChoice(rawCorrection);
+  const legacyOperatingModel = rawCorrection === "location_based_service" ? "fixed_location" : "";
+  const operatingModelCorrection = normalizeOperatingModelCorrection(options.details?.operatingModelCorrection || legacyOperatingModel);
+  const classificationDecision = String(options.details?.classificationConfirmation || "").trim();
   const scores = scoreConcepts(fieldSignals, "businessType");
+  const operatingModelScores = scoreConcepts(fieldSignals, "operatingModel");
+  const inferredOperatingModel = chooseOperatingModel(operatingModelScores);
+  const proposedClassification = buildProposedClassification({
+    scores,
+    fieldSignals,
+    rawInput,
+    language,
+    specialistCandidate,
+    operatingModel: inferredOperatingModel,
+  });
   const correctedType = correctionOptions.has(correction) ? correction : "";
-  const businessType = correctedType || chooseBusinessType(scores);
+  const correctedOperatingModel = operatingModelCorrectionOptions.has(operatingModelCorrection) ? operatingModelCorrection : "";
+  const classificationConfirmed = classificationDecision === "confirm" || Boolean(correctedType && correctedOperatingModel);
+  const classificationCorrected = Boolean(correctedType || correctedOperatingModel);
+  const confirmedClassification = classificationConfirmed
+    ? buildConfirmedClassification({
+        choice: correctedType || proposedClassification.type,
+        language,
+        corrected: classificationCorrected,
+        reason: options.details?.classificationCorrectionReason,
+        operatingModel: correctedOperatingModel || proposedClassification.operatingModel,
+      })
+    : null;
+  const businessType = confirmedClassification?.engineType || proposedClassification.engineType;
   const businessTypeScore = scores[businessType] || 0;
-  const operatingModel = chooseConcept(scoreConcepts(fieldSignals, "operatingModel"), "unspecified");
+  const operatingModel = confirmedClassification?.operatingModel || proposedClassification.operatingModel;
   const assetIntensity = scoreConcepts(fieldSignals, "assetIntensity").high ? "high" : businessType === "industrial_manufacturing" ? "high" : "moderate";
   const customerModel = chooseConcept(scoreConcepts(fieldSignals, "customerModel"), "unspecified");
   const sectorScores = scoreConcepts(fieldSignals, "sector");
@@ -360,13 +542,26 @@ export function classifyValidatorRequest(rawInput = {}, options = {}) {
     .map(([sector, score]) => ({ sector, score }));
   const confidence = correctedType
     ? "confirmed_by_user"
-    : businessTypeScore >= 4
+    : classificationConfirmed
+      ? "confirmed_by_user"
+      : businessTypeScore >= 4
       ? "high"
       : businessTypeScore >= 2
         ? "medium"
         : "low";
   return {
     businessType,
+    proposedClassification,
+    confirmedClassification,
+    classificationConfirmed,
+    classificationCorrected,
+    classificationCorrectionReason: String(options.details?.classificationCorrectionReason || "").trim(),
+    operatingModelCorrected: Boolean(correctedOperatingModel),
+    experienceLevel: String(options.details?.userExperienceLevel || "").trim(),
+    firstProject: String(options.details?.firstProject || "").trim(),
+    country: String(options.details?.country || "").trim(),
+    city: String(options.details?.city || "").trim(),
+    decisionObjective: String(options.details?.decisionObjective || "").trim(),
     operatingModel,
     assetIntensity,
     customerModel,
@@ -376,7 +571,7 @@ export function classifyValidatorRequest(rawInput = {}, options = {}) {
     matchedSpecialist: specialistCandidate?.confidence === "high" ? specialistCandidate : null,
     specialistCandidate,
     fieldSignals,
-    correctionApplied: Boolean(correctedType),
+    correctionApplied: classificationCorrected,
   };
 }
 
@@ -397,6 +592,43 @@ function buildValidationDecision({ rawInput, analysis, validation, classificatio
   }
 
   return null;
+}
+
+function buildUnclassifiedContext(language = "en") {
+  const generic = classificationChoices.generic;
+  const unknownOperatingModel = operatingModelChoices.unknown;
+  return {
+    businessType: "generic",
+    proposedClassification: {
+      type: "generic",
+      businessType: "generic",
+      primaryType: "generic",
+      engineType: "generic",
+      label: generic.label[language] || generic.label.en,
+      sector: "generic",
+      operatingModel: "unknown",
+      operatingModelLabel: unknownOperatingModel.label[language] || unknownOperatingModel.label.en,
+      customerModel: "unspecified",
+      projectStage: "idea",
+      confidence: "not_evaluated",
+      reason: "",
+    },
+    confirmedClassification: null,
+    classificationConfirmed: false,
+    classificationCorrected: false,
+    classificationCorrectionReason: "",
+    operatingModelCorrected: false,
+    operatingModel: "unknown",
+    assetIntensity: "unknown",
+    customerModel: "unspecified",
+    projectStage: "idea",
+    sectorSignals: [],
+    classificationConfidence: "not_evaluated",
+    matchedSpecialist: null,
+    specialistCandidate: null,
+    fieldSignals: [],
+    correctionApplied: false,
+  };
 }
 
 function buildDecision({
@@ -442,6 +674,18 @@ function buildDecision({
     operatingModel: classification.operatingModel,
     sectorSignals: classification.sectorSignals,
     classificationConfidence: classification.classificationConfidence,
+    userProfile: guidedFeasibility?.userProfile || null,
+    experienceLevel: guidedFeasibility?.userProfile?.experienceLevel || classification.experienceLevel || "",
+    firstProject: guidedFeasibility?.userProfile?.firstProject || classification.firstProject || "",
+    projectStage: classification.projectStage,
+    country: guidedFeasibility?.userProfile?.country || classification.country || "",
+    city: guidedFeasibility?.userProfile?.city || classification.city || "",
+    decisionObjective: guidedFeasibility?.userProfile?.decisionObjective || classification.decisionObjective || "",
+    proposedClassification: classification.proposedClassification,
+    confirmedClassification: classification.confirmedClassification,
+    classificationConfirmed: classification.classificationConfirmed,
+    classificationCorrected: classification.classificationCorrected,
+    classificationCorrectionReason: classification.classificationCorrectionReason,
     specialistCandidate,
     matchedSpecialist: confirmedSpecialist,
     specialistEligible: Boolean(confirmedSpecialist),
@@ -477,6 +721,16 @@ function buildUserContext({ analysis, classification, feasibilityFoundation, gui
   return {
     projectStage: classification.projectStage || input.stage || "idea",
     userProfile: guidedFeasibility?.userProfile || null,
+    experienceLevel: guidedFeasibility?.userProfile?.experienceLevel || classification.experienceLevel || "",
+    firstProject: guidedFeasibility?.userProfile?.firstProject || classification.firstProject || "",
+    country: guidedFeasibility?.userProfile?.country || classification.country || "",
+    city: guidedFeasibility?.userProfile?.city || classification.city || "",
+    decisionObjective: guidedFeasibility?.userProfile?.decisionObjective || classification.decisionObjective || "",
+    proposedClassification: classification.proposedClassification,
+    confirmedClassification: classification.confirmedClassification,
+    classificationConfirmed: classification.classificationConfirmed,
+    classificationCorrected: classification.classificationCorrected,
+    classificationCorrectionReason: classification.classificationCorrectionReason,
     requestType: requestAssessment?.requestType || "business_idea",
     originalInputKeys: Object.keys(input).filter((key) => String(input[key] || "").trim()),
     feasibilityBusinessType: feasibilityFoundation?.businessType || classification.businessType,
@@ -548,7 +802,9 @@ function sourceHasTruncatedPhrase(rawInput = {}) {
 function collectFieldSignals(sourceFields = []) {
   const signals = [];
   for (const source of sourceFields) {
+    const suppressOperatingModelSignals = hasOperatingModelUncertainty(source.value);
     for (const [group, concepts] of Object.entries(signalPatterns)) {
+      if (group === "operatingModel" && suppressOperatingModelSignals) continue;
       for (const [concept, patterns] of Object.entries(concepts)) {
         for (const item of patterns) {
           if (item.pattern.test(source.value)) {
@@ -570,6 +826,20 @@ function collectFieldSignals(sourceFields = []) {
   return signals;
 }
 
+function hasOperatingModelUncertainty(value = "") {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  if (!text) return false;
+  return operatingModelUncertaintyPatterns.some((pattern) => pattern.test(text));
+}
+
+const operatingModelUncertaintyPatterns = [
+  /\b(?:not decided|not determined|not sure|undecided|unclear)\b.{0,140}\b(?:fixed|mobile|customer site|customer-site|location|site|premises|customer location)\b/i,
+  /\b(?:either|may be|could be|might be)\b.{0,100}\b(?:fixed|mobile|customer site|customer-site|location|site|premises|customer location)\b.{0,100}\b(?:or|and)\b.{0,100}\b(?:fixed|mobile|customer site|customer-site|location|site|premises|customer location)\b/i,
+  /\b(?:fixed location|fixed site|our location|customer site|mobile service|mobile provider)\b.{0,100}\b(?:or|versus|vs\.?)\b.{0,100}\b(?:fixed location|fixed site|our location|customer site|mobile service|mobile provider)\b/i,
+  /(لم أحدد|غير محدد|لم أقرر|لا أعرف بعد|غير واضح).{0,140}(موقع|ثابت|متنقل|العميل|الخدمة|إليه|اليه|لديه|عنده)/u,
+  /(إما|هل|قد يكون|ربما).{0,140}(موقع ثابت|موقع المشروع|مقر ثابت|متنقل|موقع العميل|عند العميل|لدى العميل|تصل الخدمة|تصل إليه|تصل اليه|يصل إليه|يصل اليه).{0,140}(أو|او|أم).{0,140}(موقع ثابت|موقع المشروع|مقر ثابت|متنقل|موقع العميل|عند العميل|لدى العميل|تصل الخدمة|تصل إليه|تصل اليه|يصل إليه|يصل اليه)/u,
+];
+
 function scoreConcepts(signals = [], group) {
   return signals
     .filter((signal) => signal.group === group)
@@ -586,6 +856,110 @@ function chooseBusinessType(scores = {}) {
   if ((scores.service || 0) >= 3) return "service";
   if ((scores.retail_trading || 0) >= 3) return "retail_trading";
   return "generic";
+}
+
+function buildProposedClassification({ scores = {}, fieldSignals = [], rawInput = {}, language = "en", specialistCandidate, operatingModel = "unknown" }) {
+  const engineType = chooseBusinessType(scores);
+  const type = chooseDisplayClassification({ engineType, fieldSignals, rawInput, specialistCandidate });
+  const definition = classificationChoices[type] || classificationChoices.generic;
+  const sector = chooseSector(fieldSignals);
+  const operatingDefinition = operatingModelChoices[operatingModel] || operatingModelChoices.unknown;
+
+  return {
+    type,
+    businessType: type,
+    primaryType: definition.primaryType || definition.engineType,
+    engineType: definition.engineType,
+    label: definition.label[language] || definition.label.en,
+    sector,
+    operatingModel,
+    operatingModelLabel: operatingDefinition.label[language] || operatingDefinition.label.en,
+    customerModel: chooseConcept(scoreConcepts(fieldSignals, "customerModel"), "unspecified"),
+    projectStage: rawInput.stage || "idea",
+    confidence: scores[engineType] >= 4 ? "high" : scores[engineType] >= 2 ? "medium" : "low",
+    reason: buildClassificationReason(definition, language, { operatingModel }),
+  };
+}
+
+function chooseDisplayClassification({ engineType, fieldSignals = [], rawInput = {}, specialistCandidate }) {
+  const text = buildSourceFields(rawInput, {}, { includeDetails: false }).map((source) => source.value).join(" ");
+  const sectors = scoreConcepts(fieldSignals, "sector");
+
+  if (engineType === "marketplace_platform") return "marketplace_platform";
+  if (engineType === "digital_software") return "digital_software";
+  if (engineType === "industrial_manufacturing") return "manufacturing_industrial";
+  if ((sectors.food || 0) >= 2) return "food_beverage";
+  if ((sectors.healthcare || 0) >= 2) return "healthcare";
+  if (/\b(real estate|property|rental|landlord|tenant)\b/i.test(text) || /(عقار|عقاري|إيجار|مستأجر|مالك عقار)/u.test(text)) return "real_estate";
+  if (/\b(wholesale|import|distribution|distributor)\b/i.test(text) || /(جملة|استيراد|توزيع|موزع)/u.test(text)) return "wholesale_import_distribution";
+  if (engineType === "retail_trading") return "retail";
+  if (/\b(consulting|agency|clinic|coaching|training|professional service)\b/i.test(text) || /(استشارة|وكالة|عيادة|تدريب|خدمات مهنية)/u.test(text)) return "professional_service";
+  if (engineType === "service") return "field_service";
+  return "generic";
+}
+
+function chooseSector(fieldSignals = []) {
+  const sectorScores = scoreConcepts(fieldSignals, "sector");
+  return Object.entries(sectorScores).sort((a, b) => b[1] - a[1])[0]?.[0] || "generic";
+}
+
+function buildClassificationReason(definition, language, context = {}) {
+  const operatingDefinition = operatingModelChoices[context.operatingModel] || operatingModelChoices.unknown;
+  return language === "ar"
+    ? `يبدو أن النوع الأساسي هو ${definition.label.ar}، ${definition.reason.ar} ونموذج التشغيل: ${operatingDefinition.label.ar}، ${operatingDefinition.reason.ar}`
+    : `The primary type looks like ${definition.label.en.toLowerCase()} because ${definition.reason.en} Operating model: ${operatingDefinition.label.en.toLowerCase()}, because ${operatingDefinition.reason.en}`;
+}
+
+function buildConfirmedClassification({ choice, language = "en", corrected = false, reason = "", operatingModel = "unknown" }) {
+  const normalizedChoice = normalizeClassificationChoice(choice);
+  const definition = classificationChoices[normalizedChoice] || classificationChoices.generic;
+  const normalizedOperatingModel = normalizeOperatingModelCorrection(operatingModel) || "unknown";
+  const operatingDefinition = operatingModelChoices[normalizedOperatingModel] || operatingModelChoices.unknown;
+  return {
+    type: normalizedChoice,
+    businessType: normalizedChoice,
+    primaryType: definition.primaryType || definition.engineType,
+    engineType: definition.engineType,
+    label: definition.label[language] || definition.label.en,
+    operatingModel: normalizedOperatingModel,
+    operatingModelLabel: operatingDefinition.label[language] || operatingDefinition.label.en,
+    corrected,
+    reason: String(reason || "").trim(),
+  };
+}
+
+function normalizeClassificationChoice(value = "") {
+  const normalized = String(value || "").trim();
+  return legacyCorrectionAliases[normalized] || normalized;
+}
+
+function normalizeOperatingModelCorrection(value = "") {
+  const normalized = String(value || "").trim();
+  const aliases = {
+    fixed_site: "fixed_location",
+    mobile: "mobile_or_customer_site",
+    digital: "digital_remote",
+    online: "digital_remote",
+    not_sure: "unknown",
+  };
+  return aliases[normalized] || normalized;
+}
+
+function chooseOperatingModel(scores = {}) {
+  const normalizedScores = { ...scores };
+  const fixed = normalizedScores.fixed_location || 0;
+  const mobile = normalizedScores.mobile_or_customer_site || 0;
+  const digital = normalizedScores.digital_remote || 0;
+  const home = normalizedScores.home_based || 0;
+  const mixed = normalizedScores.mixed || 0;
+  const active = Object.entries({ fixed_location: fixed, mobile_or_customer_site: mobile, digital_remote: digital, home_based: home, mixed })
+    .filter(([, score]) => score > 0)
+    .sort((a, b) => b[1] - a[1]);
+
+  if (active.length === 0) return "unknown";
+  if (active.length > 1 && active[0][1] === active[1][1]) return "mixed";
+  if (mixed > 0 && active.length > 1) return "mixed";
+  return active[0][0];
 }
 
 function chooseConcept(scores = {}, fallback) {
@@ -621,57 +995,160 @@ function evaluateSpecialistRequirements(specialist, sourceText = "") {
 }
 
 function shouldAskForClassificationConfirmation(classification, specialist, answers = {}, validation) {
-  if (answers.projectTypeCorrection) return false;
-  if (specialist?.confidence === "high") return false;
-  if (classification.specialistCandidate?.confidence === "medium") return true;
-  return classification.classificationConfidence === "low" && validation && !validation.ok;
+  if (classification.classificationConfirmed) return false;
+  if (answers.classificationConfirmation === "correct" && (!answers.projectTypeCorrection || !answers.operatingModelCorrection)) return true;
+  if (answers.classificationConfirmation === "confirm") return false;
+  return true;
 }
 
-function buildClassificationPrompt(classification, specialist, language) {
+function buildClassificationPrompt(classification, specialist, language, answers = {}) {
   const labels = {
     en: {
-      labelText: "Which project type best describes this idea?",
-      helpText: "Choose the plain description that fits best. This keeps follow-up questions relevant.",
+      confirmationLabel: "Does this classification describe your business correctly?",
+      confirmationHelp: `Proposed classification: ${classification.proposedClassification?.label || "General business"}; operating model: ${classification.proposedClassification?.operatingModelLabel || "Unknown"}. ${classification.proposedClassification?.reason || "This keeps follow-up questions relevant."}`,
+      confirmationPlaceholder: "Confirm or correct the classification",
+      confirmOption: "Confirm classification",
+      correctOption: "Correct classification",
+      correctionLabel: "Which business type fits better?",
+      correctionHelp: "Choose the plain description that fits best. This changes the follow-up questions without changing your original idea.",
       placeholderText: "Select project type",
+      operatingModelLabel: "Which operating model fits better?",
+      operatingModelHelp: "Choose where or how the business delivers value. This is separate from the business type.",
+      operatingModelPlaceholder: "Select operating model",
+      reasonLabel: "Correction note",
+      reasonHelp: "Optional: briefly say why this classification fits better.",
+      reasonPlaceholder: "Example: this is a mobile service, not a factory",
       options: [
-        ["service", "Service or local operation"],
-        ["digital_software", "Software or digital product"],
+        ["field_service", "Service"],
+        ["professional_service", "Professional service"],
+        ["retail", "Retail"],
+        ["wholesale_import_distribution", "Wholesale, import, or distribution"],
+        ["manufacturing_industrial", "Manufacturing or industrial"],
+        ["food_beverage", "Food and beverage"],
+        ["digital_software", "Digital or software"],
         ["marketplace_platform", "Marketplace or platform"],
-        ["retail_trading", "Retail, trading, or commerce"],
-        ["industrial_manufacturing", "Manufacturing or production"],
+        ["healthcare", "Healthcare"],
+        ["real_estate", "Real estate"],
         ["generic", "Not sure / general business"],
+      ],
+      operatingOptions: [
+        ["fixed_location", "Fixed location"],
+        ["mobile_or_customer_site", "Mobile or customer-site"],
+        ["digital_remote", "Digital or remote"],
+        ["home_based", "Home-based"],
+        ["mixed", "Mixed"],
+        ["unknown", "Not sure"],
       ],
     },
     ar: {
-      labelText: "أي وصف يناسب نوع المشروع؟",
-      helpText: "اختر الوصف الأقرب بلغة بسيطة حتى تكون أسئلة المتابعة مناسبة.",
+      confirmationLabel: "هل هذا التصنيف يصف مشروعك بشكل صحيح؟",
+      confirmationHelp: `التصنيف المقترح: ${classification.proposedClassification?.label || "عمل عام"}؛ نموذج التشغيل: ${classification.proposedClassification?.operatingModelLabel || "غير واضح"}. ${classification.proposedClassification?.reason || "هذا يساعد على جعل أسئلة المتابعة مناسبة."}`,
+      confirmationPlaceholder: "أكد التصنيف أو صححه",
+      confirmOption: "تأكيد التصنيف",
+      correctOption: "تصحيح التصنيف",
+      correctionLabel: "أي نوع مشروع يناسب فكرتك أكثر؟",
+      correctionHelp: "اختر الوصف الأقرب بلغة بسيطة. سيغيّر ذلك أسئلة المتابعة دون تغيير فكرتك الأصلية.",
       placeholderText: "اختر نوع المشروع",
+      operatingModelLabel: "أي نموذج تشغيل يناسب فكرتك أكثر؟",
+      operatingModelHelp: "اختر أين أو كيف سيتم تقديم المنتج أو الخدمة. هذا منفصل عن نوع المشروع.",
+      operatingModelPlaceholder: "اختر نموذج التشغيل",
+      reasonLabel: "ملاحظة التصحيح",
+      reasonHelp: "اختياري: اكتب باختصار لماذا هذا التصنيف أنسب.",
+      reasonPlaceholder: "مثال: هذه خدمة متنقلة وليست مصنعاً",
       options: [
-        ["service", "خدمة أو تشغيل محلي"],
-        ["digital_software", "منتج رقمي أو برمجي"],
+        ["field_service", "خدمة"],
+        ["professional_service", "خدمات مهنية"],
+        ["retail", "بيع بالتجزئة"],
+        ["wholesale_import_distribution", "جملة أو استيراد أو توزيع"],
+        ["manufacturing_industrial", "تصنيع أو مشروع صناعي"],
+        ["food_beverage", "الأغذية والمشروبات"],
+        ["digital_software", "رقمي أو برمجي"],
         ["marketplace_platform", "منصة أو سوق يربط بين طرفين"],
-        ["retail_trading", "تجارة أو بيع منتجات"],
-        ["industrial_manufacturing", "تصنيع أو إنتاج"],
+        ["healthcare", "رعاية صحية"],
+        ["real_estate", "عقار"],
         ["generic", "غير متأكد / عمل عام"],
+      ],
+      operatingOptions: [
+        ["fixed_location", "موقع ثابت"],
+        ["mobile_or_customer_site", "متنقل أو في موقع العميل"],
+        ["digital_remote", "رقمي أو عن بُعد"],
+        ["home_based", "من المنزل"],
+        ["mixed", "مختلط"],
+        ["unknown", "غير متأكد"],
       ],
     },
   };
   const copy = labels[language] || labels.en;
-  return {
-    id: "projectTypeCorrection",
-    type: "select",
-    category: "implementationTimeline",
-    source: "user_answerable",
-    sourceLabel: language === "ar" ? "يمكنك الإجابة" : "You can answer",
-    required: true,
-    labelText: copy.labelText,
-    helpText: copy.helpText,
-    placeholderText: copy.placeholderText,
-    value: "",
-    options: copy.options.map(([value, labelText]) => ({ value, labelText })),
-    detectedBusinessType: classification.businessType,
-    candidateSpecialist: specialist?.id || classification.specialistCandidate?.id || "",
-  };
+  const fields = [
+    {
+      id: "classificationConfirmation",
+      type: "select",
+      category: "implementationTimeline",
+      source: "user_answerable",
+      sourceLabel: language === "ar" ? "يمكنك الإجابة" : "You can answer",
+      required: true,
+      labelText: copy.confirmationLabel,
+      helpText: copy.confirmationHelp,
+      placeholderText: copy.confirmationPlaceholder,
+      value: answers.classificationConfirmation || "",
+      options: [
+        { value: "confirm", labelText: copy.confirmOption },
+        { value: "correct", labelText: copy.correctOption },
+      ],
+      detectedBusinessType: classification.businessType,
+      proposedClassification: classification.proposedClassification,
+      candidateSpecialist: specialist?.id || classification.specialistCandidate?.id || "",
+    },
+  ];
+
+  if (answers.classificationConfirmation === "correct") {
+    fields.push({
+      id: "projectTypeCorrection",
+      type: "select",
+      category: "implementationTimeline",
+      source: "user_answerable",
+      sourceLabel: language === "ar" ? "يمكنك الإجابة" : "You can answer",
+      required: true,
+      labelText: copy.correctionLabel,
+      helpText: copy.correctionHelp,
+      placeholderText: copy.placeholderText,
+      value: answers.projectTypeCorrection || "",
+      options: copy.options.map(([value, labelText]) => ({ value, labelText })),
+      detectedBusinessType: classification.businessType,
+      proposedClassification: classification.proposedClassification,
+      candidateSpecialist: specialist?.id || classification.specialistCandidate?.id || "",
+    });
+    fields.push({
+      id: "operatingModelCorrection",
+      type: "select",
+      category: "implementationTimeline",
+      source: "user_answerable",
+      sourceLabel: language === "ar" ? "يمكنك الإجابة" : "You can answer",
+      required: true,
+      labelText: copy.operatingModelLabel,
+      helpText: copy.operatingModelHelp,
+      placeholderText: copy.operatingModelPlaceholder,
+      value: answers.operatingModelCorrection || "",
+      options: copy.operatingOptions.map(([value, labelText]) => ({ value, labelText })),
+      detectedOperatingModel: classification.operatingModel,
+      proposedClassification: classification.proposedClassification,
+      candidateSpecialist: specialist?.id || classification.specialistCandidate?.id || "",
+    });
+    fields.push({
+      id: "classificationCorrectionReason",
+      type: "textarea",
+      category: "implementationTimeline",
+      source: "user_answerable",
+      sourceLabel: language === "ar" ? "يمكنك الإجابة" : "You can answer",
+      required: false,
+      labelText: copy.reasonLabel,
+      helpText: copy.reasonHelp,
+      placeholderText: copy.reasonPlaceholder,
+      value: answers.classificationCorrectionReason || "",
+    });
+  }
+
+  return fields;
 }
 
 function normalize(value = "") {

@@ -66,8 +66,8 @@ const typePatterns = {
     /(متجر|تجزئة|تجارة|استيراد|تصدير|مخزون|منتجات|جملة|بيع)/u,
   ],
   service: [
-    /\b(service|consulting|agency|clinic|maintenance|repair|delivery|cleaning|washing|coaching|training|home service|professional service)\b/i,
-    /(خدمة|استشارة|وكالة|عيادة|صيانة|إصلاح|توصيل|تنظيف|غسيل|مغسلة|تدريب|خدمة منزلية|خدمات مهنية)/u,
+    /\b(service|consulting|agency|clinic|maintenance|repair|delivery|cleaning|wash|washing|coaching|training|home service|professional service)\b/i,
+    /(خدمة|استشارة|وكالة|عيادة|صيانة|إصلاح|توصيل|تنظيف|غسيل|تدريب|خدمة منزلية|خدمات مهنية)/u,
   ],
 };
 
@@ -385,24 +385,17 @@ const guidedCopy = {
 
 const userExperienceOptions = [
   {
-    value: "beginner_first_business",
+    value: "first_time_beginner",
     label: {
       en: "This is my first business",
       ar: "هذه أول تجربة لي في إنشاء مشروع",
     },
   },
   {
-    value: "experienced_new_idea",
+    value: "limited_experience",
     label: {
-      en: "I have experience and I’m evaluating a new idea",
-      ar: "لدي خبرة سابقة وأقيّم فكرة جديدة",
-    },
-  },
-  {
-    value: "existing_business_owner",
-    label: {
-      en: "I have an existing business I want to improve or expand",
-      ar: "لدي مشروع قائم وأريد تطويره أو التوسع فيه",
+      en: "I have limited experience and I’m evaluating a new idea",
+      ar: "لدي خبرة محدودة وأقيّم فكرة جديدة",
     },
   },
 ];
@@ -420,7 +413,18 @@ const guidedSteps = [
   {
     id: "profileStage",
     title: { en: "Your context", ar: "سياقك" },
-    fields: ["userExperienceLevel", "projectStageIntent"],
+    fields: [
+      "userExperienceLevel",
+      "firstProject",
+      "projectStageIntent",
+      "country",
+      "city",
+      "decisionObjective",
+      "classificationConfirmation",
+      "projectTypeCorrection",
+      "operatingModelCorrection",
+      "classificationCorrectionReason",
+    ],
   },
   {
     id: "currentBusiness",
@@ -438,7 +442,8 @@ const guidedSteps = [
   {
     id: "ideaSetup",
     title: { en: "Idea setup", ar: "إعداد الفكرة" },
-    fields: ["countryCity", "operatingFormat", "deliveryModel", "targetCustomerPromise"],
+    fields: ["country",
+    "city", "operatingFormat", "deliveryModel", "targetCustomerPromise"],
   },
   {
     id: "scaleLocation",
@@ -488,6 +493,56 @@ const guidedFieldBank = {
     },
     placeholder: { en: "Select project stage", ar: "اختر مرحلة المشروع" },
     options: projectStageOptions,
+  },
+  firstProject: {
+    category: "implementationTimeline",
+    source: "user_answerable",
+    required: true,
+    type: "select",
+    label: { en: "Is this your first project?", ar: "هل هذا أول مشروع لك؟" },
+    help: {
+      en: "This helps us keep the guidance at the right level.",
+      ar: "يساعدنا ذلك على جعل الإرشاد مناسباً لمستوى خبرتك.",
+    },
+    placeholder: { en: "Select answer", ar: "اختر الإجابة" },
+    options: [
+      { value: "yes", label: { en: "Yes", ar: "نعم" } },
+      { value: "no", label: { en: "No", ar: "لا" } },
+      { value: "not_sure", label: { en: "Not sure", ar: "غير متأكد" } },
+    ],
+  },
+  country: {
+    category: "locationPremises",
+    source: "user_answerable",
+    required: true,
+    label: { en: "Country", ar: "الدولة" },
+    help: {
+      en: "A country is enough for now. It affects later research, permits, and cost ranges.",
+      ar: "يكفي اسم الدولة الآن. سيؤثر ذلك لاحقاً في البحث والتراخيص ونطاقات التكلفة.",
+    },
+    placeholder: { en: "Example: Saudi Arabia", ar: "مثال: السعودية" },
+  },
+  city: {
+    category: "locationPremises",
+    source: "user_answerable",
+    required: false,
+    label: { en: "City or region", ar: "المدينة أو المنطقة" },
+    help: {
+      en: "Add it if relevant. You can write 'not selected yet'.",
+      ar: "أضفها إذا كانت مهمة. يمكنك كتابة «لم أحدد بعد».",
+    },
+    placeholder: { en: "Example: Riyadh, or not selected yet", ar: "مثال: الرياض، أو لم أحدد بعد" },
+  },
+  decisionObjective: {
+    category: "implementationTimeline",
+    source: "user_answerable",
+    required: true,
+    label: { en: "What decision do you want help with?", ar: "ما القرار الذي تريد المساعدة فيه؟" },
+    help: {
+      en: "Use simple words: start, pause, estimate cost, choose location, understand risks, or prepare next steps.",
+      ar: "استخدم كلمات بسيطة: أبدأ، أتوقف، أقدّر التكلفة، أختار الموقع، أفهم المخاطر، أو أجهّز الخطوات التالية.",
+    },
+    placeholder: { en: "Example: know whether to continue before spending money", ar: "مثال: أعرف هل أستمر قبل أن أصرف مالاً" },
   },
   countryCity: {
     category: "locationPremises",
@@ -822,7 +877,8 @@ const guidedFieldBank = {
 
 const guidedFieldsByType = {
   industrial_manufacturing: [
-    "countryCity",
+    "country",
+    "city",
     "operatingFormat",
     "deliveryModel",
     "targetCustomerPromise",
@@ -845,7 +901,8 @@ const guidedFieldsByType = {
     "assumptionsToValidate",
   ],
   service: [
-    "countryCity",
+    "country",
+    "city",
     "operatingFormat",
     "deliveryModel",
     "targetCustomerPromise",
@@ -868,7 +925,8 @@ const guidedFieldsByType = {
     "assumptionsToValidate",
   ],
   retail_trading: [
-    "countryCity",
+    "country",
+    "city",
     "operatingFormat",
     "targetCustomerPromise",
     "targetCapacity",
@@ -889,7 +947,8 @@ const guidedFieldsByType = {
     "assumptionsToValidate",
   ],
   digital_software: [
-    "countryCity",
+    "country",
+    "city",
     "operatingFormat",
     "deliveryModel",
     "targetCustomerPromise",
@@ -907,7 +966,8 @@ const guidedFieldsByType = {
     "assumptionsToValidate",
   ],
   marketplace_platform: [
-    "countryCity",
+    "country",
+    "city",
     "operatingFormat",
     "deliveryModel",
     "targetCustomerPromise",
@@ -926,7 +986,8 @@ const guidedFieldsByType = {
     "assumptionsToValidate",
   ],
   generic: [
-    "countryCity",
+    "country",
+    "city",
     "operatingFormat",
     "targetCustomerPromise",
     "targetCapacity",
@@ -1026,11 +1087,27 @@ export function buildGuidedFeasibilityFlow(input = {}, language = "en", options 
   const answers = options.answers || {};
   const validation = options.validation;
   const classificationPrompt = options.classificationPrompt || null;
+  const phase3Only = Boolean(options.phase3Only);
   const userProfile = buildUserJourneyProfile(answers, lang);
   const requestedByUser = hasAny(textOf(input), guidedIntentPatterns);
   const hasIdeaSeed = normalize(input.businessIdea || input.businessName || "").length >= 5;
+  const hasMinimumIdeaForClassification =
+    hasIdeaSeed &&
+    normalize(input.targetCustomer).length >= 5 &&
+    normalize(input.problem || input.problemSolved).length >= 8 &&
+    normalize(input.monetization || input.revenueModel).length >= 4;
+  const activeClassificationPrompt = hasMinimumIdeaForClassification ? classificationPrompt : null;
   const hasMissingPrimaryFields = Boolean(validation && !validation.ok);
-  const shouldGuide = hasIdeaSeed && (hasMissingPrimaryFields || requestedByUser || Boolean(classificationPrompt) || Boolean(options.forceGuide));
+  const hasMissingJourneyProfile = ["userExperienceLevel", "firstProject", "projectStageIntent", "country", "decisionObjective"].some(
+    (fieldId) => !normalize(answers[fieldId])
+  );
+  const shouldGuide =
+    hasIdeaSeed &&
+    (hasMissingJourneyProfile ||
+      hasMissingPrimaryFields ||
+      Boolean(activeClassificationPrompt) ||
+      Boolean(options.forceGuide) ||
+      (!phase3Only && requestedByUser));
 
   if (!shouldGuide) {
     return {
@@ -1040,10 +1117,11 @@ export function buildGuidedFeasibilityFlow(input = {}, language = "en", options 
     };
   }
 
-  const fields = buildGuidedFields({ foundation, input, answers, userProfile, language: lang, classificationPrompt });
+  const fields = buildGuidedFields({ foundation, input, answers, userProfile, language: lang, classificationPrompt: activeClassificationPrompt, phase3Only });
   const requiredFields = fields.filter((field) => field.required);
   const missingRequired = requiredFields.filter((field) => !normalize(answers[field.id]));
-  const steps = guidedSteps
+  const availableSteps = phase3Only ? guidedSteps.filter((step) => step.id === "profileStage") : guidedSteps;
+  const steps = availableSteps
     .map((step) => ({
       id: step.id,
       title: localize(step.title, lang),
@@ -1051,6 +1129,42 @@ export function buildGuidedFeasibilityFlow(input = {}, language = "en", options 
     }))
     .filter((step) => step.fields.length > 0);
   const copy = guidedCopy[lang] || guidedCopy.en;
+
+  if (phase3Only && (hasMissingPrimaryFields || options.forceGuide) && fields.length === 0) {
+    return {
+      shouldGuide: true,
+      status: "needs_guided_followup",
+      foundation,
+      userProfile,
+      answers,
+      missingFieldIds: validation.errors?.map((error) => error.field) || [],
+      title: copy.heading,
+      message: copy.body,
+      presentation: {
+        heading: copy.heading,
+        body: copy.body,
+        policy: copy.policy,
+        closing: copy.closing,
+        detailsTitle: copy.detailsTitle,
+      },
+      clarificationFlow: {
+        type: "feasibility_guided",
+        businessType: foundation.businessType,
+        businessTypeLabel: foundation.businessTypeLabel,
+        userProfile,
+        details: answers,
+        missingFieldIds: validation.errors?.map((error) => error.field) || [],
+        steps: [],
+        labels: {
+          previous: lang === "ar" ? "السابق" : "Previous",
+          next: lang === "ar" ? "التالي" : "Next",
+          continue: lang === "ar" ? "متابعة" : "Continue",
+          missing: lang === "ar" ? "أسئلة ناقصة" : "Missing answers",
+          step: lang === "ar" ? "خطوة" : "Step",
+        },
+      },
+    };
+  }
 
   if (missingRequired.length === 0) {
     return {
@@ -1104,7 +1218,7 @@ export function buildGuidedFeasibilityFlow(input = {}, language = "en", options 
       labels: {
         previous: lang === "ar" ? "السابق" : "Previous",
         next: lang === "ar" ? "التالي" : "Next",
-        continue: lang === "ar" ? "متابعة التقييم" : "Continue evaluation",
+        continue: phase3Only ? (lang === "ar" ? "متابعة" : "Continue") : (lang === "ar" ? "متابعة التقييم" : "Continue evaluation"),
         missing: lang === "ar" ? "أسئلة ناقصة" : "Missing answers",
         step: lang === "ar" ? "خطوة" : "Step",
       },
@@ -1225,16 +1339,22 @@ function buildEstimateReadiness(missingRequired, language) {
   };
 }
 
-function buildGuidedFields({ foundation, input, answers, userProfile, language, classificationPrompt }) {
+function buildGuidedFields({ foundation, input, answers, userProfile, language, classificationPrompt, phase3Only = false }) {
   const baseIds = guidedFieldsByType[foundation.businessType] || guidedFieldsByType.generic;
-  const classificationField = classificationPrompt && !normalize(answers[classificationPrompt.id])
-    ? [{ ...classificationPrompt, value: answers[classificationPrompt.id] || "" }]
-    : [];
+  const classificationFields = Array.isArray(classificationPrompt)
+    ? classificationPrompt.filter((field) => !normalize(answers[field.id]) || field.id === "classificationCorrectionReason")
+    : classificationPrompt && !normalize(answers[classificationPrompt.id])
+      ? [{ ...classificationPrompt, value: answers[classificationPrompt.id] || "" }]
+      : [];
   const allowedIds = [
     "userExperienceLevel",
+    "firstProject",
     "projectStageIntent",
-    ...(userProfile.isExistingBusinessPath ? existingBusinessFields : []),
-    ...baseIds,
+    "country",
+    "city",
+    "decisionObjective",
+    ...(phase3Only ? [] : userProfile.isExistingBusinessPath ? existingBusinessFields : []),
+    ...(phase3Only ? [] : baseIds),
   ];
   const knownCategoryStatus = Object.fromEntries(foundation.categories.map((item) => [item.category, item.evidenceType]));
   const hasOriginalTargetCustomer = normalize(input.targetCustomer).length >= 5;
@@ -1246,7 +1366,9 @@ function buildGuidedFields({ foundation, input, answers, userProfile, language, 
     .filter(Boolean)
     .filter((field) => {
       if (normalize(answers[field.id])) return false;
-      if (["userExperienceLevel", "projectStageIntent", ...existingBusinessFields].includes(field.id)) return true;
+      if (["userExperienceLevel", "firstProject", "projectStageIntent", "country", "city", "decisionObjective"].includes(field.id)) return true;
+      if (phase3Only) return false;
+      if (existingBusinessFields.includes(field.id)) return true;
       if (userProfile.isExistingBusinessPath && ["targetCustomerPromise", "budgetRange"].includes(field.id)) return false;
       if (field.id === "targetCustomerPromise" && hasOriginalTargetCustomer && hasOriginalProblem) return false;
       if (field.id === "budgetRange" && knownCategoryStatus.startupCapital !== "unresolved_unknown") return false;
@@ -1269,7 +1391,7 @@ function buildGuidedFields({ foundation, input, answers, userProfile, language, 
       )
     );
 
-  return [...classificationField, ...adaptiveFields];
+  return [...adaptiveFields, ...classificationFields];
 }
 
 function localizeGuidedField(field, language, answers, userProfile) {
@@ -1300,18 +1422,24 @@ function buildUserJourneyProfile(answers = {}, language = "en") {
   const existingStages = new Set(["operating", "improving", "expanding"]);
   const isExistingBusinessPath =
     experienceLevel === "existing_business_owner" || existingStages.has(projectStageIntent);
-  const isBeginner = experienceLevel === "beginner_first_business";
-  const isExperienced = experienceLevel === "experienced_new_idea";
+  const isBeginner = ["first_time_beginner", "beginner_first_business"].includes(experienceLevel);
+  const isLimitedExperience = experienceLevel === "limited_experience";
+  const isExperienced = ["experienced_new_idea"].includes(experienceLevel);
 
   return {
     experienceLevel,
     experienceLabel: localize(userExperienceOptions.find((option) => option.value === experienceLevel)?.label, language),
+    firstProject: answers.firstProject || "",
     projectStageIntent,
     stageLabel: localize(projectStageOptions.find((option) => option.value === projectStageIntent)?.label, language),
+    country: answers.country || "",
+    city: answers.city || "",
+    decisionObjective: answers.decisionObjective || "",
     isBeginner,
+    isLimitedExperience,
     isExperienced,
     isExistingBusinessPath,
-    adaptationStyle: isExistingBusinessPath ? "existing_business" : isExperienced ? "experienced" : isBeginner ? "beginner" : "neutral",
+    adaptationStyle: isExistingBusinessPath ? "existing_business" : isExperienced ? "experienced" : isBeginner ? "beginner" : isLimitedExperience ? "limited_experience" : "neutral",
   };
 }
 
@@ -1334,6 +1462,16 @@ function adaptFieldForProfile(field, language, userProfile) {
       help: {
         en: `${localize(field.help, "en")} Include evidence, assumptions, unit economics, capacity, or risk where relevant.`,
         ar: `${localize(field.help, "ar")} أضف الدليل، الافتراضات، اقتصاديات الوحدة، الطاقة، أو المخاطر عند الحاجة.`,
+      },
+    };
+  }
+
+  if (userProfile.isLimitedExperience) {
+    return {
+      ...field,
+      help: {
+        en: `${localize(field.help, "en")} Add the practical detail you know; rough ranges and clear unknowns are acceptable.`,
+        ar: `${localize(field.help, "ar")} أضف التفاصيل العملية التي تعرفها؛ النطاقات التقريبية والنقاط غير المعروفة مقبولة.`,
       },
     };
   }
