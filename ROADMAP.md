@@ -180,10 +180,11 @@ A product is complete only when:
 
 ### Now
 
-- Business Idea Validator v2 Phase 3 Classification Evidence Hardening: stabilize Arabic/English classification evidence, prevent substring false positives, broaden natural Arabic eligibility-ambiguity coverage without project-specific exceptions, and keep ambiguous classifications unknown until confirmed.
+- Business Idea Validator v2 Phase 3 Boundary 2A is locally accepted: Unicode-safe classification evidence matching fixed the false healthcare match where `طبي` matched inside `طبيعة`, and `classificationEvidence.js` now supplies traceable evidence records. Vague inputs may intentionally remain `generic` / `unknown`; legacy matchers remain in `feasibilityFoundation.js` and `requestUnderstanding.js`, and the current generic/unknown user-facing experience is not approved for production.
 
 ### Next
 
+- Guided Business Discovery / User Intent Discovery: design the next guided path for unclear or broad inputs. Implementation has not started.
 - Capital & Operational Feasibility Phase 2: turn the guided follow-up readiness state into a coherent preliminary feasibility output covering market/customer need, feasibility, capital confidence, cost categories, location, equipment, labor, operating model, licenses/dependencies, risks, unknowns, and next actions without inventing figures.
 - Use the captured user experience level and project stage to tailor the preliminary feasibility report structure for beginners, experienced founders, and existing-business improvement/expansion cases.
 - After orchestration QA passes, prepare a production checkpoint for the Business Idea Validator v2 routing architecture without adding final capital estimates.
@@ -231,4 +232,4 @@ A product is complete only when:
 | Product Suite | Current | 35% | Stabilize active products before adding the next product. |
 | Quality and Release Candidate | Completed | 100% | Preserve regression checks while planning the next product. |
 | Public Launch | Completed | 100% | Prepare public launch communication and post-launch monitoring. |
-| Business Idea Validator v2 | Phase 3 Boundary 1 locally accepted; not production-approved | Phase 2 central orchestration hardening + Phase 3 beginner/classification confirmation + canonical journey-state rendering + general reasoning + guided feasibility follow-up | Execute Classification Evidence Hardening before any production approval or Phase 4/OpenAI work. |
+| Business Idea Validator v2 | Phase 3 Boundary 2A locally accepted; not production-approved | Phase 2 central orchestration hardening + Phase 3 beginner/classification confirmation + canonical journey-state rendering + Boundary 2A Unicode-safe classification evidence matching | Design Guided Business Discovery / User Intent Discovery before production approval or Phase 4/OpenAI work. |

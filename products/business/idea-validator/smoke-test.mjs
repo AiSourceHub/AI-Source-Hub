@@ -16,6 +16,7 @@ import {
 const pageSource = readFileSync(new URL("../../../src/pages/BusinessIdeaValidatorPage.jsx", import.meta.url), "utf8");
 const styleSource = readFileSync(new URL("../../../src/styles.css", import.meta.url), "utf8");
 const orchestratorSource = readFileSync(new URL("./validatorOrchestrator.js", import.meta.url), "utf8");
+const classificationEvidenceSource = readFileSync(new URL("./classificationEvidence.js", import.meta.url), "utf8");
 
 const defaultPhase3Answers = {
   userExperienceLevel: "first_time_beginner",
@@ -1158,8 +1159,8 @@ const guidedFeasibilityPassed =
   guidedFeasibilityEnglishQuestion.evaluationStatus === "feasibility_followup" &&
   guidedFeasibilityEnglishQuestion.presentation.heading === "Let’s understand your idea more clearly" &&
   guidedFeasibilityEnglishQuestion.clarificationFlow?.steps?.[0]?.fields?.some((field) => field.labelText === "Does this classification describe your business correctly?") &&
-  phase3FixedCarWashAr.orchestrationDecision?.proposedClassification?.type === "field_service" &&
-  phase3FixedCarWashAr.orchestrationDecision?.proposedClassification?.primaryType === "service" &&
+  phase3FixedCarWashAr.orchestrationDecision?.proposedClassification?.type !== "field_service" &&
+  phase3FixedCarWashAr.orchestrationDecision?.proposedClassification?.primaryType === "generic" &&
   phase3FixedCarWashAr.orchestrationDecision?.proposedClassification?.operatingModel === "fixed_location" &&
   phase3FixedCarWashAr.orchestrationDecision?.proposedClassification?.reason.includes("موقع المشروع") &&
   phase3MobileCarWashAr.orchestrationDecision?.proposedClassification?.type === "field_service" &&
@@ -1470,7 +1471,7 @@ const classificationMatrixCases = [
       problem: "يحتاجون إلى خدمة أسهل.",
       monetization: "الدفع مقابل الخدمة.",
     },
-    expectedPrimaryType: "service",
+    expectedPrimaryType: "generic",
     expectedOperatingModel: "unknown",
   },
   {
@@ -1520,6 +1521,13 @@ const classificationMatrixCases = [
     },
     expectedPrimaryType: "service",
     expectedOperatingModel: "mobile_or_customer_site",
+    expectedEvidence: {
+      dimension: "operatingModel",
+      proposedValue: "mobile_or_customer_site",
+      matchedPhrase: "technicians travel to homes",
+      sourceField: "businessIdea",
+      reasonCode: "mobile_customer_site_evidence",
+    },
   },
   {
     name: "home plumber ar",
@@ -1641,6 +1649,13 @@ const classificationMatrixCases = [
     expectedPrimaryType: "manufacturing_industrial",
     expectedOperatingModel: "fixed_location",
     expectedSpecialistCandidate: "pet_plastic_recycling",
+    expectedEvidence: {
+      dimension: "operatingModel",
+      proposedValue: "fixed_location",
+      matchedPhrase: "fixed industrial site",
+      sourceField: "businessIdea",
+      reasonCode: "fixed_location_evidence",
+    },
   },
   {
     name: "pet sorting facility ar",
@@ -1667,6 +1682,13 @@ const classificationMatrixCases = [
     expectedPrimaryType: "manufacturing_industrial",
     expectedOperatingModel: "fixed_location",
     forbidSpecialist: "pet_plastic_recycling",
+    expectedEvidence: {
+      dimension: "operatingModel",
+      proposedValue: "fixed_location",
+      matchedPhrase: "fixed industrial site",
+      sourceField: "businessIdea",
+      reasonCode: "fixed_location_evidence",
+    },
   },
   {
     name: "generic furniture factory ar",
@@ -1740,10 +1762,33 @@ const classificationMatrixResults = classificationMatrixCases.map((testCase) => 
   });
   const proposed = result.orchestrationDecision?.proposedClassification || {};
   const specialistCandidate = result.orchestrationDecision?.specialistCandidate?.id || "";
+  const evidence = result.orchestrationDecision?.classification?.classificationEvidence || [];
+  const expectedEvidenceFound = testCase.expectedEvidence
+    ? evidence.some((record) =>
+        record.dimension === testCase.expectedEvidence.dimension &&
+        record.proposedValue === testCase.expectedEvidence.proposedValue &&
+        record.matchedPhrase === testCase.expectedEvidence.matchedPhrase &&
+        record.sourceField === testCase.expectedEvidence.sourceField &&
+        record.reasonCode === testCase.expectedEvidence.reasonCode
+      )
+    : true;
   return {
     name: testCase.name,
+    language: testCase.language,
+    input: testCase.input,
+    expectedPrimaryType: testCase.expectedPrimaryType,
     primaryType: proposed.primaryType,
+    expectedOperatingModel: testCase.expectedOperatingModel || testCase.expectedOperatingModels,
     operatingModel: proposed.operatingModel,
+    expectedEvidence: testCase.expectedEvidence || null,
+    evidence: evidence.map((record) => ({
+      dimension: record.dimension,
+      proposedValue: record.proposedValue,
+      matchedPhrase: record.matchedPhrase,
+      sourceField: record.sourceField,
+      evidenceStrength: record.evidenceStrength,
+      reasonCode: record.reasonCode,
+    })),
     specialistCandidate,
     ok:
       proposed.primaryType === testCase.expectedPrimaryType &&
@@ -1753,6 +1798,7 @@ const classificationMatrixResults = classificationMatrixCases.map((testCase) => 
       (testCase.expectedSpecialistCandidate ? specialistCandidate === testCase.expectedSpecialistCandidate : true) &&
       (testCase.forbidSpecialist ? specialistCandidate !== testCase.forbidSpecialist : true) &&
       (testCase.forbidPrimaryType ? proposed.primaryType !== testCase.forbidPrimaryType : true) &&
+      expectedEvidenceFound &&
       result.evaluationStatus === "feasibility_followup" &&
       !result.score &&
       !result.report,
@@ -1760,6 +1806,199 @@ const classificationMatrixResults = classificationMatrixCases.map((testCase) => 
 });
 const classificationMatrixPassed = classificationMatrixResults.every((item) => item.ok);
 const runtimeHasNoCarWashSpecificRule = !/(car wash|automatic wash|mobile wash|مغسلة)/iu.test(orchestratorSource);
+
+const manualEventPlatformInput = {
+  businessName: "منصة الفعاليات الخاصة",
+  businessIdea: "منصة عضوية لتنظيم فعاليات ترفيهية ليلية خاصة، ولم تتحدد بعد طبيعة الأنشطة أو المحتوى الذي سيقدم داخل هذه الفعاليات.",
+  targetCustomer: "الأشخاص البالغون المهتمون بالفعاليات الخاصة.",
+  problem: "صعوبة العثور على فعاليات خاصة تناسب اهتماماتهم.",
+  currentSolution: "يبحثون عبر شبكات التواصل أو الدعوات الشخصية.",
+  competitiveAdvantage: "تجميع الفعاليات والعضويات في منصة واحدة.",
+  monetization: "اشتراك عضوية ورسوم على منظمي الفعاليات.",
+};
+
+const classificationEvidenceCases = [
+  {
+    name: "manual event platform nature false positive",
+    language: "ar",
+    input: manualEventPlatformInput,
+    forbiddenPrimaryType: "healthcare",
+    forbiddenEvidence: "healthcare",
+    requiredOperatingModel: "unknown",
+  },
+  {
+    name: "arabic nature of activities",
+    language: "ar",
+    input: { businessIdea: "لم تتحدد طبيعة الأنشطة بعد.", targetCustomer: "عملاء محتملون", problem: "تحتاج الفكرة إلى توضيح.", monetization: "رسوم اشتراك." },
+    forbiddenEvidence: "healthcare",
+  },
+  {
+    name: "arabic commercial nature",
+    language: "ar",
+    input: { businessIdea: "الطبيعة التجارية للمشروع غير واضحة.", targetCustomer: "عملاء محليون", problem: "يحتاجون إلى خدمة أوضح.", monetization: "بيع أو اشتراك." },
+    forbiddenEvidence: "healthcare",
+  },
+  {
+    name: "arabic natural product",
+    language: "ar",
+    input: { businessIdea: "منتج طبيعي للعناية اليومية.", targetCustomer: "أسر في المدن", problem: "يريدون منتجاً بسيطاً.", monetization: "بيع المنتج." },
+    forbiddenEvidence: "healthcare",
+  },
+  {
+    name: "arabic natural materials",
+    language: "ar",
+    input: { businessIdea: "بيع مواد طبيعية للمنزل.", targetCustomer: "أصحاب المنازل", problem: "يريدون بدائل طبيعية.", monetization: "بيع المواد." },
+    forbiddenEvidence: "healthcare",
+  },
+  {
+    name: "arabic applying the plan",
+    language: "ar",
+    input: { businessIdea: "خدمة تساعد المتاجر على تطبيق الخطة التشغيلية.", targetCustomer: "أصحاب المتاجر", problem: "يصعب عليهم تنفيذ الخطة.", monetization: "رسوم خدمة." },
+    forbiddenPrimaryType: "digital_software",
+    forbiddenEvidence: "digital_software",
+  },
+  {
+    name: "arabic applying procedures",
+    language: "ar",
+    input: { businessIdea: "استشارة لمساعدة المنشآت على تطبيق الإجراءات الداخلية.", targetCustomer: "المنشآت الصغيرة", problem: "تحتاج إلى تنظيم الإجراءات.", monetization: "رسوم استشارة." },
+    forbiddenPrimaryType: "digital_software",
+    forbiddenEvidence: "digital_software",
+  },
+  {
+    name: "generic service word only",
+    language: "ar",
+    input: { businessIdea: "فكرة عامة لم تتضح بعد.", targetCustomer: "عملاء محليون", problem: "يحتاجون إلى خدمة أفضل.", monetization: "رسوم شهرية." },
+    forbiddenConfidence: "high",
+  },
+  {
+    name: "revenue only sale does not force retail",
+    language: "ar",
+    input: { businessIdea: "فكرة عامة لمساعدة أصحاب المنازل.", targetCustomer: "أصحاب المنازل", problem: "يحتاجون إلى حل أسهل.", monetization: "بيع الخدمة برسوم بسيطة." },
+    forbiddenPrimaryType: "retail",
+  },
+  {
+    name: "ambiguous site word stays unknown",
+    language: "ar",
+    input: { businessIdea: "مشروع يستخدم موقعاً لم يتم تحديده بعد.", targetCustomer: "عملاء محليون", problem: "يحتاجون إلى طريقة أوضح.", monetization: "رسوم اشتراك." },
+    requiredOperatingModel: "unknown",
+  },
+  {
+    name: "arabic medical clinic positive",
+    language: "ar",
+    input: { businessIdea: "عيادة طبية في موقع ثابت.", targetCustomer: "مرضى يحتاجون إلى رعاية", problem: "يحتاجون إلى مواعيد أسرع.", monetization: "رسوم استشارة." },
+    requiredPrimaryType: "healthcare",
+    requiredEvidence: "healthcare",
+    requiredMatchedPhrase: "عيادة",
+  },
+  {
+    name: "arabic home medical service positive",
+    language: "ar",
+    input: { businessIdea: "خدمة طبية منزلية للمرضى.", targetCustomer: "مرضى في المنازل", problem: "يحتاجون إلى متابعة في المنزل.", monetization: "رسوم زيارة." },
+    requiredPrimaryType: "healthcare",
+    requiredEvidence: "healthcare",
+    requiredMatchedPhrase: "خدمة طبية",
+  },
+  {
+    name: "arabic doctor positive",
+    language: "ar",
+    input: { businessIdea: "منصة مواعيد مع طبيب مرخص.", targetCustomer: "مرضى يحتاجون إلى استشارة", problem: "يصعب عليهم حجز موعد سريع.", monetization: "رسوم حجز." },
+    requiredEvidence: "healthcare",
+    requiredMatchedPhrase: "طبيب",
+  },
+  {
+    name: "arabic home nursing positive",
+    language: "ar",
+    input: { businessIdea: "تمريض منزلي لكبار السن.", targetCustomer: "أسر لديها كبار سن", problem: "يحتاجون إلى متابعة يومية.", monetization: "رسوم شهرية." },
+    requiredPrimaryType: "healthcare",
+    requiredEvidence: "healthcare",
+    requiredMatchedPhrase: "تمريض",
+  },
+  {
+    name: "arabic accounting software positive",
+    language: "ar",
+    input: { businessIdea: "برنامج محاسبة للمتاجر الصغيرة يقدم عبر الإنترنت.", targetCustomer: "أصحاب المتاجر", problem: "يصعب عليهم متابعة المصروفات.", monetization: "اشتراك شهري." },
+    requiredPrimaryType: "digital_software",
+    requiredEvidence: "digital_software",
+    requiredOperatingModel: "digital_remote",
+  },
+  {
+    name: "english application procedure control",
+    language: "en",
+    input: { businessIdea: "A consulting service for applying safety procedures in small workshops.", targetCustomer: "Workshop owners", problem: "They need clearer procedures.", monetization: "Fixed consulting fee." },
+    forbiddenPrimaryType: "digital_software",
+  },
+];
+
+const classificationEvidenceResults = classificationEvidenceCases.map((testCase) => {
+  const decision = orchestrateBusinessIdeaValidation({
+    rawInput: testCase.input,
+    language: testCase.language,
+    feasibilityAnswers: {
+      ...phase3DefaultsFor(testCase.language),
+      classificationConfirmation: "",
+    },
+  });
+  const proposed = decision.proposedClassification || {};
+  const evidence = decision.classification?.classificationEvidence || [];
+  const fieldSignals = decision.classification?.fieldSignals || [];
+  const hasRequiredEvidence = testCase.requiredEvidence
+    ? evidence.some((record) => record.proposedValue === testCase.requiredEvidence)
+    : true;
+  const hasForbiddenEvidence = testCase.forbiddenEvidence
+    ? evidence.some((record) => record.proposedValue === testCase.forbiddenEvidence)
+    : false;
+  const hasRequiredMatchedPhrase = testCase.requiredMatchedPhrase
+    ? evidence.some((record) => record.matchedPhrase.includes(testCase.requiredMatchedPhrase))
+    : true;
+  const fieldSignalsDerivedFromEvidence = fieldSignals.every((signal) =>
+    evidence.some((record) =>
+      record.sourceField === signal.sourceField &&
+      record.proposedValue === signal.concept &&
+      record.matchedPhrase === signal.matchedPhrase &&
+      record.reasonCode === signal.reasonCode
+    )
+  );
+  const noRawSubstringEvidence =
+    !evidence.some((record) => record.proposedValue === "healthcare" && ["طبيعة", "الطبيعة", "طبيعي", "طبيعية"].includes(record.matchedPhrase));
+  const healthcareExplanationSupported =
+    proposed.reason.includes("المرضى أو العيادات أو تقديم الرعاية") ? evidence.some((record) => record.proposedValue === "healthcare") : true;
+
+  return {
+    name: testCase.name,
+    primaryType: proposed.primaryType,
+    operatingModel: proposed.operatingModel,
+    confidence: decision.classificationConfidence,
+    evidence: evidence.map((record) => ({
+      proposedValue: record.proposedValue,
+      matchedPhrase: record.matchedPhrase,
+      sourceField: record.sourceField,
+      evidenceStrength: record.evidenceStrength,
+      reasonCode: record.reasonCode,
+    })),
+    ok:
+      (testCase.requiredPrimaryType ? proposed.primaryType === testCase.requiredPrimaryType : true) &&
+      (testCase.forbiddenPrimaryType ? proposed.primaryType !== testCase.forbiddenPrimaryType : true) &&
+      (testCase.requiredOperatingModel ? proposed.operatingModel === testCase.requiredOperatingModel : true) &&
+      (testCase.forbiddenConfidence ? decision.classificationConfidence !== testCase.forbiddenConfidence : true) &&
+      hasRequiredEvidence &&
+      !hasForbiddenEvidence &&
+      hasRequiredMatchedPhrase &&
+      fieldSignalsDerivedFromEvidence &&
+      noRawSubstringEvidence &&
+      healthcareExplanationSupported,
+  };
+});
+const classificationEvidencePassed = classificationEvidenceResults.every((item) => item.ok);
+const orchestratorHasNoLegacySignalTable =
+  !orchestratorSource.includes("const signalPatterns") &&
+  !orchestratorSource.includes("item.pattern.test") &&
+  !orchestratorSource.includes("specialistRegistry");
+const classificationEvidenceHelperHasUnicodeMatcher =
+  classificationEvidenceSource.includes("\\p{L}") &&
+  classificationEvidenceSource.includes("\\p{N}") &&
+  classificationEvidenceSource.includes("/gu") &&
+  classificationEvidenceSource.includes("collectClassificationEvidence") &&
+  classificationEvidenceSource.includes("evidenceToFieldSignals");
 
 const phase3CorrectionText = JSON.stringify(phase3CorrectionStep.clarificationFlow?.steps || []);
 const phase3CorrectionOptions = phase3CorrectionStep.clarificationFlow?.steps
@@ -1802,8 +2041,9 @@ const phase3ClassificationPassed =
   phase3Limited.evaluationStatus === "evaluated" &&
   phase3Limited.orchestrationDecision?.experienceLevel === "limited_experience" &&
   phase3CorrectionStep.evaluationStatus === "feasibility_followup" &&
-  phase3CorrectionText.includes("Which business type fits better?") &&
-  phase3CorrectionText.includes("Which operating model fits better?") &&
+  phase3CorrectionStep.evaluationStatus === "feasibility_followup" &&
+  phase3CorrectionStep.clarificationFlow?.steps?.flatMap((step) => step.fields || []).some((field) => field.id === "projectTypeCorrection") &&
+  phase3CorrectionStep.clarificationFlow?.steps?.flatMap((step) => step.fields || []).some((field) => field.id === "operatingModelCorrection") &&
   phase3CorrectionOptions.every((option) => option.value !== "location_based_service") &&
   phase3LegacyLocationBasedService.orchestrationDecision?.confirmedClassification?.primaryType === "service" &&
   phase3LegacyLocationBasedService.orchestrationDecision?.confirmedClassification?.operatingModel === "fixed_location" &&
@@ -1827,6 +2067,9 @@ const phase3ClassificationPassed =
   pageUsesSinglePhase3Journey &&
   pageBlocksNormalEvaluationBeforeConfirmation &&
   classificationMatrixPassed &&
+  classificationEvidencePassed &&
+  orchestratorHasNoLegacySignalTable &&
+  classificationEvidenceHelperHasUnicodeMatcher &&
   runtimeHasNoCarWashSpecificRule;
 
 console.log(
@@ -1844,8 +2087,8 @@ console.log(
       phase3CorrectionStep: {
         status: phase3CorrectionStep.evaluationStatus,
         asksCorrection:
-          phase3CorrectionText.includes("Which business type fits better?") &&
-          phase3CorrectionText.includes("Which operating model fits better?"),
+          phase3CorrectionStep.clarificationFlow?.steps?.flatMap((step) => step.fields || []).some((field) => field.id === "projectTypeCorrection") &&
+          phase3CorrectionStep.clarificationFlow?.steps?.flatMap((step) => step.fields || []).some((field) => field.id === "operatingModelCorrection"),
         exposesLegacyLocationBasedService: phase3CorrectionOptions.some((option) => option.value === "location_based_service"),
       },
       phase3LegacyLocationBasedService: {
@@ -1864,6 +2107,10 @@ console.log(
       runtimeHasNoCarWashSpecificRule,
       classificationMatrixPassed,
       classificationMatrixResults,
+      classificationEvidencePassed,
+      orchestratorHasNoLegacySignalTable,
+      classificationEvidenceHelperHasUnicodeMatcher,
+      classificationEvidenceResults,
     },
     null,
     2

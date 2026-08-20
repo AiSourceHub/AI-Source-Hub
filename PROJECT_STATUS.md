@@ -90,13 +90,16 @@ AI Source Hub is currently a static v1.0 public launch-ready platform with a sha
 - Central validator orchestration is deterministic and local. Phase 2 route-contract manual QA passed, but production deployment approval still requires the owner to accept the broader BIV v2 checkpoint and commit/push it.
 - Beginner/classification confirmation is deterministic and local. It improves the first-stage journey, but still requires manual browser QA in Arabic and English before production deployment.
 - Phase 3 Boundary 1 is locally accepted, but Phase 3 is not production-approved. Known blockers: Arabic substring matching can produce false positives such as `طبي` matching inside `طبيعة` and causing unsupported healthcare classification; natural Arabic eligibility ambiguity such as `فعاليات ترفيهية ليلية` is not recognized while narrower fixtures such as `ترفيه ليلي للكبار` are recognized; classification explanations remain duplicated and mechanically worded; AI semantic interpretation is not implemented; financing, ineligible, normal-report, and specialist journey states remain covered by automated tests but were not all manually repeated in the Boundary 1 checkpoint.
+- Phase 3 Boundary 2A Unicode-safe classification evidence matching is locally accepted. Manual QA passed for the event-platform submission containing `طبيعة الأنشطة`: it no longer produces healthcare classification and now returns a conservative `generic` / `unknown` classification.
+- `classificationEvidence.js` now supplies traceable classification evidence records. Vague or weakly evidenced inputs may intentionally remain `generic` / `unknown`; however, the current generic/unknown user-facing experience is not approved for production.
+- Legacy matchers remain in `feasibilityFoundation.js` and `requestUnderstanding.js` and must be reviewed in later stabilization work. Phase 3 remains local and not production-approved; OpenAI/API semantic interpretation is not implemented.
 - Copy report depends on browser clipboard permission.
 - Download report creates a local text file.
 - Deferred UX refinement: the homepage Products navigation should eventually keep the visitor at the top of the homepage and reveal a horizontal product selector directly beneath the main navigation instead of scrolling down to the Products section.
 
 # Next Approved Boundary
 
-Classification Evidence Hardening. Do not start Phase 4 or OpenAI integration until Phase 3 classification evidence and Arabic matching boundaries are stabilized and cross-domain manual QA passes.
+Guided Business Discovery / User Intent Discovery. Implementation has not started. Do not start Phase 4 or OpenAI integration until the guided discovery direction is designed, implemented, and validated.
 
 # Last Updated
 

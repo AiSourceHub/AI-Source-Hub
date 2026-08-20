@@ -6,6 +6,11 @@ import {
   industrialClarificationFields,
   industrialClarificationSteps,
 } from "./requestUnderstanding.js";
+import {
+  collectClassificationEvidence,
+  evidenceToFieldSignals,
+  matchSpecialistEvidence,
+} from "./classificationEvidence.js";
 
 const ROUTES = {
   VALIDATION_ERROR: "validation_error",
@@ -228,112 +233,6 @@ const validatorSourceFields = [
   "stage",
 ];
 
-const signalPatterns = {
-  sector: {
-    recycling: [
-      { pattern: /\b(recycling|recycle|recycled|waste processing)\b/i, concept: "recycling", weight: 3 },
-      { pattern: /(إعادة تدوير|اعادة تدوير|إعادة التصنيع|اعادة التصنيع|تدوير)/u, concept: "recycling", weight: 3 },
-    ],
-    healthcare: [
-      { pattern: /\b(clinic|medical|healthcare|patient|doctor|nurse|therapy|treatment)\b/i, concept: "healthcare", weight: 2 },
-      { pattern: /(عيادة|طبي|مرضى|مريض|طبيب|ممرض|علاج|تأهيل)/u, concept: "healthcare", weight: 2 },
-    ],
-    food: [
-      { pattern: /\b(restaurant|food|meal|kitchen|cafe|catering)\b/i, concept: "food", weight: 2 },
-      { pattern: /(مطعم|طعام|وجبات|مطبخ|مقهى|تموين|إعاشة)/u, concept: "food", weight: 2 },
-    ],
-    automotive: [
-      { pattern: /\b(vehicle|car|auto|automotive|garage|workshop)\b/i, concept: "automotive", weight: 2 },
-      { pattern: /(سيارات|مركبات|ورشة سيارات|كراج)/u, concept: "automotive", weight: 2 },
-    ],
-    construction: [
-      { pattern: /\b(construction|contractor|renovation|building|maintenance)\b/i, concept: "construction_services", weight: 2 },
-      { pattern: /(مقاول|مقاولات|ترميم|بناء|صيانة)/u, concept: "construction_services", weight: 2 },
-    ],
-  },
-  businessType: {
-    marketplace_platform: [
-      { pattern: /\b(marketplace|platform connects|connects .* with|two-sided|providers and buyers|sellers and buyers|listing)\b/i, concept: "marketplace_platform", weight: 4 },
-      { pattern: /(منصة تربط|يربط .* مع|سوق|طرفين|مقدمي الخدمة والعملاء|البائعين والمشترين)/u, concept: "marketplace_platform", weight: 4 },
-    ],
-    digital_software: [
-      { pattern: /\b(software|saas|app|application|dashboard|automation|api|digital tool|mobile app|web app|workflow tool)\b/i, concept: "digital_software", weight: 4 },
-      { pattern: /(برمج|تطبيق|لوحة تحكم|أتمتة|اتمتة|أداة رقمية|منصة رقمية|واجهة برمجة|برنامج)/u, concept: "digital_software", weight: 4 },
-    ],
-    industrial_manufacturing: [
-      { pattern: /\b(factory|plant|manufacturing|industrial|production line|fabrication|assembly line)\b/i, concept: "industrial_manufacturing", weight: 3 },
-      { pattern: /(مصنع|معمل|تصنيع|صناعي|خط إنتاج|خط انتاج|إنتاج صناعي|انتاج صناعي)/u, concept: "industrial_manufacturing", weight: 3 },
-    ],
-    retail_trading: [
-      { pattern: /\b(retail|shop|store|ecommerce|e-commerce|trading|import|export|wholesale|resell)\b/i, concept: "retail_trading", weight: 3 },
-      { pattern: /(متجر|تجزئة|تجارة|استيراد|تصدير|جملة|بيع منتجات|بيع بالتجزئة)/u, concept: "retail_trading", weight: 3 },
-    ],
-    service: [
-      { pattern: /\b(service|consulting|agency|clinic|restaurant|maintenance|repair|delivery|cleaning|wash|washing|barber|barbershop|salon|grooming|coaching|training|professional service)\b/i, concept: "service", weight: 3 },
-      { pattern: /(خدمة|استشارة|وكالة|عيادة|مطعم|صيانة|إصلاح|اصلاح|توصيل|تنظيف|غسيل|حلاقة|صالون|تدريب|خدمات مهنية)/u, concept: "service", weight: 3 },
-    ],
-  },
-  operatingModel: {
-    fixed_location: [
-      { pattern: /\b(fixed location|fixed site|fixed shop|fixed store|fixed .* site|customer visits|customers visit|visit the (?:shop|store|location|site|premises)|customers come to|walk-in|physical branch|physical location)\b/i, concept: "fixed_location", weight: 3 },
-      { pattern: /(موقع ثابت|موقع .* ثابت|محل ثابت|متجر ثابت|يأتي العملاء|يذهب العملاء|يحضر العملاء|يزور العملاء|إلى موقع المشروع|الى موقع المشروع|فرع ثابت|مقر ثابت)/u, concept: "fixed_location", weight: 3 },
-    ],
-    mobile_or_customer_site: [
-      { pattern: /\b(mobile (?:service|provider|team|crew|unit|truck|vehicle)|provider travels|travels to (?:the )?customer|on-site|customer site|at home|home visit|delivery to customer)\b/i, concept: "mobile_or_customer_site", weight: 3 },
-      { pattern: /(متنقل|ينتقل .* إلى|ينتقل .* الى|في موقع العميل|عند العميل|إلى منزل العميل|الى منزل العميل|للمنازل|زيارة منزلية|ميداني)/u, concept: "mobile_or_customer_site", weight: 3 },
-    ],
-    digital_remote: [
-      { pattern: /\b(online|web|app|software|saas|digital|remote)\b/i, concept: "digital_remote", weight: 3 },
-      { pattern: /(أونلاين|اونلاين|تطبيق|برمج|رقمي|إلكتروني|الكتروني|عن بعد|عن بُعد)/u, concept: "digital_remote", weight: 3 },
-    ],
-    home_based: [
-      { pattern: /\b(home-based|from home|home kitchen|home workshop)\b/i, concept: "home_based", weight: 3 },
-      { pattern: /(مشروع منزلي|مطبخ منزلي|ورشة منزلية|تشغيله من المنزل|تعمل من المنزل|أعمل من المنزل|اعمل من المنزل)/u, concept: "home_based", weight: 3 },
-    ],
-    mixed: [
-      { pattern: /\b(hybrid|mixed|online and offline|both online and physical)\b/i, concept: "mixed", weight: 2 },
-      { pattern: /(مختلط|هجين|رقمي وميداني|أونلاين وحضوري|اونلاين وحضوري)/u, concept: "mixed", weight: 2 },
-    ],
-  },
-  assetIntensity: {
-    high: [
-      { pattern: /\b(factory|plant|machinery|machine|equipment|vehicle workshop|laundry|production line)\b/i, concept: "asset_intensive", weight: 2 },
-      { pattern: /(مصنع|معدات|مكائن|آلات|ورشة|خط إنتاج|خط انتاج)/u, concept: "asset_intensive", weight: 2 },
-    ],
-  },
-  customerModel: {
-    two_sided: [
-      { pattern: /\b(connects .* with|marketplace|two-sided|providers and buyers|sellers and buyers)\b/i, concept: "two_sided", weight: 3 },
-      { pattern: /(يربط .* مع|منصة تربط|طرفين|مقدمي الخدمة والعملاء|البائعين والمشترين)/u, concept: "two_sided", weight: 3 },
-    ],
-    b2b: [
-      { pattern: /\b(businesses|companies|clinics|restaurants|factories|contractors|offices|enterprise)\b/i, concept: "b2b", weight: 2 },
-      { pattern: /(شركات|منشآت|عيادات|مطاعم|مصانع|مقاولين|مكاتب|أعمال)/u, concept: "b2b", weight: 2 },
-    ],
-    b2c: [
-      { pattern: /\b(consumers|families|parents|drivers|homeowners|patients|individuals)\b/i, concept: "b2c", weight: 2 },
-      { pattern: /(أفراد|أسر|عوائل|سائقين|أصحاب المنازل|مرضى|عملاء أفراد)/u, concept: "b2c", weight: 2 },
-    ],
-  },
-};
-
-const specialistRegistry = [
-  {
-    id: "pet_plastic_recycling",
-    label: { en: "plastic recycling assessment", ar: "تقييم إعادة تدوير البلاستيك" },
-    requires: {
-      plastic: [
-        /\b(PET|HDPE|LDPE|PP|plastic|plastic waste|bottle recycler)\b/i,
-        /(PET|HDPE|LDPE|PP|بلاستيك|البلاستيك|مخلفات البلاستيك|عبوات بلاستيكية)/u,
-      ],
-      recycling: [
-        /\b(recycling|recycle|recycled|waste processing|flakes|pellets|granules|baled)\b/i,
-        /(إعادة تدوير|اعادة تدوير|تدوير|رقائق|حبيبات|جرانول|مفروز|مكبس)/u,
-      ],
-    },
-  },
-];
-
 export function orchestrateBusinessIdeaValidation({
   rawInput = {},
   language = "en",
@@ -499,7 +398,8 @@ export function orchestrateBusinessIdeaValidation({
 export function classifyValidatorRequest(rawInput = {}, options = {}) {
   const language = options.language === "ar" ? "ar" : "en";
   const sourceFields = buildSourceFields(rawInput, options.details);
-  const fieldSignals = collectFieldSignals(sourceFields);
+  const classificationEvidence = collectClassificationEvidence(sourceFields);
+  const fieldSignals = evidenceToFieldSignals(classificationEvidence);
   const originalSourceFields = buildSourceFields(rawInput, {}, { includeDetails: false });
   const specialistCandidate = matchSpecialistFromSourceFields(originalSourceFields, language);
   const rawCorrection = String(options.details?.projectTypeCorrection || "").trim();
@@ -513,6 +413,7 @@ export function classifyValidatorRequest(rawInput = {}, options = {}) {
   const proposedClassification = buildProposedClassification({
     scores,
     fieldSignals,
+    classificationEvidence,
     rawInput,
     language,
     specialistCandidate,
@@ -571,6 +472,7 @@ export function classifyValidatorRequest(rawInput = {}, options = {}) {
     matchedSpecialist: specialistCandidate?.confidence === "high" ? specialistCandidate : null,
     specialistCandidate,
     fieldSignals,
+    classificationEvidence,
     correctionApplied: classificationCorrected,
   };
 }
@@ -799,47 +701,6 @@ function sourceHasTruncatedPhrase(rawInput = {}) {
   return validatorSourceFields.some((field) => /\.{3}|…/.test(String(rawInput[field] || "")));
 }
 
-function collectFieldSignals(sourceFields = []) {
-  const signals = [];
-  for (const source of sourceFields) {
-    const suppressOperatingModelSignals = hasOperatingModelUncertainty(source.value);
-    for (const [group, concepts] of Object.entries(signalPatterns)) {
-      if (group === "operatingModel" && suppressOperatingModelSignals) continue;
-      for (const [concept, patterns] of Object.entries(concepts)) {
-        for (const item of patterns) {
-          if (item.pattern.test(source.value)) {
-            signals.push({
-              sourceField: source.field,
-              matchedConcept: item.concept || concept,
-              group,
-              concept,
-              weight: item.weight,
-              reason: `${source.field} matched ${item.concept || concept}`,
-              rawValue: source.value,
-              isDetail: Boolean(source.detail),
-            });
-          }
-        }
-      }
-    }
-  }
-  return signals;
-}
-
-function hasOperatingModelUncertainty(value = "") {
-  const text = String(value || "").replace(/\s+/g, " ").trim();
-  if (!text) return false;
-  return operatingModelUncertaintyPatterns.some((pattern) => pattern.test(text));
-}
-
-const operatingModelUncertaintyPatterns = [
-  /\b(?:not decided|not determined|not sure|undecided|unclear)\b.{0,140}\b(?:fixed|mobile|customer site|customer-site|location|site|premises|customer location)\b/i,
-  /\b(?:either|may be|could be|might be)\b.{0,100}\b(?:fixed|mobile|customer site|customer-site|location|site|premises|customer location)\b.{0,100}\b(?:or|and)\b.{0,100}\b(?:fixed|mobile|customer site|customer-site|location|site|premises|customer location)\b/i,
-  /\b(?:fixed location|fixed site|our location|customer site|mobile service|mobile provider)\b.{0,100}\b(?:or|versus|vs\.?)\b.{0,100}\b(?:fixed location|fixed site|our location|customer site|mobile service|mobile provider)\b/i,
-  /(لم أحدد|غير محدد|لم أقرر|لا أعرف بعد|غير واضح).{0,140}(موقع|ثابت|متنقل|العميل|الخدمة|إليه|اليه|لديه|عنده)/u,
-  /(إما|هل|قد يكون|ربما).{0,140}(موقع ثابت|موقع المشروع|مقر ثابت|متنقل|موقع العميل|عند العميل|لدى العميل|تصل الخدمة|تصل إليه|تصل اليه|يصل إليه|يصل اليه).{0,140}(أو|او|أم).{0,140}(موقع ثابت|موقع المشروع|مقر ثابت|متنقل|موقع العميل|عند العميل|لدى العميل|تصل الخدمة|تصل إليه|تصل اليه|يصل إليه|يصل اليه)/u,
-];
-
 function scoreConcepts(signals = [], group) {
   return signals
     .filter((signal) => signal.group === group)
@@ -858,9 +719,9 @@ function chooseBusinessType(scores = {}) {
   return "generic";
 }
 
-function buildProposedClassification({ scores = {}, fieldSignals = [], rawInput = {}, language = "en", specialistCandidate, operatingModel = "unknown" }) {
+function buildProposedClassification({ scores = {}, fieldSignals = [], classificationEvidence = [], rawInput = {}, language = "en", specialistCandidate, operatingModel = "unknown" }) {
   const engineType = chooseBusinessType(scores);
-  const type = chooseDisplayClassification({ engineType, fieldSignals, rawInput, specialistCandidate });
+  const type = chooseDisplayClassification({ engineType, fieldSignals, classificationEvidence, rawInput, specialistCandidate });
   const definition = classificationChoices[type] || classificationChoices.generic;
   const sector = chooseSector(fieldSignals);
   const operatingDefinition = operatingModelChoices[operatingModel] || operatingModelChoices.unknown;
@@ -881,21 +742,40 @@ function buildProposedClassification({ scores = {}, fieldSignals = [], rawInput 
   };
 }
 
-function chooseDisplayClassification({ engineType, fieldSignals = [], rawInput = {}, specialistCandidate }) {
-  const text = buildSourceFields(rawInput, {}, { includeDetails: false }).map((source) => source.value).join(" ");
+function chooseDisplayClassification({ engineType, fieldSignals = [], classificationEvidence = [], rawInput = {}, specialistCandidate }) {
   const sectors = scoreConcepts(fieldSignals, "sector");
+  const hasStrongSectorEvidence = (sector) =>
+    classificationEvidence.some((record) =>
+      record.dimension === "sector" &&
+      record.proposedValue === sector &&
+      ["strong", "medium"].includes(record.evidenceStrength) &&
+      record.isAffirmative
+    );
+  const hasConceptEvidence = (conceptId) =>
+    classificationEvidence.some((record) => record.conceptId === conceptId && record.isAffirmative);
 
   if (engineType === "marketplace_platform") return "marketplace_platform";
   if (engineType === "digital_software") return "digital_software";
   if (engineType === "industrial_manufacturing") return "manufacturing_industrial";
-  if ((sectors.food || 0) >= 2) return "food_beverage";
-  if ((sectors.healthcare || 0) >= 2) return "healthcare";
-  if (/\b(real estate|property|rental|landlord|tenant)\b/i.test(text) || /(عقار|عقاري|إيجار|مستأجر|مالك عقار)/u.test(text)) return "real_estate";
-  if (/\b(wholesale|import|distribution|distributor)\b/i.test(text) || /(جملة|استيراد|توزيع|موزع)/u.test(text)) return "wholesale_import_distribution";
+  if ((sectors.food || 0) >= 2 && hasStrongSectorEvidence("food")) return "food_beverage";
+  if ((sectors.healthcare || 0) >= 2 && hasStrongSectorEvidence("healthcare")) return "healthcare";
+  if ((sectors.real_estate || 0) >= 2 && hasStrongSectorEvidence("real_estate")) return "real_estate";
+  if (hasConceptEvidence("wholesale_import_distribution")) return "wholesale_import_distribution";
   if (engineType === "retail_trading") return "retail";
-  if (/\b(consulting|agency|clinic|coaching|training|professional service)\b/i.test(text) || /(استشارة|وكالة|عيادة|تدريب|خدمات مهنية)/u.test(text)) return "professional_service";
+  if (hasProfessionalServiceEvidence(classificationEvidence)) return "professional_service";
   if (engineType === "service") return "field_service";
   return "generic";
+}
+
+function hasProfessionalServiceEvidence(classificationEvidence = []) {
+  const professionalConcepts = new Set([
+    "service_delivery",
+    "healthcare_clinic",
+  ]);
+  return classificationEvidence.some((record) =>
+    professionalConcepts.has(record.conceptId) &&
+    ["consulting", "agency", "clinic", "coaching", "training", "استشارة", "وكالة", "عيادة", "تدريب", "خدمات مهنية"].includes(record.matchedPhrase)
+  );
 }
 
 function chooseSector(fieldSignals = []) {
@@ -972,26 +852,7 @@ function matchSpecialist(classification) {
 }
 
 function matchSpecialistFromSourceFields(sourceFields = [], language = "en") {
-  const sourceText = sourceFields.map((source) => source.value).join(" ");
-  if (!normalize(sourceText)) return null;
-
-  for (const specialist of specialistRegistry) {
-    const confidence = evaluateSpecialistRequirements(specialist, sourceText);
-    if (confidence === "high") {
-      return { id: specialist.id, label: specialist.label[language] || specialist.label.en, confidence };
-    }
-    if (confidence === "medium") {
-      return { id: specialist.id, label: specialist.label[language] || specialist.label.en, confidence };
-    }
-  }
-  return null;
-}
-
-function evaluateSpecialistRequirements(specialist, sourceText = "") {
-  const matches = Object.values(specialist.requires).map((patterns) => patterns.some((pattern) => pattern.test(sourceText)));
-  if (matches.every(Boolean)) return "high";
-  if (matches.some(Boolean)) return "medium";
-  return "none";
+  return matchSpecialistEvidence(sourceFields, language);
 }
 
 function shouldAskForClassificationConfirmation(classification, specialist, answers = {}, validation) {
