@@ -93,13 +93,14 @@ AI Source Hub is currently a static v1.0 public launch-ready platform with a sha
 - Phase 3 Boundary 2A Unicode-safe classification evidence matching is locally accepted. Manual QA passed for the event-platform submission containing `طبيعة الأنشطة`: it no longer produces healthcare classification and now returns a conservative `generic` / `unknown` classification.
 - `classificationEvidence.js` now supplies traceable classification evidence records. Vague or weakly evidenced inputs may intentionally remain `generic` / `unknown`; however, the current generic/unknown user-facing experience is not approved for production.
 - Legacy matchers remain in `feasibilityFoundation.js` and `requestUnderstanding.js` and must be reviewed in later stabilization work. Phase 3 remains local and not production-approved; OpenAI/API semantic interpretation is not implemented.
+- Guided Discovery Iteration 2 exists as an isolated local prototype at the explicit development route only. Manual QA passed for the service-idea journey: idea capture, intent selection, core offering, mixed operating approach details, and summary with original description kept separate. The prototype is not connected to production Business Idea Validator, is not in public navigation, has no scoring/report flow, and has no semantic AI/API integration.
 - Copy report depends on browser clipboard permission.
 - Download report creates a local text file.
 - Deferred UX refinement: the homepage Products navigation should eventually keep the visitor at the top of the homepage and reveal a horizontal product selector directly beneath the main navigation instead of scrolling down to the Products section.
 
 # Next Approved Boundary
 
-Guided Business Discovery / User Intent Discovery. Implementation has not started. Do not start Phase 4 or OpenAI integration until the guided discovery direction is designed, implemented, and validated.
+Specification reconciliation and semantic-provider integration planning. Guided Discovery Iteration 2 has validated the local direction: idea capture → intent selection → core offering → operating approach → summary. Do not start public deployment, Phase 4, or OpenAI integration until the approved specification, provider contract, and production integration plan are reconciled.
 
 # Last Updated
 

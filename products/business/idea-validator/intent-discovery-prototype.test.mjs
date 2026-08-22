@@ -1,0 +1,255 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import {
+  buildDiscoveryState,
+  buildSuggestedIntentOptions,
+  buildUnderstandingSummary,
+  discoveryContent,
+  getCoreOfferingQuestion,
+  getDiscoverySteps,
+  getIntentChoices,
+  getMixedOperatingChoices,
+  getNextStep,
+  getOperatingChoices,
+  getProgressText,
+  updateMixedOperatingSelection,
+  INTENT_DISCOVERY_ROUTE,
+  validateDiscoveryStep,
+} from "./intentDiscoveryPrototype.js";
+
+const appSource = readFileSync(new URL("../../../src/App.jsx", import.meta.url), "utf8");
+const homeSource = readFileSync(new URL("../../../src/pages/HomePage.jsx", import.meta.url), "utf8");
+const productPageSource = readFileSync(new URL("../../../src/pages/BusinessIdeaValidatorPage.jsx", import.meta.url), "utf8");
+const prototypePageSource = readFileSync(new URL("../../../src/pages/BusinessIdeaDiscoveryPrototypePage.jsx", import.meta.url), "utf8");
+
+const emptyState = buildDiscoveryState({ originalIdea: "" });
+assert.equal(emptyState.originalIdea, "");
+const emptyValidation = validateDiscoveryStep(emptyState, "idea", "en");
+assert.equal(emptyValidation.ok, false);
+assert.equal(emptyValidation.error, discoveryContent.en.validation.ideaRequired);
+
+const serviceState = buildDiscoveryState({ originalIdea: "A mobile cleaning service for homes" });
+const serviceChoices = getIntentChoices(serviceState);
+assert.equal(serviceChoices.filter((choice) => !["different", "not_decided"].includes(choice.id)).length <= 5, true);
+assert.equal(serviceChoices.some((choice) => choice.id === "different"), true);
+assert.equal(serviceChoices.some((choice) => choice.id === "not_decided"), true);
+assert.equal(serviceChoices[0].id, "service");
+assert.equal(serviceChoices[0].suggested, true);
+
+const ambiguousState = buildDiscoveryState({ originalIdea: "A new business idea in Jeddah" });
+assert.equal(ambiguousState.suggestedIntentOptions.some((choice) => choice.suggested), false);
+assert.equal(ambiguousState.selectedIntent, "");
+
+const selectedRetail = buildDiscoveryState({
+  originalIdea: "A software tool for stores",
+  selectedIntent: "retail",
+  coreOffering: "Daily household products",
+  selectedOperatingApproach: "fixed_location",
+});
+assert.equal(selectedRetail.selectedIntent, "retail");
+assert.equal(selectedRetail.coreOffering, "Daily household products");
+assert.equal(buildSuggestedIntentOptions("A software tool for stores")[0].id, "digital");
+
+const intentQuestions = {
+  service: {
+    en: "What main service will the customer receive?",
+    ar: "ما الخدمة الأساسية التي سيحصل عليها العميل؟",
+  },
+  retail: {
+    en: "What main product category will the business sell?",
+    ar: "ما فئة المنتجات الأساسية التي سيبيعها المشروع؟",
+  },
+  manufacturing: {
+    en: "What main product will the business make?",
+    ar: "ما المنتج الأساسي الذي سيصنعه المشروع؟",
+  },
+  digital: {
+    en: "What main task will the software help the user complete?",
+    ar: "ما المهمة الأساسية التي سيساعد البرنامج المستخدم على إنجازها؟",
+  },
+  marketplace: {
+    en: "Which two sides will the platform connect?",
+    ar: "من الطرفان اللذان ستربط بينهما المنصة؟",
+  },
+  different: {
+    en: "What main outcome do you want the business to give the customer?",
+    ar: "ما النتيجة الأساسية التي تريد أن يقدمها المشروع للعميل؟",
+  },
+  not_decided: {
+    en: "What main outcome do you want the business to give the customer?",
+    ar: "ما النتيجة الأساسية التي تريد أن يقدمها المشروع للعميل؟",
+  },
+};
+for (const [intentId, questions] of Object.entries(intentQuestions)) {
+  assert.equal(getCoreOfferingQuestion(intentId, "en"), questions.en);
+  assert.equal(getCoreOfferingQuestion(intentId, "ar"), questions.ar);
+}
+
+const operatingChoices = getOperatingChoices("digital");
+assert.equal(operatingChoices.some((choice) => choice.id === "online"), true);
+assert.equal(operatingChoices.some((choice) => choice.id === "fixed_location"), false);
+assert.equal(operatingChoices.length < 6, true);
+
+const rawIdeaOnly = buildDiscoveryState({ originalIdea: "A mobile cleaning service for homes" });
+assert.equal(rawIdeaOnly.coreOffering, "");
+assert.equal(rawIdeaOnly.coreOfferingStatus, "missing");
+assert.equal(validateDiscoveryStep(rawIdeaOnly, "coreOffering", "en").ok, false);
+
+const undecidedOffering = buildDiscoveryState({
+  originalIdea: "A business idea",
+  selectedIntent: "service",
+  coreOfferingStatus: "undecided",
+});
+assert.equal(validateDiscoveryStep(undecidedOffering, "coreOffering", "en").ok, true);
+assert.equal(undecidedOffering.unresolvedItems.includes("coreOffering"), true);
+
+const mixedWithoutChannels = buildDiscoveryState({
+  originalIdea: "A service idea",
+  selectedIntent: "service",
+  coreOffering: "Cleaning",
+  selectedOperatingApproach: "mixed",
+});
+assert.equal(getNextStep(mixedWithoutChannels, "operating"), "mixedOperating");
+assert.equal(getDiscoverySteps(mixedWithoutChannels).length, 6);
+assert.equal(validateDiscoveryStep(mixedWithoutChannels, "mixedOperating", "en").ok, false);
+assert.equal(mixedWithoutChannels.unresolvedItems.includes("mixedOperating"), true);
+assert.equal(getProgressText(mixedWithoutChannels, "mixedOperating", "en"), "Step 5 of 6");
+assert.equal(getProgressText(mixedWithoutChannels, "summary", "ar"), "الخطوة 6 من 6");
+
+const oneMixedChannel = buildDiscoveryState({
+  ...mixedWithoutChannels,
+  selectedOperatingApproaches: ["online"],
+});
+assert.equal(validateDiscoveryStep(oneMixedChannel, "mixedOperating", "en").ok, false);
+
+const mixedUndecided = buildDiscoveryState({
+  ...mixedWithoutChannels,
+  selectedOperatingApproaches: ["not_decided"],
+});
+assert.equal(validateDiscoveryStep(mixedUndecided, "mixedOperating", "en").ok, true);
+assert.equal(mixedUndecided.unresolvedItems.includes("mixedOperating"), true);
+
+const mixedResolved = buildDiscoveryState({
+  ...mixedWithoutChannels,
+  selectedOperatingApproaches: updateMixedOperatingSelection(["online"], "fixed_location"),
+});
+assert.equal(validateDiscoveryStep(mixedResolved, "mixedOperating", "en").ok, true);
+assert.equal(mixedResolved.unresolvedItems.includes("mixedOperating"), false);
+assert.deepEqual(mixedResolved.unresolvedItems, []);
+assert.deepEqual(updateMixedOperatingSelection(["not_decided"], "online"), ["online"]);
+assert.equal(getMixedOperatingChoices().some((choice) => choice.id === "other"), true);
+
+const summary = buildUnderstandingSummary(
+  buildDiscoveryState({
+    originalIdea: "A long original idea paragraph with several details.",
+    selectedIntent: "marketplace",
+    coreOffering: "Parents and tutors",
+    selectedOperatingApproach: "online",
+    confirmationStatus: "confirmed",
+  }),
+  "en"
+);
+assert.equal(summary.originalIdea, "A long original idea paragraph with several details.");
+assert.equal(summary.intentLabel, discoveryContent.en.intentSummaryOptions.marketplace);
+assert.equal(summary.coreOfferingLabel, "Parents and tutors");
+assert.equal(summary.confirmationStatus, "confirmed");
+assert.deepEqual(summary.unresolvedItems, []);
+assert.equal(discoveryContent.en.states.summary.complete, "The essential information required for this stage is complete.");
+
+const arSummary = buildUnderstandingSummary(
+  buildDiscoveryState({
+    originalIdea: "منصة تربط بين طرفين.",
+    selectedIntent: "marketplace",
+    coreOfferingStatus: "undecided",
+    selectedOperatingApproach: "online",
+  }),
+  "ar"
+);
+assert.equal(arSummary.intentLabel, discoveryContent.ar.intentSummaryOptions.marketplace);
+assert.equal(arSummary.coreOfferingLabel, discoveryContent.ar.placeholders.coreOfferingUndecided);
+assert.equal(arSummary.unresolvedItems.includes(discoveryContent.ar.unresolved.coreOffering), true);
+
+const arCompleteMixedSummary = buildUnderstandingSummary(
+  buildDiscoveryState({
+    originalIdea: "خدمة سيارات.",
+    selectedIntent: "service",
+    coreOffering: "تنظيف وعناية بالسيارات",
+    selectedOperatingApproach: "mixed",
+    selectedOperatingApproaches: ["fixed_location", "customer_site"],
+  }),
+  "ar"
+);
+assert.deepEqual(arCompleteMixedSummary.unresolvedItems, []);
+assert.equal(arCompleteMixedSummary.operatingLabel, "في موقع ثابت، وفي موقع العميل");
+assert.equal(discoveryContent.ar.states.summary.complete, "اكتملت المعلومات الأساسية المطلوبة لهذه المرحلة.");
+
+const enCompleteMixedSummary = buildUnderstandingSummary(
+  buildDiscoveryState({
+    originalIdea: "Car care service.",
+    selectedIntent: "service",
+    coreOffering: "Car cleaning and care",
+    selectedOperatingApproach: "mixed",
+    selectedOperatingApproaches: ["fixed_location", "customer_site"],
+  }),
+  "en"
+);
+assert.equal(enCompleteMixedSummary.operatingLabel, "At a fixed location and At the customer’s location");
+
+const hiddenTerms = ["generic", "unknown", "primaryType", "operatingModel", "marketplace_platform", "confidence", "fieldSignals"];
+const visiblePrototypeText = [
+  ...Object.values(discoveryContent.en.intentOptions),
+  ...Object.values(discoveryContent.ar.intentOptions),
+  ...Object.values(discoveryContent.en.intentSummaryOptions),
+  ...Object.values(discoveryContent.ar.intentSummaryOptions),
+  ...Object.values(discoveryContent.en.operatingOptions),
+  ...Object.values(discoveryContent.ar.operatingOptions),
+  ...Object.values(discoveryContent.en.mixedOperatingOptions),
+  ...Object.values(discoveryContent.ar.mixedOperatingOptions),
+].join(" ");
+for (const term of hiddenTerms) {
+  assert.equal(visiblePrototypeText.includes(term), false);
+}
+
+assert.equal(prototypePageSource.includes("{index + 1}"), false);
+assert.equal(prototypePageSource.includes("step-pill"), false);
+assert.equal(prototypePageSource.includes("discovery-progress__text"), true);
+assert.equal(discoveryContent.en.progress, "Step {current} of {total}");
+assert.equal(discoveryContent.ar.progress, "الخطوة {current} من {total}");
+assert.equal(prototypePageSource.includes("score"), false);
+assert.equal(prototypePageSource.includes("reportText"), false);
+assert.equal(prototypePageSource.includes("copyReport"), false);
+assert.equal(prototypePageSource.includes("downloadReport"), false);
+assert.equal(prototypePageSource.includes("states.summary.operating"), true);
+assert.equal(prototypePageSource.includes("states.operating.heading}</p>"), false);
+assert.equal(prototypePageSource.includes("summary.unresolvedItems.length"), true);
+assert.equal(prototypePageSource.includes("states.summary.complete"), true);
+assert.equal(prototypePageSource.includes("setStep('intent')"), true);
+assert.equal(prototypePageSource.includes("reset"), true);
+assert.equal(productPageSource.includes("BusinessIdeaDiscoveryPrototypePage"), false);
+assert.equal(homeSource.includes(INTENT_DISCOVERY_ROUTE), false);
+assert.equal(appSource.includes("INTENT_DISCOVERY_ROUTE"), true);
+assert.equal(appSource.includes("BusinessIdeaDiscoveryPrototypePage"), true);
+
+console.log(
+  JSON.stringify(
+    {
+      intentDiscoveryPrototypePassed: true,
+      route: INTENT_DISCOVERY_ROUTE,
+      checks: [
+        "empty idea blocked by page validation",
+        "at most five main choices plus fallbacks",
+        "internal labels hidden from localized choices",
+        "suggestion ordering only",
+        "user selection authoritative",
+        "core offering asked after intent",
+        "mixed operating approach requires details",
+        "localized progress text hides raw step numbers",
+        "summary separates original idea",
+        "prototype absent from public navigation",
+        "no score/report/copy/download flow",
+      ],
+    },
+    null,
+    2
+  )
+);

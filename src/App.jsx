@@ -3,9 +3,11 @@ import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import HomePage from './pages/HomePage.jsx';
 import ProductPage from './pages/ProductPage.jsx';
 import BusinessIdeaValidatorPage from './pages/BusinessIdeaValidatorPage.jsx';
+import BusinessIdeaDiscoveryPrototypePage from './pages/BusinessIdeaDiscoveryPrototypePage.jsx';
 import StartupRiskScannerPage from './pages/StartupRiskScannerPage.jsx';
 import { productRegistry } from '../core/productRegistry.js';
 import { getBusinessValidatorShellContent, getInitialLanguage } from '../core/localization.js';
+import { INTENT_DISCOVERY_ROUTE } from '../products/business/idea-validator/intentDiscoveryPrototype.js';
 import './styles.css';
 
 function App() {
@@ -24,6 +26,10 @@ function App() {
         <Route
           path="/products/business-idea-validator"
           element={<BusinessIdeaValidatorPage locale={locale} product={productRegistry.find((item) => item.id === 'business-idea-validator')} content={getBusinessValidatorShellContent(language)} />}
+        />
+        <Route
+          path={INTENT_DISCOVERY_ROUTE}
+          element={<BusinessIdeaDiscoveryPrototypePage locale={locale} />}
         />
         <Route
           path="/products/startup-risk-scanner"
