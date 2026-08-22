@@ -35,6 +35,7 @@ Adding more project-specific keywords is not an acceptable solution. A car-wash 
 
 ### 3.1 In scope
 
+- User Intent Discovery / Guided Business Discovery support;
 - semantic normalization of Arabic and English input;
 - structured extraction of business facts and roles;
 - proposed domain-agnostic classification;
@@ -94,11 +95,11 @@ The Saudi Research Pack remains a separate evidence system. The semantic layer m
 1. **Local input validation** checks required fields, size, encoding, and malformed content.
 2. **Deterministic pre-screen** identifies clear eligibility stops and obvious injection or abuse patterns before external processing.
 3. **Data minimization** builds a semantic request containing only necessary idea and context fields.
-4. **AI semantic interpretation** returns strict structured output.
+4. **User Intent Discovery interpretation** preserves the original idea, creates a concise grounded reflection, proposes plausible intent hypotheses, identifies ambiguity, and recommends one next high-value question.
 5. **Schema validation** rejects output that does not match the contract.
 6. **BIV policy verification** checks taxonomy, prohibited inferences, evidence separation, eligibility signals, and route constraints.
-7. **User interpretation review** displays the proposed understanding in plain language.
-8. **User confirmation or correction** establishes the confirmed classification and corrected facts.
+7. **User interpretation review** displays the proposed understanding in plain language without internal taxonomy IDs.
+8. **User confirmation or correction** establishes the confirmed understanding and corrected facts.
 9. **Adaptive clarification** asks only required missing questions and preserves earlier answers.
 10. **Information-sufficiency gate** decides whether the case can proceed, needs user information, needs external evidence, or cannot be evaluated confidently.
 11. **Central orchestration** selects exactly one canonical route.
@@ -111,9 +112,38 @@ The Saudi Research Pack remains a separate evidence system. The semantic layer m
 - BIV eligibility policy makes the final decision: `eligible`, `ineligible`, or `needs_clarification`.
 - The model must not present a fatwa, legal judgment, or moral accusation.
 
-## 7. Technical Integration Boundary
+## 7. User Intent Discovery Responsibility
 
-### 7.1 Backend-only adapter
+The semantic layer may assist the first BIV interaction, but it must not turn that interaction into a classification-first, score-first, or report-first flow.
+
+Responsibilities:
+
+- preserve the user's original idea exactly as submitted;
+- create a concise grounded interpretation without adding facts;
+- propose 2-5 plausible intent hypotheses using allowed taxonomy/options;
+- rank hypotheses without silently selecting one;
+- identify ambiguity, missing distinctions, and low-confidence areas;
+- propose one next high-value question for the current step;
+- return stable structured IDs plus Arabic and English presentation text;
+- keep facts, inferences, assumptions, and unknowns separate;
+- avoid mechanically pasting raw user sentences into analyst language.
+
+Interaction limits:
+
+- maximum five main hypotheses;
+- always allow "different idea" and "not decided";
+- one main question per screen;
+- user selection is authoritative;
+- low confidence cannot be silently confirmed;
+- discovery length must be bounded;
+- edit and reset must remain available;
+- the user must never reach a dead-end result simply because the first idea is unclear.
+
+BIV must validate and filter all AI hypotheses before display. Model knowledge is not evidence and cannot support cost, regulatory, market, or success claims.
+
+## 8. Technical Integration Boundary
+
+### 8.1 Backend-only adapter
 
 The browser calls an AI Source Hub backend/serverless endpoint. That endpoint calls the model provider. GitHub Pages or other frontend code must never call the provider with a secret key.
 
@@ -129,7 +159,7 @@ Browser → BIV semantic endpoint → provider adapter → model API
 
 The provider adapter must allow models or providers to change without rewriting BIV business logic.
 
-### 7.2 API pattern
+### 8.2 API pattern
 
 - Use the OpenAI Responses API.
 - Require Structured Outputs with a versioned JSON Schema.
@@ -137,7 +167,7 @@ The provider adapter must allow models or providers to change without rewriting 
 - Use server-side environment secrets and separate development/production credentials.
 - Record request metadata without logging confidential idea content by default.
 
-### 7.3 Model routing policy
+### 8.3 Model routing policy
 
 Model names are configuration, not product rules.
 
@@ -146,16 +176,77 @@ Model names are configuration, not product rules.
 - Candidate model families such as GPT-5.6 Luna and GPT-5.6 Terra must be benchmarked against the approved evaluation set before activation.
 - Model upgrades require regression evaluation; they must not silently change product behavior.
 
-## 8. Structured Output Contract
+## 9. Semantic Provider Contract
+
+The next implementation boundary is contract and mock first. Live provider calls are not authorized by this document.
+
+### 9.1 Input contract
+
+Send only fields required for the current interpretation task:
+
+| Field | Meaning |
+| --- | --- |
+| `locale` | User interface language and direction context |
+| `originalIdea` | The current natural-language idea text |
+| `confirmedAnswers` | User-confirmed structured answers from earlier discovery steps |
+| `currentDiscoveryState` | Current guided-discovery step and unresolved items |
+| `allowedTaxonomyOptions` | BIV-approved intent, operating, stakeholder, and answer options |
+| `policySafeContext` | Minimal context needed for safe interpretation and refusal/clarification signals |
+
+Do not send unnecessary profile, payment, email, or report data. Do not resend full history when the current state is enough.
+
+### 9.2 Output contract
+
+The provider response must be schema-valid and include:
+
+| Field | Meaning |
+| --- | --- |
+| `schemaVersion` | Exact contract version |
+| `conciseReflection` | Short Arabic/English understanding grounded in the input |
+| `intentHypotheses` | 2-5 ranked hypotheses, each with ID, label, rationale, and confidence |
+| `ambiguities` | Items that cannot be safely resolved |
+| `recommendedNextQuestion` | One next question with answer type/options |
+| `extractedFacts` | Facts stated by the user |
+| `inferredNeedsConfirmation` | Inferences that require user confirmation |
+| `unresolvedItems` | Missing or unclear items |
+| `safetySignals` | Non-final policy or sensitive-meaning signals |
+| `reasonCodes` | Stable machine-readable explanation codes |
+
+Each `intentHypothesis` must include:
+
+- `id`
+- `labelAr`
+- `labelEn`
+- `rationaleAr`
+- `rationaleEn`
+- `confidence`
+- `reasonCodes`
+
+### 9.3 Prohibited output
+
+The AI output cannot include:
+
+- route decision;
+- eligibility decision;
+- score or verdict;
+- success probability;
+- unsupported cost, rent, wage, regulatory, licensing, or market figures;
+- payment decision;
+- final report text;
+- invented external evidence;
+- provider instructions or internal prompts.
+
+## 10. Structured Output Contract
 
 The canonical schema name is `biv_semantic_interpretation_v1`.
 
-### 8.1 Top-level fields
+### 10.1 Top-level fields
 
 | Field | Type | Meaning |
 | --- | --- | --- |
 | `schemaVersion` | string | Exact contract version |
 | `language` | enum | `ar`, `en`, or `mixed` |
+| `intentDiscovery` | object | Concise reflection, ranked hypotheses, ambiguity, and next question |
 | `normalizedIdea` | object | Concise interpretation without adding facts |
 | `classification` | object | Proposed primary type, sector, and operating model |
 | `stakeholders` | object | Customer, end user, payer, decision maker, provider |
@@ -166,7 +257,7 @@ The canonical schema name is `biv_semantic_interpretation_v1`.
 | `eligibilitySignals` | array | Non-final risk signals for BIV policy |
 | `reasonCodes` | array | Stable machine-readable explanations |
 
-### 8.2 Classification
+### 10.2 Classification
 
 `primaryType` must use a controlled, extensible taxonomy such as:
 
@@ -200,7 +291,7 @@ Rules:
 - A factory does not enter a PET/recycling specialist path without explicit matching evidence.
 - Every proposal includes `confidence`, `reasonCodes`, and a short user-facing explanation.
 
-### 8.3 Stakeholder roles
+### 10.3 Stakeholder roles
 
 Each role contains `value`, `status`, and optional `sourceTextReference`:
 
@@ -219,7 +310,7 @@ Allowed status values:
 
 An inference must never be presented as a user-provided fact.
 
-### 8.4 Business mechanics
+### 10.4 Business mechanics
 
 - `ideaSummary`
 - `customerProblem`
@@ -235,7 +326,7 @@ An inference must never be presented as a user-provided fact.
 
 The contract explicitly separates `customerProblem` from `founderExecutionChallenges`. If the user writes “build the project, attract technicians, connect customers,” the model should not rewrite those items as the end customer's problem.
 
-### 8.5 Evidence state
+### 10.5 Evidence state
 
 Every material claim belongs to exactly one category:
 
@@ -248,7 +339,7 @@ Every material claim belongs to exactly one category:
 
 In this semantic layer, `externalEvidence` must normally remain empty unless evidence records were explicitly supplied by an approved research module. General model knowledge is not external evidence.
 
-### 8.6 Quality signals
+### 10.6 Quality signals
 
 The model returns:
 
@@ -261,7 +352,7 @@ The model returns:
 - `missingCriticalRoles`;
 - `languageQualityRisk`.
 
-### 8.7 Follow-up question object
+### 10.7 Follow-up question object
 
 Each question includes:
 
@@ -284,7 +375,7 @@ Questions must be:
 - limited to the smallest set required for the next decision;
 - phrased naturally rather than copying raw input.
 
-## 9. User Confirmation Contract
+## 11. User Confirmation Contract
 
 Before downstream analysis, the UI must show a concise interpretation card:
 
@@ -306,7 +397,7 @@ Confirmed fields become user-confirmed facts. Corrected fields replace the propo
 
 If confidence is low or classification materially affects the journey, confirmation is mandatory. Silence is not confirmation.
 
-## 10. Prompt and Injection Controls
+## 12. Prompt and Injection Controls
 
 The model instruction must state that:
 
@@ -321,7 +412,7 @@ The model instruction must state that:
 
 The server must enforce request-size limits, supported content types, schema validation, and output length limits independently of the prompt.
 
-## 11. Failure and Fallback Behavior
+## 13. Failure and Fallback Behavior
 
 | Failure | Required behavior |
 | --- | --- |
@@ -337,7 +428,7 @@ The server must enforce request-size limits, supported content types, schema val
 
 The UI must not expose raw provider errors, keys, internal prompts, or stack traces.
 
-## 12. Privacy, Security, and Retention
+## 14. Privacy, Security, and Retention
 
 - Business ideas are confidential commercial information.
 - Send only the fields needed for semantic interpretation.
@@ -351,7 +442,7 @@ The UI must not expose raw provider errors, keys, internal prompts, or stack tra
 - Secrets remain server-side, rotated, least-privileged, and absent from source control.
 - Final privacy and retention language requires legal review before paid launch.
 
-## 13. Cost and Performance Controls
+## 15. Cost and Performance Controls
 
 Track per request and per completed journey:
 
@@ -375,9 +466,9 @@ Controls:
 
 These costs feed the paid-product unit economics. Total variable production, review, delivery, and support cost should normally remain within the approved 20–25% of net collected report revenue target before fixed costs and marketing.
 
-## 14. Quality Evaluation Plan
+## 16. Quality Evaluation Plan
 
-### 14.1 Golden evaluation set
+### 16.1 Golden evaluation set
 
 Create a versioned bilingual set containing at least:
 
@@ -395,7 +486,7 @@ Create a versioned bilingual set containing at least:
 
 Recommended initial semantic-layer target: at least 30 curated cases before live activation.
 
-### 14.2 Metrics
+### 16.2 Metrics
 
 - schema validity rate;
 - primary-type accuracy;
@@ -410,7 +501,7 @@ Recommended initial semantic-layer target: at least 30 curated cases before live
 - latency and cost per interpretation;
 - deterministic fallback success rate.
 
-### 14.3 Initial acceptance thresholds
+### 16.3 Initial acceptance thresholds
 
 - 100% schema-valid output after the allowed controlled retry;
 - zero unsupported numeric or regulatory claims in the test set;
@@ -423,7 +514,7 @@ Recommended initial semantic-layer target: at least 30 curated cases before live
 
 Exact accuracy and latency release thresholds must be established from the baseline evaluation before production activation rather than invented now.
 
-## 15. Observability and Versioning
+## 17. Observability and Versioning
 
 Every interpretation record must carry:
 
@@ -441,7 +532,7 @@ Every interpretation record must carry:
 
 Prompt, schema, taxonomy, or model changes require a version change and regression run. Rollback to the last approved configuration must be possible without changing the orchestrator contract.
 
-## 16. Implementation Sequence When the Mac Is Available
+## 18. Implementation Sequence When the Mac Is Available
 
 ### Step 1 — Preserve and audit
 
@@ -480,7 +571,7 @@ Prompt, schema, taxonomy, or model changes require a version change and regressi
 - Maintain deterministic fallback and kill switch.
 - Do not push or deploy until manual Arabic/English QA and security review pass.
 
-## 17. Codex Handoff Requirements
+## 19. Codex Handoff Requirements
 
 The implementation request to Codex must require:
 
@@ -495,7 +586,7 @@ The implementation request to Codex must require:
 9. clean generated `dist` artifacts after validation;
 10. perform no commit, push, or deployment unless explicitly authorized.
 
-## 18. Release Gate
+## 20. Release Gate
 
 The semantic layer is not production-ready until all of the following are true:
 
@@ -511,15 +602,16 @@ The semantic layer is not production-ready until all of the following are true:
 - cost and latency are measured;
 - owner approves controlled activation.
 
-## 19. Current-State Reconciliation
+## 21. Current-State Reconciliation
 
 - Current live production does not contain this AI semantic layer.
 - Local feasibility/orchestration foundation is preserved in checkpoint commit `d5d039e78a459f9d5f4f1464bb688086539fa906` and is not automatically approved production behavior.
 - Phase 2 central orchestration checkpoint is `c37554f08f39f4696064e36991d006a8648af3fd`.
 - Phase 3 classification work remains subject to audit and manual approval.
+- Guided Discovery Iteration 2 prototype checkpoint is `931b6cfe0b988f9e4a5f26669982766cbdba96d8`. It validates the first-interaction direction only: idea capture, intent selection, core offering, operating approach, and understanding summary. It is deterministic, isolated, not production BIV, and has no semantic model/API.
 - This document authorizes design direction only. It does not authorize implementation, API spending, commit, push, or deployment.
 
-## 20. Authoritative Technical References
+## 22. Authoritative Technical References
 
 - OpenAI Structured Outputs: <https://developers.openai.com/api/docs/guides/structured-outputs>
 - OpenAI API data controls: <https://developers.openai.com/api/docs/guides/your-data>

@@ -87,54 +87,87 @@ The product should convert an unclear idea into a structured decision path, not 
 
 ## 5. End-To-End User Journey
 
-1. Eligibility and ethical check  
-   The system checks whether the idea is eligible, ineligible, or needs clarification before any business guidance is generated.
+The first interaction is Guided Business Discovery / User Intent Discovery. It starts from the user's own words and gives visible value before asking for profile, technical classification, diagnostic scoring, feasibility analysis, email, or payment.
 
-2. User experience/profile  
-   The user identifies whether they are a beginner, limited-experience user, experienced founder/operator, investor/professional, or existing-business owner.
+Validated first-interaction structure:
 
-3. Idea and objective  
-   The user describes the idea and the decision they want support with.
+1. Idea capture
+   The user describes the idea in natural language. Do not require profile, customer, revenue, country, city, or long structured fields before the initial idea.
 
-4. Proposed classification  
-   The system proposes the business type, sector, operating model, customer model, and project stage.
+2. Concise understanding/reflection
+   BIV reflects the idea in plain language without mechanically copying the user's sentences into analyst wording. The original wording stays separate from BIV's interpretation.
 
-5. User confirmation/correction  
-   If classification confidence is not high, the user confirms or corrects the classification in plain language.
+3. Intent discovery
+   BIV offers the closest plausible meanings in user-facing language and lets the user select or correct. It must not expose internal taxonomy labels such as `generic`, `unknown`, `primaryType`, `operatingModel`, `confidence`, or `fieldSignals`.
 
-6. Adaptive interview  
+4. One high-value question at a time
+   BIV asks one principal question per screen. The first validated questions cover core offering and operating approach before deeper diagnostic or feasibility questions.
+
+5. Core offering
+   BIV asks what the business will primarily provide, using the selected intent to phrase the question naturally.
+
+6. Operating approach
+   BIV asks how the customer receives the value. Mixed or undecided delivery remains unresolved until the user clarifies it.
+
+7. Understanding summary
+   BIV separates original wording, confirmed facts, BIV interpretations, assumptions, and unresolved items. The user can confirm, correct, edit, or reset.
+
+8. Eligibility and ethical check
+   The system checks whether the idea is eligible, ineligible, or needs clarification before any business guidance, scoring, report, payment, or route-changing analysis is generated. Clear eligibility refusals and clarification states must still override later analysis.
+
+9. Relevant profile and objective questions
+   User experience, project stage, country, city, and decision objective are requested only when they become relevant to the next decision. Beginner and limited-experience users remain the first paid-launch focus, but profile questions should not block the initial guided discovery value.
+
+10. Technical classification and confirmation
+   Internal classification remains domain-agnostic and subordinate to the user-confirmed understanding. If classification confidence is not high or affects the journey materially, the user confirms or corrects it in plain language.
+
+11. Adaptive interview
    The system asks only relevant grouped questions and separates required blockers from optional refinements.
 
-7. Information-sufficiency gate  
+12. Information-sufficiency gate
    The system determines whether the case is ready for a paid report, needs more user information, needs external quotation/evidence, or cannot currently be evaluated with sufficient confidence.
 
-8. Evidence and research  
+13. Evidence and research
    The system separates user-provided facts, assumptions, supplier quotations, official sources, market evidence, and unresolved unknowns.
 
-9. Analysis  
+14. Analysis
    The system runs market, economic, operational, licensing, risk, and implementation analysis according to the confirmed path.
 
-10. Free preview  
+15. Free preview
    The user receives useful but limited diagnostic value before payment.
 
-11. Payment decision  
+16. Payment decision
    The user decides whether to purchase the BIV Preliminary Decision Report only if the information-sufficiency gate allows it.
 
-12. Paid report  
+17. Paid report
    The user receives a structured preliminary decision report with sources, assumptions, ranges, risks, and action plan.
 
-13. Email delivery  
+18. Email delivery
    Email is requested only for saving, delivery, or purchase. Marketing consent remains separate and unselected by default.
 
-14. Bounded follow-up support  
+19. Bounded follow-up support
    The first paid launch includes one report update and two clarification questions within 7 days.
 
-15. Report update when new evidence is added  
+20. Report update when new evidence is added
    New quotations, customer evidence, or owner data can update the report within the defined support boundary.
 
 ## 6. Business Classification
 
-Business classification must remain domain-agnostic. The taxonomy includes:
+Business classification must remain internal, domain-agnostic, and user-confirmable. The user should see plain-language choices and questions, not technical taxonomy IDs. Classification supports the journey; it is not the first visible value and must not silently decide ambiguous input.
+
+Guided intent discovery may show plain choices such as:
+
+- Providing a service to the customer
+- Selling products
+- Making a product
+- Providing software or a digital service
+- Connecting two sides
+- Different idea
+- Not decided yet
+
+The system may rank plausible choices, but user selection is authoritative. Low confidence cannot be silently confirmed.
+
+The internal taxonomy includes:
 
 - Retail
 - Wholesale/import/distribution
@@ -173,15 +206,19 @@ Specialist modules must be invoked by one central orchestrator. No specialist mo
 ## 7. Adaptive Interview Rules
 
 - Ask only relevant questions.
+- Ask one principal question per screen in the guided discovery stage.
 - Do not repeat known information.
+- Preserve previous answers while allowing edit and reset.
 - Distinguish required blockers from optional refinements.
 - Let the user answer "I don't know."
 - Explain why a critical question is needed.
+- Give value during the conversation, not only in the final report.
 - Keep the beginner journey simple.
 - Allow the professional path to go deeper in future modes.
 - Pause rather than invent figures when critical evidence is missing.
 - Detect contradictions and request clarification.
 - Separate customer, end user, payer, and decision-maker.
+- Separate original wording, confirmed facts, BIV interpretations, assumptions, and unresolved items.
 - Never turn founder questions about cost, licenses, equipment, or operations into customer-pain statements.
 - Keep original answers separate from structured follow-up answers.
 - Do not add new product ideas or features during execution unless they are necessary to satisfy an approved acceptance criterion.
@@ -684,6 +721,7 @@ Product approval requires:
 | Industrial/PET analysis | Keep as example | Subordinate to orchestrator | No | No | PET/recycling is a specialist example only, not an industrial default. |
 | Feasibility foundation | Keep local checkpoint | Significant | No | Yes | Good foundation, but not yet complete paid feasibility logic. |
 | Guided flow | Keep local checkpoint | Significant | No | Yes | Should become the unified adaptive journey. |
+| Guided Discovery Iteration 2 prototype `931b6cfe0b988f9e4a5f26669982766cbdba96d8` | Preserve as validated interaction evidence | Reconcile into production architecture | No | Yes | Manual service-idea journey passed locally: idea capture, intent selection, core offering, operating approach, and summary. It is deterministic, isolated, not production BIV, and has no semantic model/API. |
 | Current routing/classification | Keep checkpoint | Centralize and audit | Legacy bypasses | Yes | One orchestrator must control all paths. |
 | Local feasibility/orchestration checkpoint `d5d039e78a459f9d5f4f1464bb688086539fa906` | Preserve | Audit against this spec | No | Later | Not approved production behavior. |
 | Payment/email | No current production feature | N/A | N/A | Later | Must wait until core report value, sufficiency gate, privacy, delivery, review, and economics are ready. |
@@ -723,22 +761,46 @@ Verification:
 - Automated routing tests.
 - Cross-domain manual QA.
 
-### Phase 3 — Beginner journey and classification confirmation
+### Phase 3 — Guided discovery and beginner journey
 
-Outcome: beginner and limited-experience users can confirm project type and proceed through plain-language guidance.
+Outcome: beginner and limited-experience users receive immediate value through Guided Business Discovery before technical classification, profile collection, scoring, or feasibility analysis. The validated local direction is idea capture → concise reflection → intent discovery → core offering → operating approach → understanding summary → user confirmation/correction.
 
 Acceptance criteria:
 
+- The first interaction starts from the user's idea, not a profile-first or classification-first form.
 - Beginner path is clear in Arabic and English.
-- Classification correction changes subsequent questions.
+- Intent choices are plain-language, never internal taxonomy IDs.
+- One principal question appears per screen.
+- Original wording, confirmed facts, BIV interpretations, assumptions, and unresolved items remain separate.
+- User confirmation/correction changes subsequent questions.
 - No specialist terminology is required from the user.
+- Guided Discovery Iteration 2 prototype commit `931b6cfe0b988f9e4a5f26669982766cbdba96d8` is reconciled into the approved architecture before production connection.
 
 Verification:
 
+- Specification reconciliation and semantic-provider mock review.
 - Arabic/English browser QA.
 - Mobile and desktop QA.
 
-### Phase 4 — Adaptive interview and information-sufficiency gate
+### Phase 4 — Semantic contract, provider adapter, and shadow-mode interpretation
+
+Outcome: a backend-only semantic provider adapter and mock contract propose interpretations and next questions without controlling route, eligibility, score, payment, or final reports.
+
+Acceptance criteria:
+
+- Versioned schema and mock responses exist before live provider calls.
+- AI hypotheses are validated and filtered by BIV before display.
+- Model knowledge is never treated as evidence.
+- Shadow-mode comparison runs without changing production routing.
+- No API key is shipped to the browser or committed.
+
+Verification:
+
+- Contract tests.
+- Golden bilingual fixture evaluation.
+- Security review of provider boundary.
+
+### Phase 5 — Adaptive interview and information-sufficiency gate
 
 Outcome: BIV asks relevant questions and determines whether the case can proceed toward a paid report.
 
@@ -753,7 +815,7 @@ Verification:
 - Automated sufficiency tests.
 - Manual tests with weak, partial, and strong inputs.
 
-### Phase 5 — Evidence model and Saudi research pack
+### Phase 6 — Evidence model and Saudi research pack
 
 Outcome: material claims are evidence-tagged and Saudi sources are traceable.
 
@@ -768,7 +830,7 @@ Verification:
 - Source traceability tests.
 - Manual source review.
 
-### Phase 6 — Free diagnostic
+### Phase 7 — Free diagnostic
 
 Outcome: useful free preview that shows business type, completeness, top gaps, biggest risk, readiness, and paid-report contents.
 
@@ -783,7 +845,7 @@ Verification:
 - Browser QA.
 - Free/paid boundary review.
 
-### Phase 7 — Paid Preliminary Decision Report
+### Phase 8 — Paid Preliminary Decision Report
 
 Outcome: coherent Saudi-market preliminary report covering demand, economics, capital, location, labor, equipment, licensing, operations, risks, assumptions, sources, and actions.
 
@@ -798,7 +860,7 @@ Verification:
 - Cross-sector report QA.
 - Arabic/English quality review.
 
-### Phase 8 — Cross-sector testing with at least 10 materially different ideas
+### Phase 9 — Cross-sector testing with at least 10 materially different ideas
 
 Outcome: product behavior is validated across diverse business types.
 
@@ -812,7 +874,7 @@ Verification:
 - Automated regression matrix.
 - Manual browser QA.
 
-### Phase 9 — First-50-report human review workflow
+### Phase 10 — First-50-report human review workflow
 
 Outcome: internal quality-control workflow is ready before paid delivery.
 
@@ -827,7 +889,7 @@ Verification:
 - Internal process dry run.
 - Sample report review.
 
-### Phase 10 — Privacy, email, PDF delivery, failure and refund handling
+### Phase 11 — Privacy, email, PDF delivery, failure and refund handling
 
 Outcome: non-payment operational flow is ready.
 
@@ -843,7 +905,7 @@ Verification:
 - Legal/content review.
 - Manual flow QA.
 
-### Phase 11 — Payment integration
+### Phase 12 — Payment integration
 
 Outcome: payment can be activated only after readiness conditions are met.
 
@@ -858,7 +920,7 @@ Verification:
 - Payment sandbox QA.
 - Failure-path QA.
 
-### Phase 12 — Limited paid launch
+### Phase 13 — Limited paid launch
 
 Outcome: controlled Saudi-first paid launch.
 
@@ -873,7 +935,7 @@ Verification:
 - Paid pilot monitoring.
 - Customer feedback review.
 
-### Phase 13 — Professional, existing-business, and advanced-report expansion
+### Phase 14 — Professional, existing-business, and advanced-report expansion
 
 Outcome: deferred professional and existing-business paths are expanded only after the first paid product is validated.
 

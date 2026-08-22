@@ -185,7 +185,11 @@ A product is complete only when:
 
 ### Next
 
-- Specification reconciliation and semantic-provider integration planning for Guided Discovery before any production connection or OpenAI/API work.
+- Semantic contract and mock for Guided Discovery. Define schema, fixtures, and mock provider behavior before any live provider call.
+- Backend-only semantic provider adapter plan. Keep secrets out of the browser and preserve BIV as the authority.
+- Shadow-mode AI interpretation. Compare provider interpretation against deterministic behavior without changing production routing.
+- Bilingual evaluation and user-confirmation integration. Validate Arabic/English hypotheses, corrections, and answer preservation before controlled local activation.
+- Controlled local activation only after the contract, mocks, evaluation, fallback, and owner approval are complete.
 - Capital & Operational Feasibility Phase 2: turn the guided follow-up readiness state into a coherent preliminary feasibility output covering market/customer need, feasibility, capital confidence, cost categories, location, equipment, labor, operating model, licenses/dependencies, risks, unknowns, and next actions without inventing figures.
 - Use the captured user experience level and project stage to tailor the preliminary feasibility report structure for beginners, experienced founders, and existing-business improvement/expansion cases.
 - After orchestration QA passes, prepare a production checkpoint for the Business Idea Validator v2 routing architecture without adding final capital estimates.
@@ -233,4 +237,4 @@ A product is complete only when:
 | Product Suite | Current | 35% | Stabilize active products before adding the next product. |
 | Quality and Release Candidate | Completed | 100% | Preserve regression checks while planning the next product. |
 | Public Launch | Completed | 100% | Prepare public launch communication and post-launch monitoring. |
-| Business Idea Validator v2 | Guided Discovery Iteration 2 isolated local prototype accepted; not production-approved | Phase 2 central orchestration hardening + Phase 3 beginner/classification confirmation + canonical journey-state rendering + Boundary 2A Unicode-safe classification evidence matching + isolated guided discovery prototype | Reconcile the specification and semantic-provider integration plan before production approval or Phase 4/OpenAI work. |
+| Business Idea Validator v2 | Guided Discovery Iteration 2 isolated local prototype accepted; not production-approved | Phase 2 central orchestration hardening + Phase 3 beginner/classification confirmation + canonical journey-state rendering + Boundary 2A Unicode-safe classification evidence matching + isolated guided discovery prototype | Build the semantic contract and mock provider plan before backend adapter, shadow-mode evaluation, user-confirmation integration, or controlled activation. |

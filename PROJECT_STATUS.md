@@ -100,7 +100,7 @@ AI Source Hub is currently a static v1.0 public launch-ready platform with a sha
 
 # Next Approved Boundary
 
-Specification reconciliation and semantic-provider integration planning. Guided Discovery Iteration 2 has validated the local direction: idea capture → intent selection → core offering → operating approach → summary. Do not start public deployment, Phase 4, or OpenAI integration until the approved specification, provider contract, and production integration plan are reconciled.
+Semantic contract and mock provider planning for Guided Discovery. Guided Discovery Iteration 2 has validated the local direction: idea capture → concise reflection → intent selection → core offering → operating approach → understanding summary → later free diagnostic. Next work must define schema, bilingual fixtures, provider mock behavior, backend-only adapter boundaries, shadow-mode evaluation, and user-confirmation integration before public deployment or live OpenAI/API integration.
 
 # Last Updated
 
