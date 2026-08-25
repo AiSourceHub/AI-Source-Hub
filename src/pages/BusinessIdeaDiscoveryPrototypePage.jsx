@@ -23,6 +23,7 @@ import { createSemanticIntentRequest } from '../../products/business/idea-valida
 import { createMockSemanticIntentProvider } from '../../products/business/idea-validator/semanticIntentMockProvider.js';
 import { buildDeterministicIntentPresentation, buildSemanticIntentPresentation } from '../../products/business/idea-validator/semanticIntentPresentation.js';
 import { interpretWithSemanticProvider } from '../../products/business/idea-validator/semanticIntentProvider.js';
+import { BIV_SEMANTIC_WORKER_ENDPOINT, observeSemanticShadow } from '../../products/business/idea-validator/semanticShadowAdapter.js';
 
 function BusinessIdeaDiscoveryPrototypePage({ locale }) {
   const location = useLocation();
@@ -171,6 +172,12 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
     });
     const provider = createMockSemanticIntentProvider({ scenario: resolveSemanticScenario(semanticScenario, language) });
     const filteredResult = await interpretWithSemanticProvider(provider, request);
+    void observeSemanticShadow({
+      request,
+      authoritativeResult: filteredResult,
+      endpoint: BIV_SEMANTIC_WORKER_ENDPOINT,
+      enabled: import.meta.env?.VITE_BIV_SEMANTIC_SHADOW_ENABLED === 'true',
+    });
     setSemanticPresentation(buildSemanticIntentPresentation({
       filteredResult,
       request,
