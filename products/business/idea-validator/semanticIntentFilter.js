@@ -8,7 +8,7 @@ import {
   SUPPORTED_SEMANTIC_LOCALES,
   createSemanticIntentFallback,
 } from "./semanticIntentContract.js";
-import { collectForbiddenKeys, isPlainObject } from "./semanticIntentValidator.js";
+import { collectForbiddenKeys, isPlainObject, validateSemanticIntentStructuredOutput } from "./semanticIntentValidator.js";
 
 const UNSUPPORTED_CLAIM_PATTERN = /(\b\d[\d,]*(\.\d+)?\s*(sar|riyals?|usd|dollars?|%|percent)\b|\b(sar|usd|riyals?|dollars?)\s*\d[\d,]*(\.\d+)?\b|(?:ريال|دولار|٪|%)|capital cost|startup cost|rent|wage|salary|license required|permit required|تكلفة|رأس مال|إيجار|راتب|أجر|ترخيص مطلوب|رخصة مطلوبة)/iu;
 
@@ -18,6 +18,15 @@ export function filterSemanticIntentOutput({ request = {}, output = {} } = {}) {
 
   if (!isPlainObject(output)) {
     return fallback("output_not_object", "Semantic output must be an object.");
+  }
+
+  const schemaValidation = validateSemanticIntentStructuredOutput(output);
+  if (!schemaValidation.ok) {
+    return createSemanticIntentFallback({
+      request,
+      reasonCodes: schemaValidation.reasonCodes,
+      errors: schemaValidation.errors,
+    });
   }
 
   for (const key of Object.keys(output)) {

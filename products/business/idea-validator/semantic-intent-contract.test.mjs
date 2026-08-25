@@ -4,8 +4,15 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   SEMANTIC_INTENT_SCHEMA_VERSION,
+  SEMANTIC_BUSINESS_CLARIFICATION_FIELD_IDS,
+  SEMANTIC_CLARIFICATION_QUESTIONS,
+  createOpenAIResponsesTextFormat,
   createAllowedTaxonomyOptions,
+  buildSemanticClarificationQuestions,
   createSemanticIntentRequest,
+  SEMANTIC_OUTPUT_SCHEMA_NAME,
+  SEMANTIC_REQUIRED_REQUEST_FIELDS,
+  sanitizeDiscoveryStateForSemanticRequest,
 } from "./semanticIntentContract.js";
 import { filterSemanticIntentOutput } from "./semanticIntentFilter.js";
 import { createMockSemanticIntentProvider } from "./semanticIntentMockProvider.js";
@@ -65,7 +72,19 @@ assertAccepted(validEn.result);
 assert.equal(validEn.result.locale, "en");
 assert.equal(validEn.result.intentHypotheses.every((item) => item.selected === false), true);
 assert.deepEqual(validEn.result.extractedFacts.map((item) => item.id), ["original_idea_present"]);
-assert.deepEqual(validEn.result.inferredNeedsConfirmation.map((item) => item.id), ["intent_needs_confirmation"]);
+assert.deepEqual(validEn.result.inferredNeedsConfirmation.map((item) => item.id), ["intent_and_delivery_need_confirmation"]);
+
+const sanitizedState = sanitizeDiscoveryStateForSemanticRequest({
+  originalIdea: "A service idea",
+  selectedIntent: "service",
+  suggestedIntentOptions: [{ id: "service", score: 10 }],
+  route: "normal_evaluation",
+  journeyState: "normal_evaluation",
+});
+assert.equal("suggestedIntentOptions" in sanitizedState, false);
+assert.equal(JSON.stringify(sanitizedState).includes("score"), false);
+assert.equal("route" in sanitizedState, false);
+assert.equal("journeyState" in sanitizedState, false);
 
 const validAr = await runScenario("valid_ar", "ar");
 assertAccepted(validAr.result);
@@ -77,15 +96,34 @@ assertAccepted(lowConfidence.result);
 assert.equal(lowConfidence.result.intentHypotheses.every((item) => item.requiresConfirmation === true), true);
 assert.equal(lowConfidence.result.intentHypotheses.every((item) => item.selected === false), true);
 
-assertFallback((await runScenario("invalid_schema_version", "en")).result, "unsupported_output_schema_version");
-assertFallback((await runScenario("too_many_hypotheses", "en")).result, "invalid_hypothesis_count");
+const openAITextFormat = createOpenAIResponsesTextFormat();
+assert.equal(openAITextFormat.type, "json_schema");
+assert.equal(openAITextFormat.name, SEMANTIC_OUTPUT_SCHEMA_NAME);
+assert.equal(openAITextFormat.strict, true);
+assert.equal(openAITextFormat.schema.additionalProperties, false);
+assert.deepEqual(openAITextFormat.schema.required, [
+  "schemaVersion",
+  "locale",
+  "conciseReflection",
+  "intentHypotheses",
+  "ambiguities",
+  "recommendedNextQuestion",
+  "extractedFacts",
+  "inferredNeedsConfirmation",
+  "unresolvedItems",
+  "safetySignals",
+  "reasonCodes",
+]);
+
+assertFallback((await runScenario("invalid_schema_version", "en")).result, "structured_output_schema_invalid");
+assertFallback((await runScenario("too_many_hypotheses", "en")).result, "structured_output_schema_invalid");
 assertFallback((await runScenario("duplicate_ids", "en")).result, "duplicate_hypothesis_id");
 assertFallback((await runScenario("unsupported_taxonomy_id", "en")).result, "unsupported_taxonomy_id");
 assertFallback((await runScenario("internal_id_label", "en")).result, "internal_label_exposed");
-assertFallback((await runScenario("forbidden_authority_fields", "en")).result, "unknown_output_field");
+assertFallback((await runScenario("forbidden_authority_fields", "en")).result, "structured_output_schema_invalid");
 assertFallback((await runScenario("unsupported_claim", "en")).result, "unsupported_claim");
 assertFallback((await runScenario("ungrounded_fact", "en")).result, "ungrounded_extracted_fact");
-assertFallback((await runScenario("safety_signal_decision", "en")).result, "safety_signal_authority");
+assertFallback((await runScenario("safety_signal_decision", "en")).result, "structured_output_schema_invalid");
 assertFallback((await runScenario("low_confidence_without_confirmation", "en")).result, "low_confidence_must_require_confirmation");
 
 const safetySignalOnly = await runScenario("safety_signal_only", "en");
@@ -104,6 +142,121 @@ const invalidRequest = {
   schemaVersion: "wrong",
 };
 assert.equal(validateSemanticIntentRequest(invalidRequest).ok, false);
+
+const missingFieldsRequest = {
+  locale: "ar",
+  originalIdea: "فكرة أولية تحتاج إلى فهم.",
+};
+const missingFieldsValidation = validateSemanticIntentRequest(missingFieldsRequest);
+assert.equal(missingFieldsValidation.ok, false);
+assert.ok(missingFieldsValidation.reasonCodes.includes("missing_required_fields"));
+assert.deepEqual(missingFieldsValidation.missingRequiredFields, [
+  "schemaVersion",
+  "confirmedAnswers",
+  "currentDiscoveryState",
+  "allowedTaxonomyOptions",
+  "policySafeContext",
+]);
+
+assert.deepEqual(SEMANTIC_BUSINESS_CLARIFICATION_FIELD_IDS, [
+  "selectedIntent",
+  "coreOffering",
+  "selectedOperatingApproach",
+  "selectedOperatingApproaches",
+]);
+for (const technicalFieldId of SEMANTIC_REQUIRED_REQUEST_FIELDS) {
+  assert.equal(
+    SEMANTIC_BUSINESS_CLARIFICATION_FIELD_IDS.includes(technicalFieldId),
+    false,
+    `${technicalFieldId} must remain a technical validation field, not a business clarification question`
+  );
+}
+
+assert.equal(typeof SEMANTIC_CLARIFICATION_QUESTIONS.selectedIntent.ar, "string");
+assert.equal(typeof SEMANTIC_CLARIFICATION_QUESTIONS.selectedIntent.en, "string");
+assert.equal(typeof SEMANTIC_CLARIFICATION_QUESTIONS.coreOffering.service.ar, "string");
+assert.equal(typeof SEMANTIC_CLARIFICATION_QUESTIONS.coreOffering.service.en, "string");
+assert.equal(typeof SEMANTIC_CLARIFICATION_QUESTIONS.selectedOperatingApproach.ar, "string");
+assert.equal(typeof SEMANTIC_CLARIFICATION_QUESTIONS.selectedOperatingApproaches.en, "string");
+
+const unconfirmedIntentAr = buildSemanticClarificationQuestions({
+  currentDiscoveryState: {},
+  confirmedAnswers: {},
+  locale: "ar",
+});
+const unconfirmedIntentEn = buildSemanticClarificationQuestions({
+  currentDiscoveryState: {},
+  confirmedAnswers: {},
+  locale: "en",
+});
+assert.deepEqual(unconfirmedIntentAr.map((item) => item.id), ["selectedIntent"]);
+assert.deepEqual(unconfirmedIntentEn.map((item) => item.id), ["selectedIntent"]);
+assert.equal(unconfirmedIntentAr[0].question, "أي وصف أقرب إلى طريقة عمل مشروعك؟");
+assert.equal(unconfirmedIntentEn[0].question, "Which description is closest to how your business would work?");
+assert.equal(/[\u0600-\u06ff]/u.test(unconfirmedIntentAr[0].question), true);
+assert.equal(/[\u0600-\u06ff]/u.test(unconfirmedIntentEn[0].question), false);
+assert.equal(unconfirmedIntentAr[0].question.includes("selectedIntent"), false);
+
+const coreOfferingBeforeIntent = buildSemanticClarificationQuestions({
+  currentDiscoveryState: { coreOffering: "", coreOfferingStatus: "missing" },
+  locale: "en",
+});
+assert.deepEqual(coreOfferingBeforeIntent.map((item) => item.id), ["selectedIntent"]);
+
+const coreOfferingServiceAr = buildSemanticClarificationQuestions({
+  currentDiscoveryState: { selectedIntent: "service" },
+  locale: "ar",
+});
+const coreOfferingServiceEn = buildSemanticClarificationQuestions({
+  currentDiscoveryState: { selectedIntent: "service" },
+  locale: "en",
+});
+assert.deepEqual(coreOfferingServiceAr.map((item) => item.id), ["coreOffering"]);
+assert.deepEqual(coreOfferingServiceEn.map((item) => item.id), ["coreOffering"]);
+assert.equal(coreOfferingServiceAr[0].question, "ما الخدمة الأساسية التي سيحصل عليها العميل؟");
+assert.equal(coreOfferingServiceEn[0].question, "What main service will the customer receive?");
+
+const operatingBeforeCoreOffering = buildSemanticClarificationQuestions({
+  currentDiscoveryState: { selectedIntent: "service", selectedOperatingApproach: "" },
+  locale: "en",
+});
+assert.deepEqual(operatingBeforeCoreOffering.map((item) => item.id), ["coreOffering"]);
+
+const operatingQuestionAr = buildSemanticClarificationQuestions({
+  currentDiscoveryState: {
+    selectedIntent: "service",
+    coreOffering: "تنظيف السيارات",
+    coreOfferingStatus: "provided",
+  },
+  locale: "ar",
+});
+assert.deepEqual(operatingQuestionAr.map((item) => item.id), ["selectedOperatingApproach"]);
+assert.equal(operatingQuestionAr[0].question, "كيف سيحصل العميل على ما يقدمه المشروع؟");
+
+const mixedQuestionEn = buildSemanticClarificationQuestions({
+  currentDiscoveryState: {
+    selectedIntent: "service",
+    coreOffering: "Car care",
+    coreOfferingStatus: "provided",
+    selectedOperatingApproach: "mixed",
+    selectedOperatingApproaches: ["fixed_location"],
+  },
+  locale: "en",
+});
+assert.deepEqual(mixedQuestionEn.map((item) => item.id), ["selectedOperatingApproaches"]);
+assert.equal(mixedQuestionEn[0].question, "Which delivery approaches do you mean?");
+
+const completeClarification = buildSemanticClarificationQuestions({
+  currentDiscoveryState: {
+    selectedIntent: "service",
+    coreOffering: "Car care",
+    coreOfferingStatus: "provided",
+    selectedOperatingApproach: "mixed",
+    selectedOperatingApproaches: ["fixed_location", "customer_site"],
+  },
+  locale: "en",
+});
+assert.deepEqual(completeClarification, []);
 
 const requestWithForbiddenAuthority = makeRequest("en", {
   policySafeContext: {
@@ -140,7 +293,7 @@ const unknownOutput = filterSemanticIntentOutput({
     selectedRoute: "normal_evaluation",
   },
 });
-assertFallback(unknownOutput, "unknown_output_field");
+assertFallback(unknownOutput, "structured_output_schema_invalid");
 
 const sourceFiles = [
   "semanticIntentContract.js",
@@ -154,7 +307,7 @@ for (const file of sourceFiles) {
   assert.equal(/fetch\s*\(/.test(source), false, `${file} must not call fetch`);
   assert.equal(/XMLHttpRequest/.test(source), false, `${file} must not use XMLHttpRequest`);
   assert.equal(/process\.env|import\.meta\.env/.test(source), false, `${file} must not read environment secrets`);
-  assert.equal(/openai|sk-[a-z0-9]|secret\s*[:=]/i.test(source), false, `${file} must not contain provider secrets or OpenAI wiring`);
+  assert.equal(/sk-[a-z0-9]|secret\s*[:=]/i.test(source), false, `${file} must not contain provider secrets`);
 }
 
 console.log("Semantic intent contract tests: PASS");

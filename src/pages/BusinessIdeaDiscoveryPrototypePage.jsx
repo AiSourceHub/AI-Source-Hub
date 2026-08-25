@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { renderHeader } from '../../components/Header/index.js';
 import { renderFooter } from '../../components/Footer/index.js';
 import { applyDocumentLocale, bindLanguageSwitcher, getFooterContent, getHeaderContent } from '../../core/localization.js';
@@ -18,19 +19,35 @@ import {
   updateMixedOperatingSelection,
   validateDiscoveryStep,
 } from '../../products/business/idea-validator/intentDiscoveryPrototype.js';
+import { createSemanticIntentRequest } from '../../products/business/idea-validator/semanticIntentContract.js';
+import { createMockSemanticIntentProvider } from '../../products/business/idea-validator/semanticIntentMockProvider.js';
+import { buildDeterministicIntentPresentation, buildSemanticIntentPresentation } from '../../products/business/idea-validator/semanticIntentPresentation.js';
+import { interpretWithSemanticProvider } from '../../products/business/idea-validator/semanticIntentProvider.js';
 
 function BusinessIdeaDiscoveryPrototypePage({ locale }) {
+  const location = useLocation();
   const { language } = locale;
   const content = discoveryContent[language] || discoveryContent.en;
   const [step, setStep] = useState('idea');
   const [state, setState] = useState(createInitialDiscoveryState);
   const [error, setError] = useState('');
+  const [semanticStatus, setSemanticStatus] = useState('idle');
+  const [semanticPresentation, setSemanticPresentation] = useState(null);
+  const semanticParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
+  const semanticScenario = semanticParams.get('semanticScenario') || 'valid';
+  const semanticLocale = semanticParams.get('lang') || semanticParams.get('locale');
 
   useEffect(() => {
     applyDocumentLocale(language);
   }, [language]);
 
   useEffect(() => bindLanguageSwitcher({ language, setLanguage: locale.setLanguage }), [language, locale.setLanguage]);
+
+  useEffect(() => {
+    if ((semanticLocale === 'ar' || semanticLocale === 'en') && semanticLocale !== language) {
+      locale.setLanguage(semanticLocale);
+    }
+  }, [language, locale, semanticLocale]);
 
   const headerHtml = useMemo(
     () => renderHeader(getHeaderContent(language, []), language),
@@ -40,7 +57,8 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
     () => renderFooter(getFooterContent(language, content.title)),
     [language, content.title]
   );
-  const intentChoices = useMemo(() => getIntentChoices(state), [state]);
+  const deterministicIntentChoices = useMemo(() => getIntentChoices(state), [state]);
+  const intentChoices = semanticPresentation?.choices || deterministicIntentChoices;
   const operatingChoices = useMemo(() => getOperatingChoices(state.selectedIntent), [state.selectedIntent]);
   const mixedOperatingChoices = useMemo(() => getMixedOperatingChoices(), []);
   const summary = useMemo(() => buildUnderstandingSummary(state, language), [state, language]);
@@ -53,6 +71,8 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
       originalIdea: value,
       confirmationStatus: 'not_confirmed',
     }));
+    setSemanticStatus('idle');
+    setSemanticPresentation(null);
     setError('');
   };
 
@@ -114,9 +134,49 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
       setError(validation.error);
       return;
     }
-    setState(buildDiscoveryState({ ...state, confirmationStatus: 'not_confirmed' }));
+    const nextState = buildDiscoveryState({ ...state, confirmationStatus: 'not_confirmed' });
+    setState(nextState);
     setError('');
     setStep('intent');
+    runSemanticIntentInterpretation(nextState);
+  };
+
+  const runSemanticIntentInterpretation = async (nextState) => {
+    if (semanticScenario === 'deterministic') {
+      setSemanticPresentation(buildDeterministicIntentPresentation({
+        choices: getIntentChoices(nextState),
+        locale: language,
+      }));
+      setSemanticStatus('ready');
+      return;
+    }
+
+    setSemanticStatus('loading');
+    setSemanticPresentation(null);
+    const request = createSemanticIntentRequest({
+      locale: language,
+      originalIdea: nextState.originalIdea,
+      confirmedAnswers: {
+        selectedIntent: nextState.selectedIntent,
+        coreOffering: nextState.coreOffering,
+        coreOfferingStatus: nextState.coreOfferingStatus,
+        selectedOperatingApproach: nextState.selectedOperatingApproach,
+        selectedOperatingApproaches: nextState.selectedOperatingApproaches,
+      },
+      currentDiscoveryState: nextState,
+      policySafeContext: {
+        prototypeOnly: true,
+        providerCannotControlRoute: true,
+      },
+    });
+    const provider = createMockSemanticIntentProvider({ scenario: resolveSemanticScenario(semanticScenario, language) });
+    const filteredResult = await interpretWithSemanticProvider(provider, request);
+    setSemanticPresentation(buildSemanticIntentPresentation({
+      filteredResult,
+      request,
+      locale: language,
+    }));
+    setSemanticStatus('ready');
   };
 
   const goToOperating = () => {
@@ -166,6 +226,8 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
   const reset = () => {
     setState(createInitialDiscoveryState());
     setStep('idea');
+    setSemanticStatus('idle');
+    setSemanticPresentation(null);
     setError('');
   };
 
@@ -215,24 +277,37 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
 
               {step === 'intent' ? (
                 <div className="discovery-step">
-                  <h2 id="discovery-title">{content.states.intent.heading}</h2>
-                  <p className="validator-intro">{content.states.intent.body}</p>
-                  <ChoiceList
-                    choices={intentChoices}
-                    labels={content.intentOptions}
-                    selectedId={state.selectedIntent}
-                    suggestedLabel={content.states.intent.suggested}
-                    onSelect={selectIntent}
-                  />
-                  <span className="field__error">{error}</span>
-                  <div className="validator-actions">
-                    <button className="button button--secondary" type="button" onClick={() => setStep('idea')}>
-                      {content.actions.back}
-                    </button>
-                    <button className="button button--primary" type="button" onClick={goToOperating}>
-                      {content.actions.continue}
-                    </button>
-                  </div>
+                  {semanticStatus === 'loading' ? (
+                    <div className="semantic-intent-panel" role="status" aria-live="polite">
+                      <h2 id="discovery-title">{content.states.intent.heading}</h2>
+                      <p className="validator-intro">{content.semanticIntent.loading}</p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="semantic-intent-panel">
+                        <h2 id="discovery-title">{semanticPresentation?.heading || content.states.intent.heading}</h2>
+                        {semanticPresentation?.body ? <p className="validator-intro">{semanticPresentation.body}</p> : null}
+                        {semanticPresentation?.reflection ? <p className="semantic-intent-panel__reflection">{semanticPresentation.reflection}</p> : null}
+                        <p className="validator-intro">{semanticPresentation?.question || content.states.intent.body}</p>
+                      </div>
+                      <ChoiceList
+                        choices={intentChoices}
+                        labels={content.intentOptions}
+                        selectedId={state.selectedIntent}
+                        suggestedLabel={content.states.intent.suggested}
+                        onSelect={selectIntent}
+                      />
+                      <span className="field__error">{error}</span>
+                      <div className="validator-actions">
+                        <button className="button button--secondary" type="button" onClick={() => setStep('idea')}>
+                          {content.actions.back}
+                        </button>
+                        <button className="button button--primary" type="button" onClick={goToOperating}>
+                          {content.actions.continue}
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
               ) : null}
 
@@ -377,7 +452,10 @@ function ChoiceList({ choices, labels, selectedId, suggestedLabel = '', onSelect
           aria-checked={selectedId === choice.id}
           onClick={() => onSelect(choice.id)}
         >
-          <span>{labels[choice.id]}</span>
+          <span className="discovery-choice__copy">
+            <span>{choice.label || labels[choice.id]}</span>
+            {choice.rationale ? <span className="discovery-choice__rationale">{choice.rationale}</span> : null}
+          </span>
           {choice.suggested ? <span className="discovery-choice__badge">{suggestedLabel}</span> : null}
         </button>
       ))}
@@ -401,6 +479,16 @@ function MultiChoiceList({ choices, labels, selectedIds, onToggle }) {
       ))}
     </div>
   );
+}
+
+function resolveSemanticScenario(scenario, language) {
+  if (scenario === 'valid_ar') return 'valid_ar';
+  if (scenario === 'valid_en') return 'valid_en';
+  if (scenario === 'low_confidence') return 'low_confidence_ambiguity';
+  if (scenario === 'forbidden') return 'forbidden_authority_fields';
+  if (scenario === 'timeout') return 'timeout';
+  if (scenario === 'error') return 'error';
+  return language === 'ar' ? 'valid_ar' : 'valid_en';
 }
 
 export default BusinessIdeaDiscoveryPrototypePage;

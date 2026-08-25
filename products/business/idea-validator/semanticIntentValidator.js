@@ -2,6 +2,8 @@ import {
   FORBIDDEN_SEMANTIC_AUTHORITY_FIELDS,
   FORBIDDEN_SEMANTIC_REQUEST_FIELDS,
   SEMANTIC_INTENT_SCHEMA_VERSION,
+  SEMANTIC_INTENT_RESPONSE_JSON_SCHEMA,
+  SEMANTIC_REQUIRED_REQUEST_FIELDS,
   SEMANTIC_REQUEST_FIELDS,
   SUPPORTED_SEMANTIC_LOCALES,
 } from "./semanticIntentContract.js";
@@ -9,6 +11,7 @@ import {
 export function validateSemanticIntentRequest(request = {}) {
   const errors = [];
   const reasonCodes = [];
+  const missingRequiredFields = [];
 
   if (!isPlainObject(request)) {
     return fail("request_not_object", "Semantic request must be an object.");
@@ -18,6 +21,14 @@ export function validateSemanticIntentRequest(request = {}) {
     if (!SEMANTIC_REQUEST_FIELDS.includes(key)) {
       errors.push(`Unknown request field: ${key}`);
       reasonCodes.push("unknown_request_field");
+    }
+  }
+
+  for (const field of SEMANTIC_REQUIRED_REQUEST_FIELDS) {
+    if (!(field in request)) {
+      errors.push(`Missing required request field: ${field}`);
+      reasonCodes.push("missing_required_fields");
+      missingRequiredFields.push(field);
     }
   }
 
@@ -84,10 +95,11 @@ export function validateSemanticIntentRequest(request = {}) {
     ok: errors.length === 0,
     errors,
     reasonCodes: [...new Set(reasonCodes)],
+    missingRequiredFields,
   };
 
   function fail(reasonCode, message) {
-    return { ok: false, errors: [message], reasonCodes: [reasonCode] };
+    return { ok: false, errors: [message], reasonCodes: [reasonCode], missingRequiredFields: [] };
   }
 }
 
@@ -115,3 +127,76 @@ export function isPlainObject(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
+export function validateSemanticIntentStructuredOutput(output = {}) {
+  const errors = [];
+  validateAgainstSchema(output, SEMANTIC_INTENT_RESPONSE_JSON_SCHEMA, "output", errors);
+  return {
+    ok: errors.length === 0,
+    errors,
+    reasonCodes: errors.length ? ["structured_output_schema_invalid"] : [],
+  };
+}
+
+function validateAgainstSchema(value, schema, path, errors) {
+  if (schema.anyOf) {
+    const branchErrors = schema.anyOf.map((branch) => {
+      const nestedErrors = [];
+      validateAgainstSchema(value, branch, path, nestedErrors);
+      return nestedErrors;
+    });
+    if (branchErrors.some((nestedErrors) => nestedErrors.length === 0)) return;
+    errors.push(`${path} does not match any allowed schema branch.`);
+    return;
+  }
+
+  if (schema.type === "null") {
+    if (value !== null) errors.push(`${path} must be null.`);
+    return;
+  }
+
+  if (schema.type === "array") {
+    if (!Array.isArray(value)) {
+      errors.push(`${path} must be an array.`);
+      return;
+    }
+    if (typeof schema.minItems === "number" && value.length < schema.minItems) {
+      errors.push(`${path} must contain at least ${schema.minItems} items.`);
+    }
+    if (typeof schema.maxItems === "number" && value.length > schema.maxItems) {
+      errors.push(`${path} must contain at most ${schema.maxItems} items.`);
+    }
+    value.forEach((item, index) => validateAgainstSchema(item, schema.items || {}, `${path}[${index}]`, errors));
+    return;
+  }
+
+  if (schema.type === "object") {
+    if (!isPlainObject(value)) {
+      errors.push(`${path} must be an object.`);
+      return;
+    }
+    const required = schema.required || [];
+    for (const key of required) {
+      if (!(key in value)) errors.push(`${path}.${key} is required.`);
+    }
+    if (schema.additionalProperties === false) {
+      for (const key of Object.keys(value)) {
+        if (!schema.properties || !(key in schema.properties)) {
+          errors.push(`${path}.${key} is not allowed.`);
+        }
+      }
+    }
+    for (const [key, nestedSchema] of Object.entries(schema.properties || {})) {
+      if (key in value) validateAgainstSchema(value[key], nestedSchema, `${path}.${key}`, errors);
+    }
+    return;
+  }
+
+  if (schema.type && typeof value !== schema.type) {
+    errors.push(`${path} must be ${schema.type}.`);
+    return;
+  }
+
+  if (schema.enum && !schema.enum.includes(value)) {
+    errors.push(`${path} must be one of: ${schema.enum.join(", ")}.`);
+  }
+}

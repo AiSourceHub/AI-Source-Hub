@@ -25,7 +25,10 @@ export function buildScenarioOutput(request, scenario = "valid") {
   const locale = request.locale === "ar" ? "ar" : "en";
   const valid = buildValidOutput(request);
 
-  if (scenario === "valid" || scenario === "valid_en" || scenario === "valid_ar") return valid;
+  if (scenario === "valid" || scenario === "valid_en" || scenario === "valid_ar") {
+    if (scenario === "valid_ar" || scenario === "valid_en") return buildFixtureValidOutput(request);
+    return valid;
+  }
   if (scenario === "low_confidence_ambiguity") {
     return {
       ...valid,
@@ -195,6 +198,8 @@ function buildValidOutput(request) {
       {
         id: "intent_needs_confirmation",
         label: locale === "ar" ? "دور المشروع يحتاج إلى تأكيد." : "The business role needs confirmation.",
+        sourceField: "originalIdea",
+        sourceText: request.originalIdea || "",
         evidenceStrength: "weak",
       },
     ],
@@ -207,6 +212,101 @@ function buildValidOutput(request) {
     safetySignals: [],
     reasonCodes: ["mock_valid_semantic_intent"],
   };
+}
+
+function buildFixtureValidOutput(request) {
+  const locale = request.locale === "ar" ? "ar" : "en";
+  const optionById = new Map((request.allowedTaxonomyOptions || []).map((option) => [option.id, option]));
+  const fixtureOrder = ["service", "marketplace", "retail"];
+  return {
+    schemaVersion: SEMANTIC_INTENT_SCHEMA_VERSION,
+    locale,
+    conciseReflection: locale === "ar"
+      ? "يبدو أن الوصف يشير إلى مشروع يحتاج إلى تأكيد طريقة تقديم القيمة للعميل قبل المتابعة."
+      : "The description points to a business idea that needs confirmation of how value is delivered before continuing.",
+    intentHypotheses: fixtureOrder
+      .map((intentId, index) => {
+        const option = optionById.get(intentId);
+        if (!option) return null;
+        return {
+          id: `fixture_hypothesis_${index + 1}`,
+          intentId,
+          label: option.label,
+          rationale: locale === "ar"
+            ? buildArabicFixtureRationale(intentId)
+            : buildEnglishFixtureRationale(intentId),
+          confidence: index === 0 ? "medium" : "low",
+          groundingRefs: request.originalIdea ? [{ sourceField: "originalIdea", sourceText: request.originalIdea }] : [],
+          requiresConfirmation: true,
+        };
+      })
+      .filter(Boolean),
+    ambiguities: [
+      {
+        id: "delivery_model_needs_confirmation",
+        label: locale === "ar"
+          ? "طريقة تقديم الخدمة أو القيمة تحتاج إلى تأكيد المستخدم."
+          : "The delivery model still needs user confirmation.",
+        requiresConfirmation: true,
+      },
+    ],
+    recommendedNextQuestion: {
+      id: "confirm_intent",
+      targetField: "selectedIntent",
+      question: locale === "ar" ? "أي وصف أقرب إلى ما تقصده؟" : "Which description is closest to what you mean?",
+      answerType: "single_choice",
+      options: fixtureOrder
+        .map((intentId) => optionById.get(intentId))
+        .filter(Boolean)
+        .map((option) => ({ id: option.id, label: option.label })),
+      whyItMatters: locale === "ar"
+        ? "اختيار الوصف الصحيح يحدد السؤال التالي من دون افتراضات."
+        : "Choosing the right description selects the next question without assumptions.",
+      blocksProgress: true,
+    },
+    extractedFacts: [
+      {
+        id: "original_idea_present",
+        label: locale === "ar" ? "قدّم المستخدم وصفاً أولياً للفكرة." : "The user provided an initial idea description.",
+        sourceField: "originalIdea",
+        sourceText: request.originalIdea || "",
+        evidenceStrength: "medium",
+      },
+    ],
+    inferredNeedsConfirmation: [
+      {
+        id: "intent_and_delivery_need_confirmation",
+        label: locale === "ar"
+          ? "دور المشروع وطريقة تقديمه يحتاجان إلى تأكيد."
+          : "The business role and delivery approach need confirmation.",
+        sourceField: "originalIdea",
+        sourceText: request.originalIdea || "",
+        evidenceStrength: "weak",
+      },
+    ],
+    unresolvedItems: [
+      {
+        id: "intent_unresolved",
+        label: locale === "ar" ? "الوصف الأقرب للمشروع يحتاج إلى اختيار المستخدم." : "The closest business description needs the user's choice.",
+      },
+    ],
+    safetySignals: [],
+    reasonCodes: ["mock_fixture_valid_semantic_intent"],
+  };
+}
+
+function buildArabicFixtureRationale(intentId) {
+  if (intentId === "service") return "قد يكون المشروع خدمة مباشرة إذا كان العميل يحصل على عناية أو إنجاز محدد.";
+  if (intentId === "marketplace") return "قد يكون منصة إذا كان الهدف ربط طرفين يحتاج كل منهما إلى الآخر.";
+  if (intentId === "retail") return "قد يتضمن بيع منتجات إذا كان جزء من القيمة قائماً على سلع أو مستلزمات.";
+  return "هذا احتمال يحتاج إلى تأكيد المستخدم.";
+}
+
+function buildEnglishFixtureRationale(intentId) {
+  if (intentId === "service") return "It may be a direct service if the customer receives a specific task or care outcome.";
+  if (intentId === "marketplace") return "It may be a platform if the goal is to connect two sides that need each other.";
+  if (intentId === "retail") return "It may include product sales if part of the value depends on goods or supplies.";
+  return "This possibility needs user confirmation.";
 }
 
 function createHypothesis(request, index) {
@@ -228,4 +328,3 @@ function createHypothesis(request, index) {
     requiresConfirmation: true,
   };
 }
-

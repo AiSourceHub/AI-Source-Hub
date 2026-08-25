@@ -84,6 +84,14 @@ export const discoveryContent = {
         confirmed: "We now have a clearer foundation for asking questions that fit your idea.",
       },
     },
+    semanticIntent: {
+      loading: "We are reviewing your description to find the closest ways to understand the idea...",
+      validHeading: "This is what we understand so far",
+      choiceQuestion: "Which description is closest to what you mean?",
+      lowConfidenceHeading: "We found more than one possibility",
+      lowConfidenceBody: "We found more than one possibility and need your choice before continuing correctly.",
+      fallbackBody: "Let us define the idea step by step. Choose the closest description of how the business would work.",
+    },
     progress: "Step {current} of {total}",
     validation: {
       ideaRequired: "Add a short idea before continuing.",
@@ -194,6 +202,14 @@ export const discoveryContent = {
         complete: "اكتملت المعلومات الأساسية المطلوبة لهذه المرحلة.",
         confirmed: "أصبح لدينا الآن أساس أوضح لطرح الأسئلة المناسبة لفكرتك.",
       },
+    },
+    semanticIntent: {
+      loading: "نراجع وصفك لنحدد أقرب الطرق لفهم الفكرة...",
+      validHeading: "هذا ما فهمناه مبدئيًا",
+      choiceQuestion: "أي وصف أقرب إلى ما تقصده؟",
+      lowConfidenceHeading: "وجدنا أكثر من احتمال",
+      lowConfidenceBody: "وجدنا أكثر من احتمال، ونحتاج اختيارك حتى نكمل بصورة صحيحة.",
+      fallbackBody: "لنحدد الفكرة خطوة بخطوة. اختر الوصف الأقرب لطريقة عمل المشروع.",
     },
     progress: "الخطوة {current} من {total}",
     validation: {

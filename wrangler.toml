@@ -1,0 +1,9 @@
+name = "ai-source-hub-biv-semantic"
+main = "workers/biv-semantic-intent-worker.js"
+compatibility_date = "2026-08-23"
+
+[vars]
+BIV_SEMANTIC_PROVIDER_MODE = "mock"
+BIV_ALLOW_LIVE_OPENAI = "false"
+BIV_SEMANTIC_STUB_SCENARIO = "valid"
+BIV_OPENAI_MODEL = "server-selected-model"

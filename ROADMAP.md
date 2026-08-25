@@ -181,12 +181,14 @@ A product is complete only when:
 ### Now
 
 - Business Idea Validator v2 Phase 3 Boundary 2A is locally accepted: Unicode-safe classification evidence matching fixed the false healthcare match where `طبي` matched inside `طبيعة`, and `classificationEvidence.js` now supplies traceable evidence records. Vague inputs may intentionally remain `generic` / `unknown`; legacy matchers remain in `feasibilityFoundation.js` and `requestUnderstanding.js`, and the current generic/unknown user-facing experience is not approved for production.
-- Guided Discovery Iteration 2 exists as an isolated local prototype only. Manual QA passed for the service-idea path: idea capture → intent selection → core offering → operating approach → summary. It is not connected to production Business Idea Validator, is not exposed in public navigation, and does not include semantic AI/API integration, scoring, reports, research, eligibility changes, or deployment approval.
+- Guided Discovery Iteration 2 exists as an isolated local prototype only. Manual QA passed for the service-idea path: idea capture → intent selection → core offering → operating approach → summary. It is not connected to production Business Idea Validator, is not exposed in public navigation, and does not include live semantic AI/API integration, scoring, reports, research, eligibility changes, or deployment approval.
+- Guided Discovery semantic discovery and Worker foundation is implemented locally. The flow preserves BIV Semantic Input V1 and Output V1, keeps mock mode as the default, validates provider output before BIV presentation, separates technical validation errors from user-answerable business clarification questions, and returns relevant Arabic/English clarification questions in this order: `selectedIntent` → `coreOffering` → `selectedOperatingApproach` → `selectedOperatingApproaches` when mixed.
+- The Cloudflare Worker `biv-semantic-intent` already exists on workers.dev in mock mode from Session 02, but the newly validated repository changes are not yet deployed to that Worker. The OpenAI path remains disabled, no API key exists or was used, and no DNS or custom-domain change has been made.
 
 ### Next
 
-- Semantic contract and mock for Guided Discovery. Define schema, fixtures, and mock provider behavior before any live provider call.
-- Backend-only semantic provider adapter plan. Keep secrets out of the browser and preserve BIV as the authority.
+- Deploy the updated `biv-semantic-intent` Cloudflare Worker in mock mode and verify the workers.dev endpoint in Arabic and English.
+- Keep secrets out of the browser and preserve BIV as the authority before any later controlled live provider call.
 - Shadow-mode AI interpretation. Compare provider interpretation against deterministic behavior without changing production routing.
 - Bilingual evaluation and user-confirmation integration. Validate Arabic/English hypotheses, corrections, and answer preservation before controlled local activation.
 - Controlled local activation only after the contract, mocks, evaluation, fallback, and owner approval are complete.
@@ -237,4 +239,4 @@ A product is complete only when:
 | Product Suite | Current | 35% | Stabilize active products before adding the next product. |
 | Quality and Release Candidate | Completed | 100% | Preserve regression checks while planning the next product. |
 | Public Launch | Completed | 100% | Prepare public launch communication and post-launch monitoring. |
-| Business Idea Validator v2 | Guided Discovery Iteration 2 isolated local prototype accepted; not production-approved | Phase 2 central orchestration hardening + Phase 3 beginner/classification confirmation + canonical journey-state rendering + Boundary 2A Unicode-safe classification evidence matching + isolated guided discovery prototype | Build the semantic contract and mock provider plan before backend adapter, shadow-mode evaluation, user-confirmation integration, or controlled activation. |
+| Business Idea Validator v2 | Guided Discovery semantic discovery and Worker foundation ready for local checkpoint; not production-approved | Phase 2 central orchestration hardening + Phase 3 beginner/classification confirmation + canonical journey-state rendering + Boundary 2A Unicode-safe classification evidence matching + isolated guided discovery prototype + semantic contract/mock/filter + secure Worker boundary with OpenAI disabled | Deploy the updated Worker in mock mode on workers.dev and verify Arabic/English endpoint behavior before any live provider call or production BIV connection. |
