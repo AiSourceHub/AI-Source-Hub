@@ -59,7 +59,62 @@ assert.equal(validResponse.body.schema, "biv_intent_discovery_v1_output");
 assert.deepEqual(validResponse.body.clarification_questions.map((item) => item.id), ["selectedIntent"]);
 assert.equal(validResponse.body.result.status, "accepted");
 assert.equal(validResponse.body.result.schemaVersion, SEMANTIC_INTENT_SCHEMA_VERSION);
+assert.deepEqual(validResponse.body.result.intentHypotheses.map((item) => item.id), [
+  "semantic_hypothesis_1",
+  "semantic_hypothesis_2",
+  "semantic_hypothesis_3",
+]);
+assert.deepEqual(validResponse.body.result.intentHypotheses.map((item) => item.intentId), ["service", "marketplace", "retail"]);
 assert.equal("errors" in validResponse.body.result, false);
+
+const arabicDefaultResponse = await handleBivSemanticIntentEndpoint(makeHttpRequest(makeSemanticRequest({
+  locale: "ar",
+  originalIdea: "فكرة خدمة محلية بسيطة.",
+})));
+assert.equal(arabicDefaultResponse.status, 200);
+assert.deepEqual(arabicDefaultResponse.body.result.intentHypotheses.map((item) => item.id), validResponse.body.result.intentHypotheses.map((item) => item.id));
+assert.deepEqual(arabicDefaultResponse.body.result.intentHypotheses.map((item) => item.intentId), validResponse.body.result.intentHypotheses.map((item) => item.intentId));
+assert.notEqual(arabicDefaultResponse.body.result.intentHypotheses[0].label, validResponse.body.result.intentHypotheses[0].label);
+
+const trustedLowConfidenceResponse = await handleBivSemanticIntentEndpoint(
+  makeHttpRequest(makeSemanticRequest()),
+  { stubScenario: "low_confidence" }
+);
+assert.equal(trustedLowConfidenceResponse.status, 200);
+assert.equal(trustedLowConfidenceResponse.body.result.status, "accepted");
+assert.ok(trustedLowConfidenceResponse.body.result.reasonCodes.includes("mock_low_confidence"));
+assert.equal(trustedLowConfidenceResponse.body.result.intentHypotheses.every((item) => item.confidence === "low"), true);
+
+const trustedForbiddenAuthorityResponse = await handleBivSemanticIntentEndpoint(
+  makeHttpRequest(makeSemanticRequest()),
+  { stubScenario: "forbidden_authority_fields" }
+);
+assert.equal(trustedForbiddenAuthorityResponse.status, 200);
+assert.equal(trustedForbiddenAuthorityResponse.body.ok, false);
+assert.equal(trustedForbiddenAuthorityResponse.body.result.status, "fallback");
+assert.ok(trustedForbiddenAuthorityResponse.body.result.reasonCodes.includes("structured_output_schema_invalid"));
+
+const browserJsonScenarioAttempt = await handleBivSemanticIntentEndpoint(makeHttpRequest(makeSemanticRequest({
+  policySafeContext: {
+    eligibilityStatus: "biv_owned",
+    BIV_SEMANTIC_STUB_SCENARIO: "forbidden_authority_fields",
+    mockScenario: "forbidden_authority_fields",
+  },
+})));
+assert.equal(browserJsonScenarioAttempt.status, 200);
+assert.equal(browserJsonScenarioAttempt.body.result.status, "accepted");
+assert.ok(browserJsonScenarioAttempt.body.result.reasonCodes.includes("mock_fixture_valid_semantic_intent"));
+
+const browserHeaderScenarioAttempt = await handleBivSemanticIntentEndpoint(makeHttpRequest(makeSemanticRequest(), {
+  headers: {
+    "content-type": "application/json",
+    "x-biv-semantic-stub-scenario": "forbidden_authority_fields",
+    "biv-semantic-stub-scenario": "low_confidence",
+  },
+}));
+assert.equal(browserHeaderScenarioAttempt.status, 200);
+assert.equal(browserHeaderScenarioAttempt.body.result.status, "accepted");
+assert.ok(browserHeaderScenarioAttempt.body.result.reasonCodes.includes("mock_fixture_valid_semantic_intent"));
 
 const malformedResponse = await handleBivSemanticIntentEndpoint(makeHttpRequest("{not json"));
 assert.equal(malformedResponse.status, 400);

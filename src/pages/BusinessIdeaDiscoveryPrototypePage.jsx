@@ -491,7 +491,7 @@ function MultiChoiceList({ choices, labels, selectedIds, onToggle }) {
 function resolveSemanticScenario(scenario, language) {
   if (scenario === 'valid_ar') return 'valid_ar';
   if (scenario === 'valid_en') return 'valid_en';
-  if (scenario === 'low_confidence') return 'low_confidence_ambiguity';
+  if (scenario === 'low_confidence') return 'low_confidence';
   if (scenario === 'forbidden') return 'forbidden_authority_fields';
   if (scenario === 'timeout') return 'timeout';
   if (scenario === 'error') return 'error';

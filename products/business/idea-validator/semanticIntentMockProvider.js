@@ -1,6 +1,14 @@
 import { createSemanticIntentProvider } from "./semanticIntentProvider.js";
 import { SEMANTIC_INTENT_SCHEMA_VERSION } from "./semanticIntentContract.js";
 
+export const SEMANTIC_MOCK_SCENARIOS = Object.freeze({
+  VALID: "valid",
+  LOW_CONFIDENCE: "low_confidence",
+  FORBIDDEN_AUTHORITY_FIELDS: "forbidden_authority_fields",
+});
+
+export const TRUSTED_SEMANTIC_MOCK_SCENARIOS = Object.freeze(Object.values(SEMANTIC_MOCK_SCENARIOS));
+
 export function createMockSemanticIntentProvider({
   scenario = "valid",
   delayMs = 0,
@@ -21,15 +29,22 @@ export function createMockSemanticIntentProvider({
   });
 }
 
+export function normalizeTrustedSemanticMockScenario(scenario = SEMANTIC_MOCK_SCENARIOS.VALID) {
+  if (scenario === "valid_ar" || scenario === "valid_en") return SEMANTIC_MOCK_SCENARIOS.VALID;
+  if (scenario === "low_confidence_ambiguity") return SEMANTIC_MOCK_SCENARIOS.LOW_CONFIDENCE;
+  return TRUSTED_SEMANTIC_MOCK_SCENARIOS.includes(scenario)
+    ? scenario
+    : SEMANTIC_MOCK_SCENARIOS.VALID;
+}
+
 export function buildScenarioOutput(request, scenario = "valid") {
   const locale = request.locale === "ar" ? "ar" : "en";
   const valid = buildValidOutput(request);
 
   if (scenario === "valid" || scenario === "valid_en" || scenario === "valid_ar") {
-    if (scenario === "valid_ar" || scenario === "valid_en") return buildFixtureValidOutput(request);
     return valid;
   }
-  if (scenario === "low_confidence_ambiguity") {
+  if (scenario === "low_confidence" || scenario === "low_confidence_ambiguity") {
     return {
       ...valid,
       intentHypotheses: valid.intentHypotheses.map((hypothesis) => ({
@@ -45,6 +60,15 @@ export function buildScenarioOutput(request, scenario = "valid") {
         },
       ],
       reasonCodes: ["mock_low_confidence"],
+    };
+  }
+  if (scenario === "forbidden_authority_fields") {
+    return {
+      ...valid,
+      route: "normal_evaluation",
+      score: 82,
+      paymentDecision: "paid_report",
+      eligibilityDecision: "eligible",
     };
   }
   if (scenario === "invalid_schema_version") {
@@ -87,15 +111,6 @@ export function buildScenarioOutput(request, scenario = "valid") {
         { ...valid.intentHypotheses[0], label: "marketplace_platform" },
         valid.intentHypotheses[1],
       ],
-    };
-  }
-  if (scenario === "forbidden_authority_fields") {
-    return {
-      ...valid,
-      route: "normal_evaluation",
-      score: 82,
-      paymentDecision: "paid_report",
-      eligibilityDecision: "eligible",
     };
   }
   if (scenario === "unsupported_claim") {
@@ -159,59 +174,7 @@ export function buildScenarioOutput(request, scenario = "valid") {
 }
 
 function buildValidOutput(request) {
-  const locale = request.locale === "ar" ? "ar" : "en";
-  return {
-    schemaVersion: SEMANTIC_INTENT_SCHEMA_VERSION,
-    locale,
-    conciseReflection: locale === "ar"
-      ? "أفهم أن لديك فكرة تحتاج إلى تحديد دور المشروع قبل الأسئلة التالية."
-      : "I understand that the idea needs a clearer business role before the next questions.",
-    intentHypotheses: [
-      createHypothesis(request, 0),
-      createHypothesis(request, 1),
-    ],
-    ambiguities: [],
-    recommendedNextQuestion: {
-      id: "confirm_intent",
-      targetField: "selectedIntent",
-      question: locale === "ar" ? "أي وصف أقرب لطريقة عمل المشروع؟" : "Which description is closest to how the business works?",
-      answerType: "single_choice",
-      options: (request.allowedTaxonomyOptions || []).slice(0, 3).map((option) => ({
-        id: option.id,
-        label: option.label,
-      })),
-      whyItMatters: locale === "ar"
-        ? "يساعد هذا على اختيار الأسئلة التالية من دون تخمين."
-        : "This helps choose the next questions without guessing.",
-      blocksProgress: true,
-    },
-    extractedFacts: [
-      {
-        id: "original_idea_present",
-        label: locale === "ar" ? "قدّم المستخدم وصفاً أولياً للفكرة." : "The user provided an initial idea description.",
-        sourceField: "originalIdea",
-        sourceText: request.originalIdea || "",
-        evidenceStrength: "medium",
-      },
-    ],
-    inferredNeedsConfirmation: [
-      {
-        id: "intent_needs_confirmation",
-        label: locale === "ar" ? "دور المشروع يحتاج إلى تأكيد." : "The business role needs confirmation.",
-        sourceField: "originalIdea",
-        sourceText: request.originalIdea || "",
-        evidenceStrength: "weak",
-      },
-    ],
-    unresolvedItems: [
-      {
-        id: "intent_unresolved",
-        label: locale === "ar" ? "الوصف العام للمشروع غير مؤكد بعد." : "The general business description is not confirmed yet.",
-      },
-    ],
-    safetySignals: [],
-    reasonCodes: ["mock_valid_semantic_intent"],
-  };
+  return buildFixtureValidOutput(request);
 }
 
 function buildFixtureValidOutput(request) {
@@ -229,7 +192,7 @@ function buildFixtureValidOutput(request) {
         const option = optionById.get(intentId);
         if (!option) return null;
         return {
-          id: `fixture_hypothesis_${index + 1}`,
+          id: `semantic_hypothesis_${index + 1}`,
           intentId,
           label: option.label,
           rationale: locale === "ar"

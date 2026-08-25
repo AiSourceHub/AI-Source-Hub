@@ -1,4 +1,4 @@
-import { createMockSemanticIntentProvider } from "./semanticIntentMockProvider.js";
+import { createMockSemanticIntentProvider, normalizeTrustedSemanticMockScenario } from "./semanticIntentMockProvider.js";
 import { interpretWithSemanticProvider } from "./semanticIntentProvider.js";
 import { validateSemanticIntentRequest } from "./semanticIntentValidator.js";
 import { buildSemanticClarificationQuestions } from "./semanticIntentContract.js";
@@ -34,7 +34,7 @@ export function resolveBivSemanticServerConfig({
     mode: normalizedMode,
     providerTimeoutMs,
     maxBodyBytes,
-    stubScenario,
+    stubScenario: normalizeTrustedSemanticMockScenario(stubScenario),
     allowLiveOpenAI,
     serverKeyAvailable,
     browserKeySupplied,
