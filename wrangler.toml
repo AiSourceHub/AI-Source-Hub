@@ -1,4 +1,4 @@
-name = "ai-source-hub-biv-semantic"
+name = "biv-semantic-intent"
 main = "workers/biv-semantic-intent-worker.js"
 compatibility_date = "2026-08-23"
 
