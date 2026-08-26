@@ -113,6 +113,12 @@ const selectedByUser = buildDiscoveryState({
   selectedIntent: "marketplace",
 });
 assert.equal(selectedByUser.selectedIntent, "marketplace");
+const providerCannotOverwriteSelection = buildDiscoveryState({
+  ...selectedByUser,
+  coreOffering: "Event organizers and members",
+  selectedOperatingApproach: "online",
+});
+assert.equal(providerCannotOverwriteSelection.selectedIntent, "marketplace");
 
 const coreOfferingState = buildDiscoveryState({
   originalIdea: "A service idea.",
@@ -140,6 +146,9 @@ assert.equal(discoveryContent.en.semanticIntent.fallbackBody.includes("step by s
 
 assert.equal(prototypePageSource.includes("interpretWithSemanticProvider"), true);
 assert.equal(prototypePageSource.includes("createMockSemanticIntentProvider"), true);
+assert.equal(prototypePageSource.includes("void observeSemanticShadow"), true);
+assert.equal(prototypePageSource.includes("setSemanticPresentation(buildSemanticIntentPresentation"), true);
+assert.equal(prototypePageSource.includes("workerEnvelope.result"), false);
 assert.equal(prototypePageSource.includes("buildScenarioOutput"), false);
 assert.equal(prototypePageSource.includes("semanticPresentation?.diagnostics"), false);
 assert.equal(prototypePageSource.includes("fallbackReasonCodes"), false);

@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
+  applyDiscoveryFieldChange,
+  buildConfirmationContract,
   buildDiscoveryState,
   buildSuggestedIntentOptions,
   buildUnderstandingSummary,
+  confirmDiscoveryUnderstanding,
   discoveryContent,
   getCoreOfferingQuestion,
   getDiscoverySteps,
@@ -12,6 +15,7 @@ import {
   getNextStep,
   getOperatingChoices,
   getProgressText,
+  reopenDiscoveryConfirmation,
   updateMixedOperatingSelection,
   INTENT_DISCOVERY_ROUTE,
   validateDiscoveryStep,
@@ -49,6 +53,99 @@ const selectedRetail = buildDiscoveryState({
 assert.equal(selectedRetail.selectedIntent, "retail");
 assert.equal(selectedRetail.coreOffering, "Daily household products");
 assert.equal(buildSuggestedIntentOptions("A software tool for stores")[0].id, "digital");
+
+const baseConfirmedState = buildDiscoveryState({
+  originalIdea: "A service business with more than one delivery approach.",
+  selectedIntent: "service",
+  coreOffering: "Car cleaning and care",
+  selectedOperatingApproach: "mixed",
+  selectedOperatingApproaches: ["fixed_location", "customer_site"],
+});
+const baseContract = buildConfirmationContract(baseConfirmedState);
+assert.equal(baseContract.isComplete, true);
+assert.deepEqual(baseContract.fieldValues.selectedOperatingApproaches, ["fixed_location", "customer_site"]);
+assert.deepEqual(baseContract.resolvedFields, {
+  selectedIntent: true,
+  coreOffering: true,
+  selectedOperatingApproach: true,
+  selectedOperatingApproaches: true,
+});
+
+const confirmedContractState = confirmDiscoveryUnderstanding(baseConfirmedState);
+assert.equal(confirmedContractState.confirmationStatus, "confirmed");
+assert.equal(confirmedContractState.confirmedAnswers.selectedIntent, "service");
+assert.equal(confirmedContractState.confirmedAnswers.coreOffering, "Car cleaning and care");
+const confirmedAgain = confirmDiscoveryUnderstanding(confirmedContractState);
+assert.equal(confirmedAgain.confirmationStatus, "confirmed");
+assert.deepEqual(confirmedAgain.confirmedAnswers, confirmedContractState.confirmedAnswers);
+const reopenedConfirmation = reopenDiscoveryConfirmation(confirmedContractState);
+assert.equal(reopenedConfirmation.confirmationStatus, "not_confirmed");
+assert.equal(reopenedConfirmation.selectedIntent, "service");
+assert.equal(reopenedConfirmation.coreOffering, "Car cleaning and care");
+assert.deepEqual(reopenedConfirmation.selectedOperatingApproaches, ["fixed_location", "customer_site"]);
+assert.deepEqual(reopenedConfirmation.confirmedAnswers, confirmedContractState.confirmedAnswers);
+
+const incompleteConfirmation = confirmDiscoveryUnderstanding(buildDiscoveryState({
+  originalIdea: "A service idea.",
+  selectedIntent: "service",
+}));
+assert.equal(incompleteConfirmation.confirmationStatus, "not_confirmed");
+assert.deepEqual(incompleteConfirmation.confirmedAnswers, {});
+
+const changedIntent = applyDiscoveryFieldChange(baseConfirmedState, "selectedIntent", "retail");
+assert.equal(changedIntent.selectedIntent, "retail");
+assert.equal(changedIntent.coreOffering, "");
+assert.equal(changedIntent.coreOfferingStatus, "missing");
+assert.equal(changedIntent.selectedOperatingApproach, "mixed");
+assert.deepEqual(changedIntent.selectedOperatingApproaches, ["fixed_location", "customer_site"]);
+assert.deepEqual(changedIntent.dependencyResets, ["coreOffering"]);
+
+const changedCoreOffering = applyDiscoveryFieldChange(baseConfirmedState, "coreOffering", "Exterior cleaning");
+assert.equal(changedCoreOffering.selectedIntent, "service");
+assert.equal(changedCoreOffering.coreOffering, "Exterior cleaning");
+assert.equal(changedCoreOffering.selectedOperatingApproach, "mixed");
+assert.deepEqual(changedCoreOffering.selectedOperatingApproaches, ["fixed_location", "customer_site"]);
+assert.deepEqual(changedCoreOffering.dependencyResets, []);
+
+const changedMixedToFixed = applyDiscoveryFieldChange(baseConfirmedState, "selectedOperatingApproach", "fixed_location");
+assert.equal(changedMixedToFixed.selectedIntent, "service");
+assert.equal(changedMixedToFixed.coreOffering, "Car cleaning and care");
+assert.equal(changedMixedToFixed.selectedOperatingApproach, "fixed_location");
+assert.deepEqual(changedMixedToFixed.selectedOperatingApproaches, []);
+assert.deepEqual(changedMixedToFixed.dependencyResets, ["selectedOperatingApproaches"]);
+
+const changedFixedToMixed = applyDiscoveryFieldChange(
+  buildDiscoveryState({
+    originalIdea: "A service idea.",
+    selectedIntent: "service",
+    coreOffering: "Cleaning",
+    selectedOperatingApproach: "fixed_location",
+  }),
+  "selectedOperatingApproach",
+  "mixed"
+);
+assert.equal(changedFixedToMixed.selectedOperatingApproach, "mixed");
+assert.deepEqual(changedFixedToMixed.selectedOperatingApproaches, []);
+assert.equal(changedFixedToMixed.unresolvedItems.includes("mixedOperating"), true);
+
+const editedMixedApproaches = applyDiscoveryFieldChange(baseConfirmedState, "selectedOperatingApproaches", ["online", "customer_site"]);
+assert.equal(editedMixedApproaches.selectedIntent, "service");
+assert.equal(editedMixedApproaches.coreOffering, "Car cleaning and care");
+assert.equal(editedMixedApproaches.selectedOperatingApproach, "mixed");
+assert.deepEqual(editedMixedApproaches.selectedOperatingApproaches, ["online", "customer_site"]);
+
+const userStateAfterProviderSuggestion = applyDiscoveryFieldChange(
+  buildDiscoveryState({
+    originalIdea: "A service idea.",
+    selectedIntent: "marketplace",
+    coreOffering: "Clients and providers",
+    selectedOperatingApproach: "online",
+  }),
+  "coreOffering",
+  "Clients and service providers"
+);
+assert.equal(userStateAfterProviderSuggestion.selectedIntent, "marketplace");
+assert.equal(userStateAfterProviderSuggestion.coreOffering, "Clients and service providers");
 
 const intentQuestions = {
   service: {
@@ -155,6 +252,9 @@ assert.equal(summary.coreOfferingLabel, "Parents and tutors");
 assert.equal(summary.confirmationStatus, "confirmed");
 assert.deepEqual(summary.unresolvedItems, []);
 assert.equal(discoveryContent.en.states.summary.complete, "The essential information required for this stage is complete.");
+assert.equal(discoveryContent.en.states.confirmed.heading, "Understanding confirmed");
+assert.equal(discoveryContent.en.states.confirmed.body, "The information you confirmed for this stage has been saved. Your idea is now ready to move to the next step when it is approved.");
+assert.equal(discoveryContent.en.states.confirmed.notice, "This is a local idea-understanding prototype only; evaluation or report preparation has not started yet.");
 
 const arSummary = buildUnderstandingSummary(
   buildDiscoveryState({
@@ -182,6 +282,9 @@ const arCompleteMixedSummary = buildUnderstandingSummary(
 assert.deepEqual(arCompleteMixedSummary.unresolvedItems, []);
 assert.equal(arCompleteMixedSummary.operatingLabel, "في موقع ثابت، وفي موقع العميل");
 assert.equal(discoveryContent.ar.states.summary.complete, "اكتملت المعلومات الأساسية المطلوبة لهذه المرحلة.");
+assert.equal(discoveryContent.ar.states.confirmed.heading, "تم تأكيد فهم الفكرة");
+assert.equal(discoveryContent.ar.states.confirmed.body, "تم حفظ المعلومات التي أكّدتها لهذه المرحلة. أصبحت فكرتك الآن جاهزة للانتقال إلى الخطوة التالية عندما يتم اعتمادها.");
+assert.equal(discoveryContent.ar.states.confirmed.notice, "هذا نموذج محلي لفهم الفكرة فقط، ولم يبدأ التقييم أو إعداد التقرير بعد.");
 
 const enCompleteMixedSummary = buildUnderstandingSummary(
   buildDiscoveryState({
@@ -223,7 +326,18 @@ assert.equal(prototypePageSource.includes("states.summary.operating"), true);
 assert.equal(prototypePageSource.includes("states.operating.heading}</p>"), false);
 assert.equal(prototypePageSource.includes("summary.unresolvedItems.length"), true);
 assert.equal(prototypePageSource.includes("states.summary.complete"), true);
-assert.equal(prototypePageSource.includes("setStep('intent')"), true);
+assert.equal(prototypePageSource.includes("discovery-confirmed-state"), true);
+assert.equal(prototypePageSource.includes("content.states.confirmed.heading"), true);
+assert.equal(prototypePageSource.includes("content.states.confirmed.body"), true);
+assert.equal(prototypePageSource.includes("content.states.confirmed.notice"), true);
+assert.equal(prototypePageSource.includes("state.confirmationStatus === 'confirmed' ? null"), true);
+assert.equal(prototypePageSource.includes("content.actions.editAnswers"), true);
+assert.equal(prototypePageSource.includes("reopenDiscoveryConfirmation"), true);
+assert.equal(prototypePageSource.includes("editSummaryField('selectedIntent')"), true);
+assert.equal(prototypePageSource.includes("editSummaryField('coreOffering')"), true);
+assert.equal(prototypePageSource.includes("selectedOperatingApproaches"), true);
+assert.equal(prototypePageSource.includes("confirmDiscoveryUnderstanding"), true);
+assert.equal(prototypePageSource.includes("buildConfirmationContract"), true);
 assert.equal(prototypePageSource.includes("reset"), true);
 assert.equal(productPageSource.includes("BusinessIdeaDiscoveryPrototypePage"), false);
 assert.equal(homeSource.includes(INTENT_DISCOVERY_ROUTE), false);

@@ -5,7 +5,9 @@ import { renderFooter } from '../../components/Footer/index.js';
 import { applyDocumentLocale, bindLanguageSwitcher, getFooterContent, getHeaderContent } from '../../core/localization.js';
 import {
   buildDiscoveryState,
+  buildConfirmationContract,
   buildUnderstandingSummary,
+  confirmDiscoveryUnderstanding,
   createInitialDiscoveryState,
   discoveryContent,
   getCoreOfferingQuestion,
@@ -16,6 +18,9 @@ import {
   getOperatingChoices,
   getPreviousStep,
   getProgressText,
+  reopenDiscoveryConfirmation,
+  startDiscoveryFieldEdit,
+  applyDiscoveryFieldChange,
   updateMixedOperatingSelection,
   validateDiscoveryStep,
 } from '../../products/business/idea-validator/intentDiscoveryPrototype.js';
@@ -63,6 +68,7 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
   const operatingChoices = useMemo(() => getOperatingChoices(state.selectedIntent), [state.selectedIntent]);
   const mixedOperatingChoices = useMemo(() => getMixedOperatingChoices(), []);
   const summary = useMemo(() => buildUnderstandingSummary(state, language), [state, language]);
+  const confirmationContract = useMemo(() => buildConfirmationContract(state), [state]);
   const progressText = useMemo(() => getProgressText(state, step, language), [state, step, language]);
   const progressSteps = useMemo(() => getDiscoverySteps(state), [state]);
 
@@ -78,55 +84,48 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
   };
 
   const selectIntent = (intentId) => {
-    setState(buildDiscoveryState({
-      ...state,
-      selectedIntent: intentId,
-      coreOffering: '',
-      coreOfferingStatus: 'missing',
-      selectedOperatingApproach: '',
-      selectedOperatingApproaches: [],
-      confirmationStatus: 'not_confirmed',
-    }));
+    setState(applyDiscoveryFieldChange(state, 'selectedIntent', intentId));
     setError('');
   };
 
   const setCoreOffering = (value) => {
-    setState(buildDiscoveryState({
-      ...state,
-      coreOffering: value,
-      coreOfferingStatus: value.trim() ? 'provided' : 'missing',
-      confirmationStatus: 'not_confirmed',
-    }));
+    setState(applyDiscoveryFieldChange(state, 'coreOffering', value));
     setError('');
   };
 
   const setCoreOfferingUndecided = () => {
-    setState(buildDiscoveryState({
-      ...state,
-      coreOffering: '',
-      coreOfferingStatus: 'undecided',
-      confirmationStatus: 'not_confirmed',
-    }));
+    setState(applyDiscoveryFieldChange(state, 'coreOfferingStatus', 'undecided'));
     setError('');
   };
 
   const selectOperatingApproach = (approachId) => {
-    setState(buildDiscoveryState({
-      ...state,
-      selectedOperatingApproach: approachId,
-      selectedOperatingApproaches: [],
-      confirmationStatus: 'not_confirmed',
-    }));
+    setState(applyDiscoveryFieldChange(state, 'selectedOperatingApproach', approachId));
     setError('');
   };
 
   const toggleMixedOperatingApproach = (approachId) => {
-    setState(buildDiscoveryState({
-      ...state,
-      selectedOperatingApproaches: updateMixedOperatingSelection(state.selectedOperatingApproaches, approachId),
-      confirmationStatus: 'not_confirmed',
-    }));
+    setState(applyDiscoveryFieldChange(
+      state,
+      'selectedOperatingApproaches',
+      updateMixedOperatingSelection(state.selectedOperatingApproaches, approachId)
+    ));
     setError('');
+  };
+
+  const editSummaryField = (fieldId) => {
+    const nextState = startDiscoveryFieldEdit(state, fieldId);
+    setState(nextState);
+    setError('');
+    if (fieldId === 'selectedOperatingApproaches' && nextState.selectedOperatingApproach !== 'mixed') {
+      setStep('operating');
+      return;
+    }
+    setStep({
+      selectedIntent: 'intent',
+      coreOffering: 'coreOffering',
+      selectedOperatingApproach: 'operating',
+      selectedOperatingApproaches: 'mixedOperating',
+    }[fieldId] || 'summary');
   };
 
   const goToIntent = () => {
@@ -193,7 +192,7 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
       return;
     }
     setError('');
-    setStep(getNextStep(state, 'intent'));
+    setStep(state.editingField === 'selectedIntent' && buildConfirmationContract(state).isComplete ? 'summary' : getNextStep(state, 'intent'));
   };
 
   const goToCoreOffering = () => {
@@ -203,7 +202,7 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
       return;
     }
     setError('');
-    setStep(getNextStep(state, 'coreOffering'));
+    setStep(state.editingField === 'coreOffering' && buildConfirmationContract(state).isComplete ? 'summary' : getNextStep(state, 'coreOffering'));
   };
 
   const goFromOperating = () => {
@@ -213,7 +212,7 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
       return;
     }
     setError('');
-    setStep(getNextStep(state, 'operating'));
+    setStep(state.editingField === 'selectedOperatingApproach' && buildConfirmationContract(state).isComplete ? 'summary' : getNextStep(state, 'operating'));
   };
 
   const goToSummary = () => {
@@ -227,7 +226,19 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
   };
 
   const confirmSummary = () => {
-    setState({ ...state, confirmationStatus: 'confirmed' });
+    if (state.confirmationStatus === 'confirmed') return;
+    const confirmedState = confirmDiscoveryUnderstanding(state);
+    setState(confirmedState);
+    if (!buildConfirmationContract(confirmedState).isComplete) {
+      setError(language === 'ar' ? 'أكمل البنود غير المحددة قبل التأكيد.' : 'Complete the unresolved items before confirming.');
+      return;
+    }
+    setError('');
+  };
+
+  const reviewConfirmedAnswers = () => {
+    setState(reopenDiscoveryConfirmation(state));
+    setError('');
   };
 
   const reset = () => {
@@ -391,7 +402,18 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
 
               {step === 'summary' ? (
                 <div className="discovery-step">
-                  <h2 id="discovery-title">{content.states.summary.heading}</h2>
+                  {state.confirmationStatus === 'confirmed' ? (
+                    <div className="discovery-confirmed-state" role="status" aria-live="polite">
+                      <div className="discovery-confirmed-state__mark" aria-hidden="true">✓</div>
+                      <div>
+                        <h2 id="discovery-title">{content.states.confirmed.heading}</h2>
+                        <p className="validator-intro">{content.states.confirmed.body}</p>
+                        <p className="discovery-confirmed-state__notice">{content.states.confirmed.notice}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <h2 id="discovery-title">{content.states.summary.heading}</h2>
+                  )}
                   <div className="discovery-summary">
                     <div>
                       <p className="eyebrow">{content.states.summary.originalIdea}</p>
@@ -400,14 +422,23 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
                     <div>
                       <p className="eyebrow">{content.states.summary.intent}</p>
                       <p>{summary.intentLabel}</p>
+                      <button className="button button--secondary button--compact" type="button" onClick={() => editSummaryField('selectedIntent')}>
+                        {content.actions.edit}
+                      </button>
                     </div>
                     <div>
                       <p className="eyebrow">{content.states.summary.coreOffering}</p>
                       <p>{summary.coreOfferingLabel}</p>
+                      <button className="button button--secondary button--compact" type="button" onClick={() => editSummaryField('coreOffering')}>
+                        {content.actions.edit}
+                      </button>
                     </div>
                     <div>
                       <p className="eyebrow">{content.states.summary.operating}</p>
                       <p>{summary.operatingLabel}</p>
+                      <button className="button button--secondary button--compact" type="button" onClick={() => editSummaryField(confirmationContract.fieldValues.selectedOperatingApproach === 'mixed' ? 'selectedOperatingApproaches' : 'selectedOperatingApproach')}>
+                        {content.actions.edit}
+                      </button>
                     </div>
                     {summary.unresolvedItems.length ? (
                       <div className="discovery-summary__unresolved">
@@ -422,16 +453,17 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
                       <div className="alert-box alert-box--success">{content.states.summary.complete}</div>
                     )}
                   </div>
-                  {state.confirmationStatus === 'confirmed' ? (
-                    <div className="alert-box alert-box--success">{content.states.summary.confirmed}</div>
-                  ) : null}
                   <div className="validator-actions">
-                    <button className="button button--primary" type="button" onClick={confirmSummary}>
-                      {content.actions.confirm}
-                    </button>
-                    <button className="button button--secondary" type="button" onClick={() => setStep('intent')}>
-                      {content.actions.edit}
-                    </button>
+                    {state.confirmationStatus === 'confirmed' ? null : (
+                      <button className="button button--primary" type="button" onClick={confirmSummary}>
+                        {content.actions.confirm}
+                      </button>
+                    )}
+                    {state.confirmationStatus === 'confirmed' ? (
+                      <button className="button button--secondary" type="button" onClick={reviewConfirmedAnswers}>
+                        {content.actions.editAnswers}
+                      </button>
+                    ) : null}
                     <button className="button button--secondary" type="button" onClick={reset}>
                       {content.actions.reset}
                     </button>

@@ -81,7 +81,11 @@ export const discoveryContent = {
         operating: "How it reaches the customer",
         unresolved: "Still needs clarification",
         complete: "The essential information required for this stage is complete.",
-        confirmed: "We now have a clearer foundation for asking questions that fit your idea.",
+      },
+      confirmed: {
+        heading: "Understanding confirmed",
+        body: "The information you confirmed for this stage has been saved. Your idea is now ready to move to the next step when it is approved.",
+        notice: "This is a local idea-understanding prototype only; evaluation or report preparation has not started yet.",
       },
     },
     semanticIntent: {
@@ -104,7 +108,8 @@ export const discoveryContent = {
       continue: "Continue",
       back: "Back",
       confirm: "Yes, this is what I mean",
-      edit: "I want to edit my answers",
+      edit: "Edit",
+      editAnswers: "Edit answers",
       reset: "Start again",
     },
     intentOptions: {
@@ -200,7 +205,11 @@ export const discoveryContent = {
         operating: "طريقة تقديمه للعميل",
         unresolved: "ما زال يحتاج إلى تحديد",
         complete: "اكتملت المعلومات الأساسية المطلوبة لهذه المرحلة.",
-        confirmed: "أصبح لدينا الآن أساس أوضح لطرح الأسئلة المناسبة لفكرتك.",
+      },
+      confirmed: {
+        heading: "تم تأكيد فهم الفكرة",
+        body: "تم حفظ المعلومات التي أكّدتها لهذه المرحلة. أصبحت فكرتك الآن جاهزة للانتقال إلى الخطوة التالية عندما يتم اعتمادها.",
+        notice: "هذا نموذج محلي لفهم الفكرة فقط، ولم يبدأ التقييم أو إعداد التقرير بعد.",
       },
     },
     semanticIntent: {
@@ -223,7 +232,8 @@ export const discoveryContent = {
       continue: "متابعة",
       back: "رجوع",
       confirm: "نعم، هذا ما أقصده",
-      edit: "أريد تعديل الإجابات",
+      edit: "تعديل",
+      editAnswers: "تعديل الإجابات",
       reset: "ابدأ من جديد",
     },
     intentOptions: {
@@ -283,6 +293,20 @@ const evidenceIntentMap = {
   marketplace_platform: "marketplace",
 };
 
+export const confirmationFieldIds = [
+  "selectedIntent",
+  "coreOffering",
+  "selectedOperatingApproach",
+  "selectedOperatingApproaches",
+];
+
+export const confirmationFieldStepMap = {
+  selectedIntent: "intent",
+  coreOffering: "coreOffering",
+  selectedOperatingApproach: "operating",
+  selectedOperatingApproaches: "mixedOperating",
+};
+
 export function createInitialDiscoveryState() {
   return {
     originalIdea: "",
@@ -294,6 +318,9 @@ export function createInitialDiscoveryState() {
     selectedOperatingApproaches: [],
     unresolvedItems: [],
     confirmationStatus: "not_confirmed",
+    editingField: "",
+    dependencyResets: [],
+    confirmedAnswers: {},
   };
 }
 
@@ -305,6 +332,9 @@ export function buildDiscoveryState({
   selectedOperatingApproach = "",
   selectedOperatingApproaches = [],
   confirmationStatus = "not_confirmed",
+  editingField = "",
+  dependencyResets = [],
+  confirmedAnswers = {},
 } = {}) {
   const suggestedIntentOptions = buildSuggestedIntentOptions(originalIdea);
   const normalizedCoreOfferingStatus = normalizeCoreOfferingStatus(coreOffering, coreOfferingStatus);
@@ -326,7 +356,156 @@ export function buildDiscoveryState({
     selectedOperatingApproaches: normalizedOperatingApproaches,
     unresolvedItems,
     confirmationStatus,
+    editingField,
+    dependencyResets: Array.isArray(dependencyResets) ? [...dependencyResets] : [],
+    confirmedAnswers: isPlainObject(confirmedAnswers) ? { ...confirmedAnswers } : {},
   };
+}
+
+export function applyDiscoveryFieldChange(discoveryState = createInitialDiscoveryState(), fieldId = "", value) {
+  if (fieldId === "selectedIntent") {
+    const nextIntent = typeof value === "string" ? value : "";
+    const preserveOperating = isOperatingApproachStructurallyValid(nextIntent, discoveryState.selectedOperatingApproach);
+    const selectedOperatingApproach = preserveOperating ? discoveryState.selectedOperatingApproach : "";
+    const dependencyResets = ["coreOffering"];
+    if (!preserveOperating && discoveryState.selectedOperatingApproach) dependencyResets.push("selectedOperatingApproach");
+    if (selectedOperatingApproach !== "mixed" && discoveryState.selectedOperatingApproaches.length) {
+      dependencyResets.push("selectedOperatingApproaches");
+    }
+    return buildDiscoveryState({
+      ...discoveryState,
+      selectedIntent: nextIntent,
+      coreOffering: "",
+      coreOfferingStatus: "missing",
+      selectedOperatingApproach,
+      selectedOperatingApproaches: selectedOperatingApproach === "mixed" ? discoveryState.selectedOperatingApproaches : [],
+      confirmationStatus: "not_confirmed",
+      editingField: "selectedIntent",
+      dependencyResets,
+      confirmedAnswers: {},
+    });
+  }
+
+  if (fieldId === "coreOffering") {
+    const coreOffering = typeof value === "string" ? value : "";
+    return buildDiscoveryState({
+      ...discoveryState,
+      coreOffering,
+      coreOfferingStatus: coreOffering.trim() ? "provided" : "missing",
+      confirmationStatus: "not_confirmed",
+      editingField: "coreOffering",
+      dependencyResets: [],
+      confirmedAnswers: {},
+    });
+  }
+
+  if (fieldId === "coreOfferingStatus") {
+    return buildDiscoveryState({
+      ...discoveryState,
+      coreOffering: "",
+      coreOfferingStatus: value === "undecided" ? "undecided" : "missing",
+      confirmationStatus: "not_confirmed",
+      editingField: "coreOffering",
+      dependencyResets: [],
+      confirmedAnswers: {},
+    });
+  }
+
+  if (fieldId === "selectedOperatingApproach") {
+    const nextApproach = typeof value === "string" ? value : "";
+    const clearingMixed = discoveryState.selectedOperatingApproach === "mixed" && nextApproach !== "mixed";
+    return buildDiscoveryState({
+      ...discoveryState,
+      selectedOperatingApproach: nextApproach,
+      selectedOperatingApproaches: nextApproach === "mixed" ? discoveryState.selectedOperatingApproaches : [],
+      confirmationStatus: "not_confirmed",
+      editingField: "selectedOperatingApproach",
+      dependencyResets: clearingMixed && discoveryState.selectedOperatingApproaches.length ? ["selectedOperatingApproaches"] : [],
+      confirmedAnswers: {},
+    });
+  }
+
+  if (fieldId === "selectedOperatingApproaches") {
+    return buildDiscoveryState({
+      ...discoveryState,
+      selectedOperatingApproaches: Array.isArray(value) ? value : [],
+      confirmationStatus: "not_confirmed",
+      editingField: "selectedOperatingApproaches",
+      dependencyResets: [],
+      confirmedAnswers: {},
+    });
+  }
+
+  return buildDiscoveryState(discoveryState);
+}
+
+export function startDiscoveryFieldEdit(discoveryState = createInitialDiscoveryState(), fieldId = "") {
+  if (!confirmationFieldIds.includes(fieldId)) return buildDiscoveryState(discoveryState);
+  return buildDiscoveryState({
+    ...discoveryState,
+    editingField: fieldId,
+    confirmationStatus: "not_confirmed",
+  });
+}
+
+export function buildConfirmationContract(discoveryState = createInitialDiscoveryState()) {
+  const fieldValues = {
+    selectedIntent: discoveryState.selectedIntent || "",
+    coreOffering: discoveryState.coreOfferingStatus === "provided" ? discoveryState.coreOffering : "",
+    selectedOperatingApproach: discoveryState.selectedOperatingApproach || "",
+    selectedOperatingApproaches: discoveryState.selectedOperatingApproach === "mixed"
+      ? [...discoveryState.selectedOperatingApproaches]
+      : [],
+  };
+  const resolvedFields = {
+    selectedIntent: Boolean(discoveryState.selectedIntent && !["different", "not_decided"].includes(discoveryState.selectedIntent)),
+    coreOffering: discoveryState.coreOfferingStatus === "provided",
+    selectedOperatingApproach: Boolean(discoveryState.selectedOperatingApproach && discoveryState.selectedOperatingApproach !== "not_decided"),
+    selectedOperatingApproaches: discoveryState.selectedOperatingApproach !== "mixed" || (
+      discoveryState.selectedOperatingApproaches.includes("not_decided") ||
+      discoveryState.selectedOperatingApproaches.length >= 2
+    ),
+  };
+  const isComplete = Object.values(resolvedFields).every(Boolean) && discoveryState.unresolvedItems.length === 0;
+  return {
+    fieldValues,
+    resolvedFields,
+    editingField: discoveryState.editingField || "",
+    confirmationStatus: discoveryState.confirmationStatus,
+    unresolvedItems: [...discoveryState.unresolvedItems],
+    dependencyResetsPerformed: [...discoveryState.dependencyResets],
+    confirmedAnswers: isComplete && discoveryState.confirmationStatus === "confirmed"
+      ? { ...fieldValues }
+      : {},
+    isComplete,
+  };
+}
+
+export function confirmDiscoveryUnderstanding(discoveryState = createInitialDiscoveryState()) {
+  const currentState = buildDiscoveryState(discoveryState);
+  const contract = buildConfirmationContract(currentState);
+  if (!contract.isComplete) {
+    return buildDiscoveryState({
+      ...currentState,
+      confirmationStatus: "not_confirmed",
+      editingField: "",
+    });
+  }
+  return buildDiscoveryState({
+    ...currentState,
+    confirmationStatus: "confirmed",
+    editingField: "",
+    dependencyResets: [],
+    confirmedAnswers: contract.fieldValues,
+  });
+}
+
+export function reopenDiscoveryConfirmation(discoveryState = createInitialDiscoveryState()) {
+  return buildDiscoveryState({
+    ...discoveryState,
+    confirmationStatus: "not_confirmed",
+    editingField: "",
+  });
 }
 
 export function buildSuggestedIntentOptions(originalIdea = "") {
@@ -424,6 +603,7 @@ export function buildUnderstandingSummary(discoveryState = createInitialDiscover
     operatingLabel,
     unresolvedItems: discoveryState.unresolvedItems.map((item) => content.unresolved[item] || item),
     confirmationStatus: discoveryState.confirmationStatus,
+    confirmationContract: buildConfirmationContract(discoveryState),
   };
 }
 
@@ -463,6 +643,15 @@ function normalizeCoreOfferingStatus(coreOffering = "", coreOfferingStatus = "")
 function normalizeSelectedOperatingApproaches(selectedOperatingApproach = "", selectedOperatingApproaches = []) {
   if (selectedOperatingApproach !== "mixed") return [];
   return selectedOperatingApproaches.filter((item, index, list) => item && list.indexOf(item) === index);
+}
+
+function isOperatingApproachStructurallyValid(selectedIntent = "", selectedOperatingApproach = "") {
+  if (!selectedOperatingApproach) return true;
+  return getOperatingChoices(selectedIntent).some((option) => option.id === selectedOperatingApproach);
+}
+
+function isPlainObject(value) {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 function buildOperatingSummaryLabel(discoveryState, content) {

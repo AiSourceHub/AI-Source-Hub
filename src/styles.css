@@ -861,6 +861,35 @@ button:focus-visible,
   line-height: 1.65;
 }
 
+.discovery-confirmed-state {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+  border: 1px solid var(--color-success);
+  border-radius: var(--radius-md);
+  background: var(--color-success-soft);
+  color: var(--color-text);
+  padding: var(--space-5);
+}
+
+.discovery-confirmed-state__mark {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  inline-size: 2rem;
+  block-size: 2rem;
+  border-radius: var(--radius-pill);
+  background: var(--color-success);
+  color: var(--color-surface);
+  font-weight: 900;
+}
+
+.discovery-confirmed-state__notice {
+  margin: var(--space-2) 0 0;
+  color: var(--color-text-muted);
+}
+
 .discovery-summary {
   display: grid;
   gap: var(--space-4);
@@ -872,6 +901,16 @@ button:focus-visible,
 
 .discovery-summary p {
   margin: 0;
+}
+
+.discovery-summary .button {
+  margin-top: var(--space-2);
+}
+
+.button--compact {
+  min-height: 36px;
+  padding: 0.45rem 0.75rem;
+  font-size: 0.9rem;
 }
 
 .discovery-summary ul {
