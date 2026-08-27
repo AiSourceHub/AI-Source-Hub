@@ -5,9 +5,11 @@ import {
   buildConfirmationContract,
   buildConfirmedDiscoverySnapshot,
   buildDiscoveryState,
+  buildDisplayTranslation,
   buildSuggestedIntentOptions,
   buildUnderstandingSummary,
   confirmDiscoveryUnderstanding,
+  detectPrototypeTextLanguage,
   discoveryJourneyStates,
   discoveryContent,
   getCoreOfferingQuestion,
@@ -22,6 +24,7 @@ import {
   getPreviousJourneyState,
   getProgressText,
   reopenDiscoveryConfirmation,
+  resolveDiscoveryTransition,
   updateMixedOperatingSelection,
   INTENT_DISCOVERY_ROUTE,
   validateDiscoveryStep,
@@ -34,6 +37,7 @@ const prototypePageSource = readFileSync(new URL("../../../src/pages/BusinessIde
 
 const emptyState = buildDiscoveryState({ originalIdea: "" });
 assert.equal(emptyState.originalIdea, "");
+assert.equal(emptyState.route, INTENT_DISCOVERY_ROUTE);
 assert.equal(emptyState.journeyState, discoveryJourneyStates.ideaCapture);
 const emptyValidation = validateDiscoveryStep(emptyState, "idea", "en");
 assert.equal(emptyValidation.ok, false);
@@ -65,11 +69,26 @@ assert.equal(buildSuggestedIntentOptions("A software tool for stores")[0].id, "d
 
 const journeyFromLegacyStep = buildDiscoveryState({
   originalIdea: "A service idea.",
+  route: "unexpected-helper-route",
   journeyState: "coreOffering",
 });
+assert.equal(journeyFromLegacyStep.route, INTENT_DISCOVERY_ROUTE);
 assert.equal(journeyFromLegacyStep.journeyState, discoveryJourneyStates.coreOffering);
 assert.equal(getJourneyStep(discoveryJourneyStates.coreOffering), "coreOffering");
 assert.equal(getJourneyStateForStep("summary"), discoveryJourneyStates.understandingReview);
+
+const blockedUnknownRoute = buildDiscoveryState({ route: "specialist_analysis", journeyState: "not_a_state" });
+assert.equal(blockedUnknownRoute.route, INTENT_DISCOVERY_ROUTE);
+assert.equal(blockedUnknownRoute.journeyState, discoveryJourneyStates.ideaCapture);
+const blockedDirectSummary = resolveDiscoveryTransition(emptyState, discoveryJourneyStates.understandingReview);
+assert.equal(blockedDirectSummary.ok, false);
+assert.equal(blockedDirectSummary.blockedReason, "incomplete_state");
+assert.equal(blockedDirectSummary.route, INTENT_DISCOVERY_ROUTE);
+assert.equal(blockedDirectSummary.nextState.journeyState, discoveryJourneyStates.ideaCapture);
+const blockedInvalidTarget = resolveDiscoveryTransition(serviceState, "normal_evaluation");
+assert.equal(blockedInvalidTarget.ok, false);
+assert.equal(blockedInvalidTarget.blockedReason, "invalid_journey_state");
+assert.equal(blockedInvalidTarget.nextState.route, INTENT_DISCOVERY_ROUTE);
 
 const baseConfirmedState = buildDiscoveryState({
   originalIdea: "A service business with more than one delivery approach.",
@@ -119,6 +138,7 @@ const journeySequenceStart = buildDiscoveryState({
   journeyState: discoveryJourneyStates.ideaCapture,
 });
 assert.equal(getNextJourneyState(journeySequenceStart, journeySequenceStart.journeyState), discoveryJourneyStates.intentSelection);
+assert.equal(resolveDiscoveryTransition(journeySequenceStart, discoveryJourneyStates.intentSelection).ok, true);
 const journeySequenceIntent = applyDiscoveryFieldChange(journeySequenceStart, "selectedIntent", "service");
 assert.equal(journeySequenceIntent.journeyState, discoveryJourneyStates.intentSelection);
 assert.equal(getNextJourneyState(journeySequenceIntent, journeySequenceIntent.journeyState), discoveryJourneyStates.coreOffering);
@@ -131,8 +151,16 @@ assert.equal(getNextJourneyState(journeySequenceOperating, journeySequenceOperat
 assert.equal(getPreviousJourneyState(journeySequenceOperating, discoveryJourneyStates.mixedOperatingDetail), discoveryJourneyStates.operatingApproach);
 const journeySequenceMixed = applyDiscoveryFieldChange(journeySequenceOperating, "selectedOperatingApproaches", ["fixed_location", "customer_site"]);
 assert.equal(journeySequenceMixed.journeyState, discoveryJourneyStates.mixedOperatingDetail);
+const mixedToReview = resolveDiscoveryTransition(journeySequenceMixed, discoveryJourneyStates.understandingReview);
+assert.equal(mixedToReview.ok, true);
+assert.equal(mixedToReview.nextState.journeyState, discoveryJourneyStates.understandingReview);
 assert.equal(getNextJourneyState(journeySequenceMixed, journeySequenceMixed.journeyState), discoveryJourneyStates.understandingReview);
 assert.equal(getProgressText(journeySequenceMixed, discoveryJourneyStates.understandingConfirmed, "en"), "Step 6 of 6");
+
+const blockedMixedReview = resolveDiscoveryTransition(journeySequenceOperating, discoveryJourneyStates.understandingReview);
+assert.equal(blockedMixedReview.ok, false);
+assert.equal(blockedMixedReview.blockedReason, "incomplete_state");
+assert.equal(blockedMixedReview.nextState.journeyState, discoveryJourneyStates.operatingApproach);
 
 const confirmedArabicService = confirmDiscoveryUnderstanding(buildDiscoveryState({
   originalIdea: "مشروع صيانة مكيفات يقدم الخدمة بأكثر من طريقة.",
@@ -146,10 +174,22 @@ assert.equal(englishFromArabicSnapshot.confirmationStatus, "confirmed");
 assert.equal(englishFromArabicSnapshot.intentLabel, discoveryContent.en.intentSummaryOptions.service);
 assert.notEqual(englishFromArabicSnapshot.intentLabel, discoveryContent.en.intentSummaryOptions.marketplace);
 assert.equal(englishFromArabicSnapshot.coreOfferingLabel, "فني إصلاح المكيفات و العميل");
+assert.equal(englishFromArabicSnapshot.displayTranslations.originalIdea.status, "available");
+assert.equal(
+  englishFromArabicSnapshot.displayTranslations.originalIdea.text,
+  "An air-conditioning maintenance business that provides the service in more than one way."
+);
+assert.equal(englishFromArabicSnapshot.displayTranslations.coreOffering.status, "available");
+assert.equal(
+  englishFromArabicSnapshot.displayTranslations.coreOffering.text,
+  "Air-conditioning repair technician and the customer"
+);
 assert.equal(englishFromArabicSnapshot.operatingLabel, "At the customer’s location and at a fixed location");
 const arabicAgainFromSnapshot = buildUnderstandingSummary(confirmedArabicService, "ar");
 assert.equal(arabicAgainFromSnapshot.intentLabel, discoveryContent.ar.intentSummaryOptions.service);
 assert.equal(arabicAgainFromSnapshot.coreOfferingLabel, "فني إصلاح المكيفات و العميل");
+assert.equal(arabicAgainFromSnapshot.displayTranslations.originalIdea.shouldDisplay, false);
+assert.equal(arabicAgainFromSnapshot.displayTranslations.coreOffering.shouldDisplay, false);
 assert.equal(arabicAgainFromSnapshot.operatingLabel, "في موقع العميل، وفي موقع ثابت");
 assert.deepEqual(confirmedArabicService.confirmedAnswers, {
   selectedIntent: "service",
@@ -189,8 +229,46 @@ const confirmedEnglishRetail = confirmDiscoveryUnderstanding(buildDiscoveryState
   coreOffering: "Home products",
   selectedOperatingApproach: "fixed_location",
 }));
-assert.equal(buildUnderstandingSummary(confirmedEnglishRetail, "ar").intentLabel, discoveryContent.ar.intentSummaryOptions.retail);
+const arabicFromEnglishRetail = buildUnderstandingSummary(confirmedEnglishRetail, "ar");
+assert.equal(arabicFromEnglishRetail.intentLabel, discoveryContent.ar.intentSummaryOptions.retail);
+assert.equal(arabicFromEnglishRetail.displayTranslations.originalIdea.text, "متجر لمنتجات منزلية عملية.");
+assert.equal(arabicFromEnglishRetail.displayTranslations.coreOffering.text, "منتجات منزلية");
 assert.equal(buildUnderstandingSummary(confirmedEnglishRetail, "en").intentLabel, discoveryContent.en.intentSummaryOptions.retail);
+assert.equal(buildUnderstandingSummary(confirmedEnglishRetail, "en").displayTranslations.originalIdea.shouldDisplay, false);
+assert.deepEqual(confirmedEnglishRetail.confirmedAnswers, {
+  selectedIntent: "retail",
+  coreOffering: "Home products",
+  selectedOperatingApproach: "fixed_location",
+  selectedOperatingApproaches: [],
+});
+
+const confirmedArabicUnknownTranslation = confirmDiscoveryUnderstanding(buildDiscoveryState({
+  originalIdea: "وصف عربي غير موجود في قاموس العرض المحلي.",
+  selectedIntent: "service",
+  coreOffering: "عبارة غير مترجمة محلياً",
+  selectedOperatingApproach: "fixed_location",
+}));
+const fallbackEnglishSummary = buildUnderstandingSummary(confirmedArabicUnknownTranslation, "en");
+assert.equal(fallbackEnglishSummary.originalIdea, "وصف عربي غير موجود في قاموس العرض المحلي.");
+assert.equal(fallbackEnglishSummary.coreOfferingLabel, "عبارة غير مترجمة محلياً");
+assert.equal(fallbackEnglishSummary.displayTranslations.originalIdea.shouldDisplay, true);
+assert.equal(fallbackEnglishSummary.displayTranslations.originalIdea.status, "unavailable");
+assert.equal(fallbackEnglishSummary.displayTranslations.originalIdea.text, "");
+assert.equal(fallbackEnglishSummary.displayTranslations.coreOffering.status, "unavailable");
+assert.equal(fallbackEnglishSummary.confirmationStatus, "confirmed");
+assert.equal(confirmedArabicUnknownTranslation.journeyState, discoveryJourneyStates.understandingConfirmed);
+assert.deepEqual(confirmedArabicUnknownTranslation.confirmedAnswers, {
+  selectedIntent: "service",
+  coreOffering: "عبارة غير مترجمة محلياً",
+  selectedOperatingApproach: "fixed_location",
+  selectedOperatingApproaches: [],
+});
+
+assert.equal(detectPrototypeTextLanguage("وصف عربي"), "ar");
+assert.equal(detectPrototypeTextLanguage("English text"), "en");
+assert.equal(detectPrototypeTextLanguage("12345"), "unknown");
+assert.equal(buildDisplayTranslation({ fieldId: "coreOffering", value: "Car cleaning and care", targetLanguage: "ar" }).text, "تنظيف السيارات والعناية بها");
+assert.equal(buildDisplayTranslation({ fieldId: "coreOffering", value: "Car cleaning and care", targetLanguage: "en" }).shouldDisplay, false);
 
 const changedIntent = applyDiscoveryFieldChange(baseConfirmedState, "selectedIntent", "retail");
 assert.equal(changedIntent.selectedIntent, "retail");
@@ -423,6 +501,8 @@ assert.equal(prototypePageSource.includes("const [step"), false);
 assert.equal(prototypePageSource.includes("setStep("), false);
 assert.equal(prototypePageSource.includes("const journeyState = state.journeyState"), true);
 assert.equal(prototypePageSource.includes("journeyState === discoveryJourneyStates.ideaCapture"), true);
+assert.equal(prototypePageSource.includes("resolveDiscoveryTransition"), true);
+assert.equal(prototypePageSource.includes("resolveDiscoveryTransition(currentState, nextJourneyState).nextState"), true);
 assert.equal(prototypePageSource.includes("discovery-progress__text"), true);
 assert.equal(discoveryContent.en.progress, "Step {current} of {total}");
 assert.equal(discoveryContent.ar.progress, "الخطوة {current} من {total}");
@@ -440,6 +520,11 @@ assert.equal(prototypePageSource.includes("content.states.confirmed.body"), true
 assert.equal(prototypePageSource.includes("content.states.confirmed.notice"), true);
 assert.equal(prototypePageSource.includes("state.confirmationStatus === 'confirmed' ? null"), true);
 assert.equal(prototypePageSource.includes("content.actions.editAnswers"), true);
+assert.equal(prototypePageSource.includes("DisplayTranslationBlock"), true);
+assert.equal(prototypePageSource.includes("summary.displayTranslations.originalIdea"), true);
+assert.equal(prototypePageSource.includes("summary.displayTranslations.coreOffering"), true);
+assert.equal(prototypePageSource.includes("runSemanticIntentInterpretation(nextState);"), true);
+assert.equal((prototypePageSource.match(/runSemanticIntentInterpretation/g) || []).length, 2);
 assert.equal(prototypePageSource.includes("reopenDiscoveryConfirmation"), true);
 assert.equal(prototypePageSource.includes("summary.confirmationContract"), true);
 assert.equal(prototypePageSource.includes("editSummaryField('selectedIntent')"), true);
@@ -452,6 +537,9 @@ assert.equal(productPageSource.includes("BusinessIdeaDiscoveryPrototypePage"), f
 assert.equal(homeSource.includes(INTENT_DISCOVERY_ROUTE), false);
 assert.equal(appSource.includes("INTENT_DISCOVERY_ROUTE"), true);
 assert.equal(appSource.includes("BusinessIdeaDiscoveryPrototypePage"), true);
+assert.equal(appSource.includes("import BusinessIdeaDiscoveryPrototypePage from './pages/BusinessIdeaDiscoveryPrototypePage.jsx'"), false);
+assert.equal(appSource.includes("import.meta.env.DEV"), true);
+assert.equal(appSource.includes("enableDevelopmentRoutes"), true);
 
 console.log(
   JSON.stringify(

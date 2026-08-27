@@ -910,6 +910,17 @@ button:focus-visible,
   margin: 0;
 }
 
+.display-translation {
+  margin-top: var(--space-2);
+  border-inline-start: 3px solid var(--color-border-strong);
+  padding-inline-start: var(--space-3);
+  color: var(--color-text-muted);
+}
+
+.display-translation p:last-child {
+  margin-top: var(--space-1);
+}
+
 .discovery-summary .button {
   margin-top: var(--space-2);
 }

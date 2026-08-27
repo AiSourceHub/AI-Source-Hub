@@ -20,6 +20,7 @@ import {
   getPreviousJourneyState,
   getProgressText,
   reopenDiscoveryConfirmation,
+  resolveDiscoveryTransition,
   startDiscoveryFieldEdit,
   applyDiscoveryFieldChange,
   updateMixedOperatingSelection,
@@ -78,10 +79,7 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
   const progressIndex = progressSteps.indexOf(progressJourneyState);
 
   const transitionToJourneyState = (nextJourneyState) => {
-    setState((currentState) => buildDiscoveryState({
-      ...currentState,
-      journeyState: nextJourneyState,
-    }));
+    setState((currentState) => resolveDiscoveryTransition(currentState, nextJourneyState).nextState);
   };
 
   const setOriginalIdea = (value) => {
@@ -142,11 +140,13 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
       setError(validation.error);
       return;
     }
-    const nextState = buildDiscoveryState({
+    const preparedState = buildDiscoveryState({
       ...state,
       confirmationStatus: 'not_confirmed',
       journeyState: discoveryJourneyStates.intentSelection,
     });
+    const transition = resolveDiscoveryTransition(preparedState, discoveryJourneyStates.intentSelection);
+    const nextState = transition.nextState;
     setState(nextState);
     setError('');
     runSemanticIntentInterpretation(nextState);
@@ -434,6 +434,7 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
                     <div>
                       <p className="eyebrow">{content.states.summary.originalIdea}</p>
                       <p>{summary.originalIdea}</p>
+                      <DisplayTranslationBlock translation={summary.displayTranslations.originalIdea} labels={content.states.displayTranslation} />
                     </div>
                     <div>
                       <p className="eyebrow">{content.states.summary.intent}</p>
@@ -445,6 +446,7 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
                     <div>
                       <p className="eyebrow">{content.states.summary.coreOffering}</p>
                       <p>{summary.coreOfferingLabel}</p>
+                      <DisplayTranslationBlock translation={summary.displayTranslations.coreOffering} labels={content.states.displayTranslation} />
                       <button className="button button--secondary button--compact" type="button" onClick={() => editSummaryField('coreOffering')}>
                         {content.actions.edit}
                       </button>
@@ -492,6 +494,20 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
       </main>
       <div dangerouslySetInnerHTML={{ __html: footerHtml }} />
     </>
+  );
+}
+
+function DisplayTranslationBlock({ translation, labels }) {
+  if (!translation?.shouldDisplay) return null;
+  return (
+    <div className="display-translation" data-translation-status={translation.status}>
+      <p className="eyebrow">{labels.label}</p>
+      {translation.status === 'available' ? (
+        <p>{translation.text}</p>
+      ) : (
+        <p>{labels.unavailable}</p>
+      )}
+    </div>
   );
 }
 

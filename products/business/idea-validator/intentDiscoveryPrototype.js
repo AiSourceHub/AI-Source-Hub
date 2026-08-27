@@ -111,6 +111,10 @@ export const discoveryContent = {
         unresolved: "Still needs clarification",
         complete: "The essential information required for this stage is complete.",
       },
+      displayTranslation: {
+        label: "Translated for viewing",
+        unavailable: "No local viewing translation is available for this text yet. The original remains unchanged.",
+      },
       confirmed: {
         heading: "Understanding confirmed",
         body: "The information you confirmed for this stage has been saved. Your idea is now ready to move to the next step when it is approved.",
@@ -243,6 +247,10 @@ export const discoveryContent = {
         unresolved: "ما زال يحتاج إلى تحديد",
         complete: "اكتملت المعلومات الأساسية المطلوبة لهذه المرحلة.",
       },
+      displayTranslation: {
+        label: "ترجمة للعرض فقط",
+        unavailable: "لا تتوفر ترجمة محلية للعرض لهذا النص حالياً. يبقى النص الأصلي كما هو.",
+      },
       confirmed: {
         heading: "تم تأكيد فهم الفكرة",
         body: "تم حفظ المعلومات التي أكّدتها لهذه المرحلة. أصبحت فكرتك الآن جاهزة للانتقال إلى الخطوة التالية عندما يتم اعتمادها.",
@@ -344,8 +352,46 @@ export const confirmationFieldStepMap = {
   selectedOperatingApproaches: discoveryJourneyStates.mixedOperatingDetail,
 };
 
+const displayTranslationFixtures = {
+  originalIdea: {
+    ar: {
+      en: {
+        "مشروع صيانة مكيفات يقدم الخدمة بأكثر من طريقة.": "An air-conditioning maintenance business that provides the service in more than one way.",
+        "منصة تربط بين مزودي الخدمة والعملاء.": "A platform connecting service providers and customers.",
+        "منصة تربط بين طرفين.": "A platform connecting two sides.",
+        "خدمة سيارات.": "A car service.",
+      },
+    },
+    en: {
+      ar: {
+        "A service business with more than one delivery approach.": "مشروع خدمي يقدم الخدمة بأكثر من طريقة.",
+        "A shop for practical home products.": "متجر لمنتجات منزلية عملية.",
+        "A long original idea paragraph with several details.": "وصف أولي طويل للفكرة يتضمن عدة تفاصيل.",
+        "Car care service.": "خدمة عناية بالسيارات.",
+      },
+    },
+  },
+  coreOffering: {
+    ar: {
+      en: {
+        "فني إصلاح المكيفات و العميل": "Air-conditioning repair technician and the customer",
+        "مزودو الخدمة والعملاء": "Service providers and customers",
+        "تنظيف وعناية بالسيارات": "Car cleaning and care",
+      },
+    },
+    en: {
+      ar: {
+        "Car cleaning and care": "تنظيف السيارات والعناية بها",
+        "Home products": "منتجات منزلية",
+        "Parents and tutors": "أولياء الأمور والمعلمون الخصوصيون",
+      },
+    },
+  },
+};
+
 export function createInitialDiscoveryState() {
   return {
+    route: INTENT_DISCOVERY_ROUTE,
     journeyState: discoveryJourneyStates.ideaCapture,
     originalIdea: "",
     suggestedIntentOptions: discoveryIntentOptions.map((option) => ({ ...option, suggested: false })),
@@ -363,6 +409,7 @@ export function createInitialDiscoveryState() {
 }
 
 export function buildDiscoveryState({
+  route = INTENT_DISCOVERY_ROUTE,
   journeyState = discoveryJourneyStates.ideaCapture,
   originalIdea = "",
   selectedIntent = "",
@@ -387,6 +434,7 @@ export function buildDiscoveryState({
   });
   const normalizedJourneyState = normalizeDiscoveryJourneyState(journeyState, confirmationStatus);
   return {
+    route: normalizeDiscoveryRoute(route),
     journeyState: normalizedJourneyState,
     originalIdea,
     suggestedIntentOptions,
@@ -401,6 +449,23 @@ export function buildDiscoveryState({
     dependencyResets: Array.isArray(dependencyResets) ? [...dependencyResets] : [],
     confirmedAnswers: isPlainObject(confirmedAnswers) ? { ...confirmedAnswers } : {},
   };
+}
+
+export function resolveDiscoveryTransition(discoveryState = createInitialDiscoveryState(), targetJourneyState = discoveryJourneyStates.ideaCapture) {
+  const currentState = buildDiscoveryState(discoveryState);
+  const mappedTarget = legacyStepJourneyStateMap[targetJourneyState] || targetJourneyState;
+  if (!Object.values(discoveryJourneyStates).includes(mappedTarget)) {
+    return buildTransitionResult(currentState, false, "invalid_journey_state");
+  }
+  const normalizedTarget = normalizeDiscoveryJourneyState(targetJourneyState, currentState.confirmationStatus);
+  if (!isJourneyStateReachable(currentState, normalizedTarget)) {
+    return buildTransitionResult(currentState, false, "incomplete_state");
+  }
+  return buildTransitionResult(buildDiscoveryState({
+    ...currentState,
+    route: INTENT_DISCOVERY_ROUTE,
+    journeyState: normalizedTarget,
+  }), true, "");
 }
 
 export function applyDiscoveryFieldChange(discoveryState = createInitialDiscoveryState(), fieldId = "", value) {
@@ -661,11 +726,19 @@ export function getJourneyStateForStep(step = "idea", discoveryState = createIni
 }
 
 export function getNextJourneyState(discoveryState = createInitialDiscoveryState(), journeyState = discoveryJourneyStates.ideaCapture) {
-  return getJourneyStateForStep(getNextStep(discoveryState, getJourneyStep(journeyState)), discoveryState);
+  const transition = resolveDiscoveryTransition(
+    discoveryState,
+    getJourneyStateForStep(getNextStep(discoveryState, getJourneyStep(journeyState)), discoveryState)
+  );
+  return transition.nextState.journeyState;
 }
 
 export function getPreviousJourneyState(discoveryState = createInitialDiscoveryState(), journeyState = discoveryJourneyStates.understandingReview) {
-  return getJourneyStateForStep(getPreviousStep(discoveryState, getJourneyStep(journeyState)), discoveryState);
+  const transition = resolveDiscoveryTransition(
+    discoveryState,
+    getJourneyStateForStep(getPreviousStep(discoveryState, getJourneyStep(journeyState)), discoveryState)
+  );
+  return transition.nextState.journeyState;
 }
 
 export function getNextStep(discoveryState = createInitialDiscoveryState(), step = "idea") {
@@ -711,6 +784,62 @@ export function buildUnderstandingSummary(discoveryState = createInitialDiscover
     unresolvedItems: summaryState.unresolvedItems.map((item) => content.unresolved[item] || item),
     confirmationStatus: summaryState.confirmationStatus,
     confirmationContract: buildConfirmationContract(summaryState),
+    displayTranslations: {
+      originalIdea: buildDisplayTranslation({
+        fieldId: "originalIdea",
+        value: summaryState.originalIdea,
+        targetLanguage: content.language,
+      }),
+      coreOffering: summaryState.coreOfferingStatus === "provided"
+        ? buildDisplayTranslation({
+          fieldId: "coreOffering",
+          value: summaryState.coreOffering,
+          targetLanguage: content.language,
+        })
+        : buildEmptyDisplayTranslation("coreOffering", content.language),
+    },
+  };
+}
+
+export function detectPrototypeTextLanguage(value = "") {
+  const text = String(value);
+  if (/[\u0600-\u06FF]/u.test(text)) return "ar";
+  if (/[A-Za-z]/u.test(text)) return "en";
+  return "unknown";
+}
+
+export function buildDisplayTranslation({ fieldId = "", value = "", targetLanguage = "en" } = {}) {
+  const text = String(value || "");
+  const sourceLanguage = detectPrototypeTextLanguage(text);
+  const normalizedTargetLanguage = targetLanguage === "ar" ? "ar" : targetLanguage === "en" ? "en" : "unknown";
+  if (!text.trim()) {
+    return buildEmptyDisplayTranslation(fieldId, normalizedTargetLanguage, sourceLanguage, "empty");
+  }
+  if (!["ar", "en"].includes(sourceLanguage) || !["ar", "en"].includes(normalizedTargetLanguage)) {
+    return buildEmptyDisplayTranslation(fieldId, normalizedTargetLanguage, sourceLanguage, "unknown_language");
+  }
+  if (sourceLanguage === normalizedTargetLanguage) {
+    return buildEmptyDisplayTranslation(fieldId, normalizedTargetLanguage, sourceLanguage, "same_language");
+  }
+  const textValue = displayTranslationFixtures[fieldId]?.[sourceLanguage]?.[normalizedTargetLanguage]?.[text] || "";
+  return {
+    fieldId,
+    sourceLanguage,
+    targetLanguage: normalizedTargetLanguage,
+    shouldDisplay: true,
+    status: textValue ? "available" : "unavailable",
+    text: textValue,
+  };
+}
+
+function buildEmptyDisplayTranslation(fieldId = "", targetLanguage = "en", sourceLanguage = "unknown", status = "not_needed") {
+  return {
+    fieldId,
+    sourceLanguage,
+    targetLanguage,
+    shouldDisplay: false,
+    status,
+    text: "",
   };
 }
 
@@ -747,6 +876,10 @@ function normalizeCoreOfferingStatus(coreOffering = "", coreOfferingStatus = "")
   return "missing";
 }
 
+function normalizeDiscoveryRoute(route = INTENT_DISCOVERY_ROUTE) {
+  return route === INTENT_DISCOVERY_ROUTE ? INTENT_DISCOVERY_ROUTE : INTENT_DISCOVERY_ROUTE;
+}
+
 function normalizeDiscoveryJourneyState(journeyState = discoveryJourneyStates.ideaCapture, confirmationStatus = "not_confirmed") {
   const mappedJourneyState = legacyStepJourneyStateMap[journeyState] || journeyState;
   if (!Object.values(discoveryJourneyStates).includes(mappedJourneyState)) {
@@ -767,6 +900,39 @@ function normalizeProgressJourneyState(journeyState = discoveryJourneyStates.ide
     return discoveryJourneyStates.understandingReview;
   }
   return normalizedJourneyState;
+}
+
+function buildTransitionResult(nextState, ok, blockedReason = "") {
+  return {
+    ok,
+    blockedReason,
+    route: INTENT_DISCOVERY_ROUTE,
+    nextState: buildDiscoveryState({
+      ...nextState,
+      route: INTENT_DISCOVERY_ROUTE,
+    }),
+  };
+}
+
+function isJourneyStateReachable(discoveryState, targetJourneyState) {
+  if (targetJourneyState === discoveryJourneyStates.ideaCapture) return true;
+  if (!discoveryState.originalIdea.trim()) return false;
+  if (targetJourneyState === discoveryJourneyStates.intentSelection) return true;
+  if (!discoveryState.selectedIntent) return false;
+  if (targetJourneyState === discoveryJourneyStates.coreOffering) return true;
+  if (!["provided", "undecided"].includes(discoveryState.coreOfferingStatus)) return false;
+  if (targetJourneyState === discoveryJourneyStates.operatingApproach) return true;
+  if (!discoveryState.selectedOperatingApproach) return false;
+  if (targetJourneyState === discoveryJourneyStates.mixedOperatingDetail) {
+    return discoveryState.selectedOperatingApproach === "mixed";
+  }
+  if (targetJourneyState === discoveryJourneyStates.understandingReview) {
+    return discoveryState.selectedOperatingApproach !== "mixed" || validateDiscoveryStep(discoveryState, "mixedOperating").ok;
+  }
+  if (targetJourneyState === discoveryJourneyStates.understandingConfirmed) {
+    return discoveryState.confirmationStatus === "confirmed" && buildConfirmationContract(discoveryState).isComplete;
+  }
+  return false;
 }
 
 function normalizeSelectedOperatingApproaches(selectedOperatingApproach = "", selectedOperatingApproaches = []) {
