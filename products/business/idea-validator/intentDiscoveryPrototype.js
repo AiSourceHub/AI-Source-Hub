@@ -33,6 +33,35 @@ export const mixedOperatingApproachOptions = [
   { id: "not_decided" },
 ];
 
+export const discoveryJourneyStates = {
+  ideaCapture: "idea_capture",
+  intentSelection: "intent_selection",
+  coreOffering: "core_offering",
+  operatingApproach: "operating_approach",
+  mixedOperatingDetail: "mixed_operating_detail",
+  understandingReview: "understanding_review",
+  understandingConfirmed: "understanding_confirmed",
+};
+
+const legacyStepJourneyStateMap = {
+  idea: discoveryJourneyStates.ideaCapture,
+  intent: discoveryJourneyStates.intentSelection,
+  coreOffering: discoveryJourneyStates.coreOffering,
+  operating: discoveryJourneyStates.operatingApproach,
+  mixedOperating: discoveryJourneyStates.mixedOperatingDetail,
+  summary: discoveryJourneyStates.understandingReview,
+};
+
+const journeyStateStepMap = {
+  [discoveryJourneyStates.ideaCapture]: "idea",
+  [discoveryJourneyStates.intentSelection]: "intent",
+  [discoveryJourneyStates.coreOffering]: "coreOffering",
+  [discoveryJourneyStates.operatingApproach]: "operating",
+  [discoveryJourneyStates.mixedOperatingDetail]: "mixedOperating",
+  [discoveryJourneyStates.understandingReview]: "summary",
+  [discoveryJourneyStates.understandingConfirmed]: "summary",
+};
+
 export const discoveryContent = {
   en: {
     language: "en",
@@ -309,14 +338,15 @@ export const confirmationFieldIds = [
 ];
 
 export const confirmationFieldStepMap = {
-  selectedIntent: "intent",
-  coreOffering: "coreOffering",
-  selectedOperatingApproach: "operating",
-  selectedOperatingApproaches: "mixedOperating",
+  selectedIntent: discoveryJourneyStates.intentSelection,
+  coreOffering: discoveryJourneyStates.coreOffering,
+  selectedOperatingApproach: discoveryJourneyStates.operatingApproach,
+  selectedOperatingApproaches: discoveryJourneyStates.mixedOperatingDetail,
 };
 
 export function createInitialDiscoveryState() {
   return {
+    journeyState: discoveryJourneyStates.ideaCapture,
     originalIdea: "",
     suggestedIntentOptions: discoveryIntentOptions.map((option) => ({ ...option, suggested: false })),
     selectedIntent: "",
@@ -333,6 +363,7 @@ export function createInitialDiscoveryState() {
 }
 
 export function buildDiscoveryState({
+  journeyState = discoveryJourneyStates.ideaCapture,
   originalIdea = "",
   selectedIntent = "",
   coreOffering = "",
@@ -354,7 +385,9 @@ export function buildDiscoveryState({
     selectedOperatingApproach,
     selectedOperatingApproaches: normalizedOperatingApproaches,
   });
+  const normalizedJourneyState = normalizeDiscoveryJourneyState(journeyState, confirmationStatus);
   return {
+    journeyState: normalizedJourneyState,
     originalIdea,
     suggestedIntentOptions,
     selectedIntent,
@@ -382,6 +415,7 @@ export function applyDiscoveryFieldChange(discoveryState = createInitialDiscover
     }
     return buildDiscoveryState({
       ...discoveryState,
+      journeyState: discoveryJourneyStates.intentSelection,
       selectedIntent: nextIntent,
       coreOffering: "",
       coreOfferingStatus: "missing",
@@ -398,6 +432,7 @@ export function applyDiscoveryFieldChange(discoveryState = createInitialDiscover
     const coreOffering = typeof value === "string" ? value : "";
     return buildDiscoveryState({
       ...discoveryState,
+      journeyState: discoveryJourneyStates.coreOffering,
       coreOffering,
       coreOfferingStatus: coreOffering.trim() ? "provided" : "missing",
       confirmationStatus: "not_confirmed",
@@ -410,6 +445,7 @@ export function applyDiscoveryFieldChange(discoveryState = createInitialDiscover
   if (fieldId === "coreOfferingStatus") {
     return buildDiscoveryState({
       ...discoveryState,
+      journeyState: discoveryJourneyStates.coreOffering,
       coreOffering: "",
       coreOfferingStatus: value === "undecided" ? "undecided" : "missing",
       confirmationStatus: "not_confirmed",
@@ -424,6 +460,7 @@ export function applyDiscoveryFieldChange(discoveryState = createInitialDiscover
     const clearingMixed = discoveryState.selectedOperatingApproach === "mixed" && nextApproach !== "mixed";
     return buildDiscoveryState({
       ...discoveryState,
+      journeyState: discoveryJourneyStates.operatingApproach,
       selectedOperatingApproach: nextApproach,
       selectedOperatingApproaches: nextApproach === "mixed" ? discoveryState.selectedOperatingApproaches : [],
       confirmationStatus: "not_confirmed",
@@ -436,6 +473,7 @@ export function applyDiscoveryFieldChange(discoveryState = createInitialDiscover
   if (fieldId === "selectedOperatingApproaches") {
     return buildDiscoveryState({
       ...discoveryState,
+      journeyState: discoveryJourneyStates.mixedOperatingDetail,
       selectedOperatingApproaches: Array.isArray(value) ? value : [],
       confirmationStatus: "not_confirmed",
       editingField: "selectedOperatingApproaches",
@@ -451,6 +489,7 @@ export function startDiscoveryFieldEdit(discoveryState = createInitialDiscoveryS
   if (!confirmationFieldIds.includes(fieldId)) return buildDiscoveryState(discoveryState);
   return buildDiscoveryState({
     ...discoveryState,
+    journeyState: confirmationFieldStepMap[fieldId] || discoveryState.journeyState,
     editingField: fieldId,
     confirmationStatus: "not_confirmed",
   });
@@ -501,6 +540,7 @@ export function confirmDiscoveryUnderstanding(discoveryState = createInitialDisc
   }
   return buildDiscoveryState({
     ...currentState,
+    journeyState: discoveryJourneyStates.understandingConfirmed,
     confirmationStatus: "confirmed",
     editingField: "",
     dependencyResets: [],
@@ -511,6 +551,7 @@ export function confirmDiscoveryUnderstanding(discoveryState = createInitialDisc
 export function reopenDiscoveryConfirmation(discoveryState = createInitialDiscoveryState()) {
   return buildDiscoveryState({
     ...discoveryState,
+    journeyState: discoveryJourneyStates.understandingReview,
     confirmationStatus: "not_confirmed",
     editingField: "",
   });
@@ -528,6 +569,7 @@ export function buildConfirmedDiscoverySnapshot(discoveryState = createInitialDi
     : currentState.selectedOperatingApproach;
   return buildDiscoveryState({
     ...currentState,
+    journeyState: discoveryJourneyStates.understandingConfirmed,
     selectedIntent: typeof snapshot.selectedIntent === "string" ? snapshot.selectedIntent : currentState.selectedIntent,
     coreOffering,
     coreOfferingStatus: coreOffering.trim() ? "provided" : currentState.coreOfferingStatus,
@@ -588,17 +630,42 @@ export function getCoreOfferingQuestion(selectedIntent = "", language = "en") {
 }
 
 export function getDiscoverySteps(discoveryState = createInitialDiscoveryState()) {
-  const steps = ["idea", "intent", "coreOffering", "operating"];
-  if (discoveryState.selectedOperatingApproach === "mixed") steps.push("mixedOperating");
-  steps.push("summary");
+  const steps = [
+    discoveryJourneyStates.ideaCapture,
+    discoveryJourneyStates.intentSelection,
+    discoveryJourneyStates.coreOffering,
+    discoveryJourneyStates.operatingApproach,
+  ];
+  if (discoveryState.selectedOperatingApproach === "mixed") steps.push(discoveryJourneyStates.mixedOperatingDetail);
+  steps.push(discoveryJourneyStates.understandingReview);
   return steps;
 }
 
-export function getProgressText(discoveryState = createInitialDiscoveryState(), step = "idea", language = "en") {
+export function getProgressText(discoveryState = createInitialDiscoveryState(), journeyState = discoveryJourneyStates.ideaCapture, language = "en") {
   const content = discoveryContent[language] || discoveryContent.en;
   const steps = getDiscoverySteps(discoveryState);
-  const current = Math.max(1, steps.indexOf(step) + 1);
+  const progressJourneyState = normalizeProgressJourneyState(journeyState);
+  const current = Math.max(1, steps.indexOf(progressJourneyState) + 1);
   return content.progress.replace("{current}", String(current)).replace("{total}", String(steps.length));
+}
+
+export function getJourneyStep(journeyState = discoveryJourneyStates.ideaCapture) {
+  return journeyStateStepMap[normalizeDiscoveryJourneyState(journeyState)] || "idea";
+}
+
+export function getJourneyStateForStep(step = "idea", discoveryState = createInitialDiscoveryState()) {
+  if (step === "summary" && discoveryState.confirmationStatus === "confirmed") {
+    return discoveryJourneyStates.understandingConfirmed;
+  }
+  return legacyStepJourneyStateMap[step] || normalizeDiscoveryJourneyState(step);
+}
+
+export function getNextJourneyState(discoveryState = createInitialDiscoveryState(), journeyState = discoveryJourneyStates.ideaCapture) {
+  return getJourneyStateForStep(getNextStep(discoveryState, getJourneyStep(journeyState)), discoveryState);
+}
+
+export function getPreviousJourneyState(discoveryState = createInitialDiscoveryState(), journeyState = discoveryJourneyStates.understandingReview) {
+  return getJourneyStateForStep(getPreviousStep(discoveryState, getJourneyStep(journeyState)), discoveryState);
 }
 
 export function getNextStep(discoveryState = createInitialDiscoveryState(), step = "idea") {
@@ -678,6 +745,28 @@ function normalizeCoreOfferingStatus(coreOffering = "", coreOfferingStatus = "")
   if (coreOfferingStatus === "undecided") return "undecided";
   if (coreOffering.trim()) return "provided";
   return "missing";
+}
+
+function normalizeDiscoveryJourneyState(journeyState = discoveryJourneyStates.ideaCapture, confirmationStatus = "not_confirmed") {
+  const mappedJourneyState = legacyStepJourneyStateMap[journeyState] || journeyState;
+  if (!Object.values(discoveryJourneyStates).includes(mappedJourneyState)) {
+    return discoveryJourneyStates.ideaCapture;
+  }
+  if (confirmationStatus === "confirmed" && mappedJourneyState === discoveryJourneyStates.understandingReview) {
+    return discoveryJourneyStates.understandingConfirmed;
+  }
+  if (confirmationStatus !== "confirmed" && mappedJourneyState === discoveryJourneyStates.understandingConfirmed) {
+    return discoveryJourneyStates.understandingReview;
+  }
+  return mappedJourneyState;
+}
+
+function normalizeProgressJourneyState(journeyState = discoveryJourneyStates.ideaCapture) {
+  const normalizedJourneyState = normalizeDiscoveryJourneyState(journeyState);
+  if (normalizedJourneyState === discoveryJourneyStates.understandingConfirmed) {
+    return discoveryJourneyStates.understandingReview;
+  }
+  return normalizedJourneyState;
 }
 
 function normalizeSelectedOperatingApproaches(selectedOperatingApproach = "", selectedOperatingApproaches = []) {

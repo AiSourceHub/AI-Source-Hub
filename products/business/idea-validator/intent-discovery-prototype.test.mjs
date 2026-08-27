@@ -8,13 +8,18 @@ import {
   buildSuggestedIntentOptions,
   buildUnderstandingSummary,
   confirmDiscoveryUnderstanding,
+  discoveryJourneyStates,
   discoveryContent,
   getCoreOfferingQuestion,
   getDiscoverySteps,
   getIntentChoices,
+  getJourneyStateForStep,
+  getJourneyStep,
+  getNextJourneyState,
   getMixedOperatingChoices,
   getNextStep,
   getOperatingChoices,
+  getPreviousJourneyState,
   getProgressText,
   reopenDiscoveryConfirmation,
   updateMixedOperatingSelection,
@@ -29,6 +34,7 @@ const prototypePageSource = readFileSync(new URL("../../../src/pages/BusinessIde
 
 const emptyState = buildDiscoveryState({ originalIdea: "" });
 assert.equal(emptyState.originalIdea, "");
+assert.equal(emptyState.journeyState, discoveryJourneyStates.ideaCapture);
 const emptyValidation = validateDiscoveryStep(emptyState, "idea", "en");
 assert.equal(emptyValidation.ok, false);
 assert.equal(emptyValidation.error, discoveryContent.en.validation.ideaRequired);
@@ -50,10 +56,20 @@ const selectedRetail = buildDiscoveryState({
   selectedIntent: "retail",
   coreOffering: "Daily household products",
   selectedOperatingApproach: "fixed_location",
+  journeyState: discoveryJourneyStates.operatingApproach,
 });
 assert.equal(selectedRetail.selectedIntent, "retail");
 assert.equal(selectedRetail.coreOffering, "Daily household products");
+assert.equal(selectedRetail.journeyState, discoveryJourneyStates.operatingApproach);
 assert.equal(buildSuggestedIntentOptions("A software tool for stores")[0].id, "digital");
+
+const journeyFromLegacyStep = buildDiscoveryState({
+  originalIdea: "A service idea.",
+  journeyState: "coreOffering",
+});
+assert.equal(journeyFromLegacyStep.journeyState, discoveryJourneyStates.coreOffering);
+assert.equal(getJourneyStep(discoveryJourneyStates.coreOffering), "coreOffering");
+assert.equal(getJourneyStateForStep("summary"), discoveryJourneyStates.understandingReview);
 
 const baseConfirmedState = buildDiscoveryState({
   originalIdea: "A service business with more than one delivery approach.",
@@ -61,6 +77,7 @@ const baseConfirmedState = buildDiscoveryState({
   coreOffering: "Car cleaning and care",
   selectedOperatingApproach: "mixed",
   selectedOperatingApproaches: ["fixed_location", "customer_site"],
+  journeyState: discoveryJourneyStates.understandingReview,
 });
 const baseContract = buildConfirmationContract(baseConfirmedState);
 assert.equal(baseContract.isComplete, true);
@@ -74,13 +91,17 @@ assert.deepEqual(baseContract.resolvedFields, {
 
 const confirmedContractState = confirmDiscoveryUnderstanding(baseConfirmedState);
 assert.equal(confirmedContractState.confirmationStatus, "confirmed");
+assert.equal(confirmedContractState.journeyState, discoveryJourneyStates.understandingConfirmed);
+assert.equal(getJourneyStateForStep("summary", confirmedContractState), discoveryJourneyStates.understandingConfirmed);
 assert.equal(confirmedContractState.confirmedAnswers.selectedIntent, "service");
 assert.equal(confirmedContractState.confirmedAnswers.coreOffering, "Car cleaning and care");
 const confirmedAgain = confirmDiscoveryUnderstanding(confirmedContractState);
 assert.equal(confirmedAgain.confirmationStatus, "confirmed");
+assert.equal(confirmedAgain.journeyState, discoveryJourneyStates.understandingConfirmed);
 assert.deepEqual(confirmedAgain.confirmedAnswers, confirmedContractState.confirmedAnswers);
 const reopenedConfirmation = reopenDiscoveryConfirmation(confirmedContractState);
 assert.equal(reopenedConfirmation.confirmationStatus, "not_confirmed");
+assert.equal(reopenedConfirmation.journeyState, discoveryJourneyStates.understandingReview);
 assert.equal(reopenedConfirmation.selectedIntent, "service");
 assert.equal(reopenedConfirmation.coreOffering, "Car cleaning and care");
 assert.deepEqual(reopenedConfirmation.selectedOperatingApproaches, ["fixed_location", "customer_site"]);
@@ -92,6 +113,26 @@ const incompleteConfirmation = confirmDiscoveryUnderstanding(buildDiscoveryState
 }));
 assert.equal(incompleteConfirmation.confirmationStatus, "not_confirmed");
 assert.deepEqual(incompleteConfirmation.confirmedAnswers, {});
+
+const journeySequenceStart = buildDiscoveryState({
+  originalIdea: "A service idea.",
+  journeyState: discoveryJourneyStates.ideaCapture,
+});
+assert.equal(getNextJourneyState(journeySequenceStart, journeySequenceStart.journeyState), discoveryJourneyStates.intentSelection);
+const journeySequenceIntent = applyDiscoveryFieldChange(journeySequenceStart, "selectedIntent", "service");
+assert.equal(journeySequenceIntent.journeyState, discoveryJourneyStates.intentSelection);
+assert.equal(getNextJourneyState(journeySequenceIntent, journeySequenceIntent.journeyState), discoveryJourneyStates.coreOffering);
+const journeySequenceCore = applyDiscoveryFieldChange(journeySequenceIntent, "coreOffering", "Cleaning");
+assert.equal(journeySequenceCore.journeyState, discoveryJourneyStates.coreOffering);
+assert.equal(getNextJourneyState(journeySequenceCore, journeySequenceCore.journeyState), discoveryJourneyStates.operatingApproach);
+const journeySequenceOperating = applyDiscoveryFieldChange(journeySequenceCore, "selectedOperatingApproach", "mixed");
+assert.equal(journeySequenceOperating.journeyState, discoveryJourneyStates.operatingApproach);
+assert.equal(getNextJourneyState(journeySequenceOperating, journeySequenceOperating.journeyState), discoveryJourneyStates.mixedOperatingDetail);
+assert.equal(getPreviousJourneyState(journeySequenceOperating, discoveryJourneyStates.mixedOperatingDetail), discoveryJourneyStates.operatingApproach);
+const journeySequenceMixed = applyDiscoveryFieldChange(journeySequenceOperating, "selectedOperatingApproaches", ["fixed_location", "customer_site"]);
+assert.equal(journeySequenceMixed.journeyState, discoveryJourneyStates.mixedOperatingDetail);
+assert.equal(getNextJourneyState(journeySequenceMixed, journeySequenceMixed.journeyState), discoveryJourneyStates.understandingReview);
+assert.equal(getProgressText(journeySequenceMixed, discoveryJourneyStates.understandingConfirmed, "en"), "Step 6 of 6");
 
 const confirmedArabicService = confirmDiscoveryUnderstanding(buildDiscoveryState({
   originalIdea: "مشروع صيانة مكيفات يقدم الخدمة بأكثر من طريقة.",
@@ -153,6 +194,7 @@ assert.equal(buildUnderstandingSummary(confirmedEnglishRetail, "en").intentLabel
 
 const changedIntent = applyDiscoveryFieldChange(baseConfirmedState, "selectedIntent", "retail");
 assert.equal(changedIntent.selectedIntent, "retail");
+assert.equal(changedIntent.journeyState, discoveryJourneyStates.intentSelection);
 assert.equal(changedIntent.coreOffering, "");
 assert.equal(changedIntent.coreOfferingStatus, "missing");
 assert.equal(changedIntent.selectedOperatingApproach, "mixed");
@@ -161,6 +203,7 @@ assert.deepEqual(changedIntent.dependencyResets, ["coreOffering"]);
 
 const changedCoreOffering = applyDiscoveryFieldChange(baseConfirmedState, "coreOffering", "Exterior cleaning");
 assert.equal(changedCoreOffering.selectedIntent, "service");
+assert.equal(changedCoreOffering.journeyState, discoveryJourneyStates.coreOffering);
 assert.equal(changedCoreOffering.coreOffering, "Exterior cleaning");
 assert.equal(changedCoreOffering.selectedOperatingApproach, "mixed");
 assert.deepEqual(changedCoreOffering.selectedOperatingApproaches, ["fixed_location", "customer_site"]);
@@ -168,6 +211,7 @@ assert.deepEqual(changedCoreOffering.dependencyResets, []);
 
 const changedMixedToFixed = applyDiscoveryFieldChange(baseConfirmedState, "selectedOperatingApproach", "fixed_location");
 assert.equal(changedMixedToFixed.selectedIntent, "service");
+assert.equal(changedMixedToFixed.journeyState, discoveryJourneyStates.operatingApproach);
 assert.equal(changedMixedToFixed.coreOffering, "Car cleaning and care");
 assert.equal(changedMixedToFixed.selectedOperatingApproach, "fixed_location");
 assert.deepEqual(changedMixedToFixed.selectedOperatingApproaches, []);
@@ -189,6 +233,7 @@ assert.equal(changedFixedToMixed.unresolvedItems.includes("mixedOperating"), tru
 
 const editedMixedApproaches = applyDiscoveryFieldChange(baseConfirmedState, "selectedOperatingApproaches", ["online", "customer_site"]);
 assert.equal(editedMixedApproaches.selectedIntent, "service");
+assert.equal(editedMixedApproaches.journeyState, discoveryJourneyStates.mixedOperatingDetail);
 assert.equal(editedMixedApproaches.coreOffering, "Car cleaning and care");
 assert.equal(editedMixedApproaches.selectedOperatingApproach, "mixed");
 assert.deepEqual(editedMixedApproaches.selectedOperatingApproaches, ["online", "customer_site"]);
@@ -374,6 +419,10 @@ for (const term of hiddenTerms) {
 
 assert.equal(prototypePageSource.includes("{index + 1}"), false);
 assert.equal(prototypePageSource.includes("step-pill"), false);
+assert.equal(prototypePageSource.includes("const [step"), false);
+assert.equal(prototypePageSource.includes("setStep("), false);
+assert.equal(prototypePageSource.includes("const journeyState = state.journeyState"), true);
+assert.equal(prototypePageSource.includes("journeyState === discoveryJourneyStates.ideaCapture"), true);
 assert.equal(prototypePageSource.includes("discovery-progress__text"), true);
 assert.equal(discoveryContent.en.progress, "Step {current} of {total}");
 assert.equal(discoveryContent.ar.progress, "الخطوة {current} من {total}");

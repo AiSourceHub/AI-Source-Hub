@@ -9,14 +9,15 @@ import {
   buildUnderstandingSummary,
   confirmDiscoveryUnderstanding,
   createInitialDiscoveryState,
+  discoveryJourneyStates,
   discoveryContent,
   getCoreOfferingQuestion,
   getDiscoverySteps,
   getIntentChoices,
+  getNextJourneyState,
   getMixedOperatingChoices,
-  getNextStep,
   getOperatingChoices,
-  getPreviousStep,
+  getPreviousJourneyState,
   getProgressText,
   reopenDiscoveryConfirmation,
   startDiscoveryFieldEdit,
@@ -34,7 +35,6 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
   const location = useLocation();
   const { language } = locale;
   const content = discoveryContent[language] || discoveryContent.en;
-  const [step, setStep] = useState('idea');
   const [state, setState] = useState(createInitialDiscoveryState);
   const [error, setError] = useState('');
   const [semanticStatus, setSemanticStatus] = useState('idle');
@@ -69,8 +69,20 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
   const mixedOperatingChoices = useMemo(() => getMixedOperatingChoices(), []);
   const summary = useMemo(() => buildUnderstandingSummary(state, language), [state, language]);
   const confirmationContract = useMemo(() => summary.confirmationContract, [summary]);
-  const progressText = useMemo(() => getProgressText(state, step, language), [state, step, language]);
+  const journeyState = state.journeyState;
+  const progressText = useMemo(() => getProgressText(state, journeyState, language), [state, journeyState, language]);
   const progressSteps = useMemo(() => getDiscoverySteps(state), [state]);
+  const progressJourneyState = journeyState === discoveryJourneyStates.understandingConfirmed
+    ? discoveryJourneyStates.understandingReview
+    : journeyState;
+  const progressIndex = progressSteps.indexOf(progressJourneyState);
+
+  const transitionToJourneyState = (nextJourneyState) => {
+    setState((currentState) => buildDiscoveryState({
+      ...currentState,
+      journeyState: nextJourneyState,
+    }));
+  };
 
   const setOriginalIdea = (value) => {
     setState(buildDiscoveryState({
@@ -114,18 +126,14 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
 
   const editSummaryField = (fieldId) => {
     const nextState = startDiscoveryFieldEdit(state, fieldId);
-    setState(nextState);
+    const targetJourneyState = fieldId === 'selectedOperatingApproaches' && nextState.selectedOperatingApproach !== 'mixed'
+      ? discoveryJourneyStates.operatingApproach
+      : nextState.journeyState;
+    setState(buildDiscoveryState({
+      ...nextState,
+      journeyState: targetJourneyState,
+    }));
     setError('');
-    if (fieldId === 'selectedOperatingApproaches' && nextState.selectedOperatingApproach !== 'mixed') {
-      setStep('operating');
-      return;
-    }
-    setStep({
-      selectedIntent: 'intent',
-      coreOffering: 'coreOffering',
-      selectedOperatingApproach: 'operating',
-      selectedOperatingApproaches: 'mixedOperating',
-    }[fieldId] || 'summary');
   };
 
   const goToIntent = () => {
@@ -134,10 +142,13 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
       setError(validation.error);
       return;
     }
-    const nextState = buildDiscoveryState({ ...state, confirmationStatus: 'not_confirmed' });
+    const nextState = buildDiscoveryState({
+      ...state,
+      confirmationStatus: 'not_confirmed',
+      journeyState: discoveryJourneyStates.intentSelection,
+    });
     setState(nextState);
     setError('');
-    setStep('intent');
     runSemanticIntentInterpretation(nextState);
   };
 
@@ -192,7 +203,9 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
       return;
     }
     setError('');
-    setStep(state.editingField === 'selectedIntent' && buildConfirmationContract(state).isComplete ? 'summary' : getNextStep(state, 'intent'));
+    transitionToJourneyState(state.editingField === 'selectedIntent' && buildConfirmationContract(state).isComplete
+      ? discoveryJourneyStates.understandingReview
+      : getNextJourneyState(state, journeyState));
   };
 
   const goToCoreOffering = () => {
@@ -202,7 +215,9 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
       return;
     }
     setError('');
-    setStep(state.editingField === 'coreOffering' && buildConfirmationContract(state).isComplete ? 'summary' : getNextStep(state, 'coreOffering'));
+    transitionToJourneyState(state.editingField === 'coreOffering' && buildConfirmationContract(state).isComplete
+      ? discoveryJourneyStates.understandingReview
+      : getNextJourneyState(state, journeyState));
   };
 
   const goFromOperating = () => {
@@ -212,7 +227,9 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
       return;
     }
     setError('');
-    setStep(state.editingField === 'selectedOperatingApproach' && buildConfirmationContract(state).isComplete ? 'summary' : getNextStep(state, 'operating'));
+    transitionToJourneyState(state.editingField === 'selectedOperatingApproach' && buildConfirmationContract(state).isComplete
+      ? discoveryJourneyStates.understandingReview
+      : getNextJourneyState(state, journeyState));
   };
 
   const goToSummary = () => {
@@ -222,7 +239,7 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
       return;
     }
     setError('');
-    setStep('summary');
+    transitionToJourneyState(discoveryJourneyStates.understandingReview);
   };
 
   const confirmSummary = () => {
@@ -243,7 +260,6 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
 
   const reset = () => {
     setState(createInitialDiscoveryState());
-    setStep('idea');
     setSemanticStatus('idle');
     setSemanticPresentation(null);
     setError('');
@@ -266,12 +282,12 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
                 <span className="discovery-progress__bar" aria-hidden="true">
                   <span
                     className="discovery-progress__fill"
-                    style={{ inlineSize: `${((progressSteps.indexOf(step) + 1) / progressSteps.length) * 100}%` }}
+                    style={{ inlineSize: `${((Math.max(0, progressIndex) + 1) / progressSteps.length) * 100}%` }}
                   />
                 </span>
               </div>
 
-              {step === 'idea' ? (
+              {journeyState === discoveryJourneyStates.ideaCapture ? (
                 <div className="discovery-step">
                   <h2 id="discovery-title">{content.states.idea.heading}</h2>
                   <p className="validator-intro">{content.states.idea.body}</p>
@@ -293,7 +309,7 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
                 </div>
               ) : null}
 
-              {step === 'intent' ? (
+              {journeyState === discoveryJourneyStates.intentSelection ? (
                 <div className="discovery-step">
                   {semanticStatus === 'loading' ? (
                     <div className="semantic-intent-panel" role="status" aria-live="polite">
@@ -317,7 +333,7 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
                       />
                       <span className="field__error">{error}</span>
                       <div className="validator-actions">
-                        <button className="button button--secondary" type="button" onClick={() => setStep('idea')}>
+                        <button className="button button--secondary" type="button" onClick={() => transitionToJourneyState(discoveryJourneyStates.ideaCapture)}>
                           {content.actions.back}
                         </button>
                         <button className="button button--primary" type="button" onClick={goToOperating}>
@@ -329,7 +345,7 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
                 </div>
               ) : null}
 
-              {step === 'coreOffering' ? (
+              {journeyState === discoveryJourneyStates.coreOffering ? (
                 <div className="discovery-step">
                   <h2 id="discovery-title">{getCoreOfferingQuestion(state.selectedIntent, language)}</h2>
                   <label className="field">
@@ -347,7 +363,7 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
                     <button className="button button--secondary" type="button" onClick={setCoreOfferingUndecided}>
                       {content.states.coreOffering.undecided}
                     </button>
-                    <button className="button button--secondary" type="button" onClick={() => setStep(getPreviousStep(state, 'coreOffering'))}>
+                    <button className="button button--secondary" type="button" onClick={() => transitionToJourneyState(getPreviousJourneyState(state, journeyState))}>
                       {content.actions.back}
                     </button>
                     <button className="button button--primary" type="button" onClick={goToCoreOffering}>
@@ -357,7 +373,7 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
                 </div>
               ) : null}
 
-              {step === 'operating' ? (
+              {journeyState === discoveryJourneyStates.operatingApproach ? (
                 <div className="discovery-step">
                   <h2 id="discovery-title">{content.states.operating.heading}</h2>
                   <ChoiceList
@@ -368,7 +384,7 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
                   />
                   <span className="field__error">{error}</span>
                   <div className="validator-actions">
-                    <button className="button button--secondary" type="button" onClick={() => setStep(getPreviousStep(state, 'operating'))}>
+                    <button className="button button--secondary" type="button" onClick={() => transitionToJourneyState(getPreviousJourneyState(state, journeyState))}>
                       {content.actions.back}
                     </button>
                     <button className="button button--primary" type="button" onClick={goFromOperating}>
@@ -378,7 +394,7 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
                 </div>
               ) : null}
 
-              {step === 'mixedOperating' ? (
+              {journeyState === discoveryJourneyStates.mixedOperatingDetail ? (
                 <div className="discovery-step">
                   <h2 id="discovery-title">{content.states.mixedOperating.heading}</h2>
                   <p className="validator-intro">{content.states.mixedOperating.body}</p>
@@ -390,7 +406,7 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
                   />
                   <span className="field__error">{error}</span>
                   <div className="validator-actions">
-                    <button className="button button--secondary" type="button" onClick={() => setStep(getPreviousStep(state, 'mixedOperating'))}>
+                    <button className="button button--secondary" type="button" onClick={() => transitionToJourneyState(getPreviousJourneyState(state, journeyState))}>
                       {content.actions.back}
                     </button>
                     <button className="button button--primary" type="button" onClick={goToSummary}>
@@ -400,7 +416,7 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
                 </div>
               ) : null}
 
-              {step === 'summary' ? (
+              {[discoveryJourneyStates.understandingReview, discoveryJourneyStates.understandingConfirmed].includes(journeyState) ? (
                 <div className="discovery-step">
                   {state.confirmationStatus === 'confirmed' ? (
                     <div className="discovery-confirmed-state" role="status" aria-live="polite">
