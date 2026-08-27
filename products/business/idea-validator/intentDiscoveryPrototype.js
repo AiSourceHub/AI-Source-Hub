@@ -146,6 +146,14 @@ export const discoveryContent = {
       other: "Another way",
       not_decided: "I have not decided the approaches yet",
     },
+    mixedOperatingJoinOptions: {
+      online: "online",
+      fixed_location: "at a fixed location",
+      customer_site: "at the customer’s location",
+      home_based: "from home",
+      other: "another way",
+      not_decided: "not decided yet",
+    },
     placeholders: {
       coreOfferingUndecided: "Not decided yet",
       operatingUndecided: "Not decided yet",
@@ -508,6 +516,37 @@ export function reopenDiscoveryConfirmation(discoveryState = createInitialDiscov
   });
 }
 
+export function buildConfirmedDiscoverySnapshot(discoveryState = createInitialDiscoveryState()) {
+  const currentState = buildDiscoveryState(discoveryState);
+  if (currentState.confirmationStatus !== "confirmed" || !isPlainObject(currentState.confirmedAnswers)) {
+    return currentState;
+  }
+  const snapshot = currentState.confirmedAnswers;
+  const coreOffering = typeof snapshot.coreOffering === "string" ? snapshot.coreOffering : currentState.coreOffering;
+  const selectedOperatingApproach = typeof snapshot.selectedOperatingApproach === "string"
+    ? snapshot.selectedOperatingApproach
+    : currentState.selectedOperatingApproach;
+  return buildDiscoveryState({
+    ...currentState,
+    selectedIntent: typeof snapshot.selectedIntent === "string" ? snapshot.selectedIntent : currentState.selectedIntent,
+    coreOffering,
+    coreOfferingStatus: coreOffering.trim() ? "provided" : currentState.coreOfferingStatus,
+    selectedOperatingApproach,
+    selectedOperatingApproaches: Array.isArray(snapshot.selectedOperatingApproaches)
+      ? [...snapshot.selectedOperatingApproaches]
+      : currentState.selectedOperatingApproaches,
+    confirmationStatus: "confirmed",
+    editingField: "",
+    dependencyResets: [],
+    confirmedAnswers: {
+      ...snapshot,
+      selectedOperatingApproaches: Array.isArray(snapshot.selectedOperatingApproaches)
+        ? [...snapshot.selectedOperatingApproaches]
+        : [],
+    },
+  });
+}
+
 export function buildSuggestedIntentOptions(originalIdea = "") {
   const sourceFields = [{ field: "businessIdea", value: originalIdea }];
   const evidence = collectClassificationEvidence(sourceFields);
@@ -591,19 +630,20 @@ export function updateMixedOperatingSelection(currentSelections = [], optionId =
 
 export function buildUnderstandingSummary(discoveryState = createInitialDiscoveryState(), language = "en") {
   const content = discoveryContent[language] || discoveryContent.en;
-  const intentLabel = content.intentSummaryOptions[discoveryState.selectedIntent] || content.intentSummaryOptions.not_decided;
-  const coreOfferingLabel = discoveryState.coreOfferingStatus === "provided"
-    ? discoveryState.coreOffering
+  const summaryState = buildConfirmedDiscoverySnapshot(discoveryState);
+  const intentLabel = content.intentSummaryOptions[summaryState.selectedIntent] || content.intentSummaryOptions.not_decided;
+  const coreOfferingLabel = summaryState.coreOfferingStatus === "provided"
+    ? summaryState.coreOffering
     : content.placeholders.coreOfferingUndecided;
-  const operatingLabel = buildOperatingSummaryLabel(discoveryState, content);
+  const operatingLabel = buildOperatingSummaryLabel(summaryState, content);
   return {
-    originalIdea: discoveryState.originalIdea,
+    originalIdea: summaryState.originalIdea,
     intentLabel,
     coreOfferingLabel,
     operatingLabel,
-    unresolvedItems: discoveryState.unresolvedItems.map((item) => content.unresolved[item] || item),
-    confirmationStatus: discoveryState.confirmationStatus,
-    confirmationContract: buildConfirmationContract(discoveryState),
+    unresolvedItems: summaryState.unresolvedItems.map((item) => content.unresolved[item] || item),
+    confirmationStatus: summaryState.confirmationStatus,
+    confirmationContract: buildConfirmationContract(summaryState),
   };
 }
 
@@ -660,7 +700,12 @@ function buildOperatingSummaryLabel(discoveryState, content) {
       return content.placeholders.operatingUndecided;
     }
     return discoveryState.selectedOperatingApproaches
-      .map((item) => content.mixedOperatingOptions[item])
+      .map((item, index) => {
+        if (content.language === "en" && index > 0) {
+          return content.mixedOperatingJoinOptions?.[item] || content.mixedOperatingOptions[item];
+        }
+        return content.mixedOperatingOptions[item];
+      })
       .filter(Boolean)
       .reduce((label, item, index, list) => {
         if (index === 0) return item;

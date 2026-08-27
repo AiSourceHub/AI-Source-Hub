@@ -139,6 +139,13 @@ button:focus-visible,
   text-transform: uppercase;
 }
 
+.product-hero .eyebrow {
+  display: inline-block;
+  max-width: 100%;
+  overflow: visible;
+  text-align: inherit;
+}
+
 .section-title {
   margin: 0;
   max-width: 760px;
@@ -1138,6 +1145,18 @@ body[dir='rtl'] .validator-actions,
 body[dir='rtl'] .report-actions,
 body[dir='rtl'] .tag-list {
   direction: rtl;
+}
+
+body[dir='ltr'] .product-hero,
+body[dir='ltr'] .discovery-prototype {
+  direction: ltr;
+  text-align: start;
+}
+
+body[dir='rtl'] .product-hero,
+body[dir='rtl'] .discovery-prototype {
+  direction: rtl;
+  text-align: start;
 }
 
 @media (prefers-color-scheme: dark) {

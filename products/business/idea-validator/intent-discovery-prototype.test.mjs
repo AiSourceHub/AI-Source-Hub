@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import {
   applyDiscoveryFieldChange,
   buildConfirmationContract,
+  buildConfirmedDiscoverySnapshot,
   buildDiscoveryState,
   buildSuggestedIntentOptions,
   buildUnderstandingSummary,
@@ -91,6 +92,64 @@ const incompleteConfirmation = confirmDiscoveryUnderstanding(buildDiscoveryState
 }));
 assert.equal(incompleteConfirmation.confirmationStatus, "not_confirmed");
 assert.deepEqual(incompleteConfirmation.confirmedAnswers, {});
+
+const confirmedArabicService = confirmDiscoveryUnderstanding(buildDiscoveryState({
+  originalIdea: "مشروع صيانة مكيفات يقدم الخدمة بأكثر من طريقة.",
+  selectedIntent: "service",
+  coreOffering: "فني إصلاح المكيفات و العميل",
+  selectedOperatingApproach: "mixed",
+  selectedOperatingApproaches: ["customer_site", "fixed_location"],
+}));
+const englishFromArabicSnapshot = buildUnderstandingSummary(confirmedArabicService, "en");
+assert.equal(englishFromArabicSnapshot.confirmationStatus, "confirmed");
+assert.equal(englishFromArabicSnapshot.intentLabel, discoveryContent.en.intentSummaryOptions.service);
+assert.notEqual(englishFromArabicSnapshot.intentLabel, discoveryContent.en.intentSummaryOptions.marketplace);
+assert.equal(englishFromArabicSnapshot.coreOfferingLabel, "فني إصلاح المكيفات و العميل");
+assert.equal(englishFromArabicSnapshot.operatingLabel, "At the customer’s location and at a fixed location");
+const arabicAgainFromSnapshot = buildUnderstandingSummary(confirmedArabicService, "ar");
+assert.equal(arabicAgainFromSnapshot.intentLabel, discoveryContent.ar.intentSummaryOptions.service);
+assert.equal(arabicAgainFromSnapshot.coreOfferingLabel, "فني إصلاح المكيفات و العميل");
+assert.equal(arabicAgainFromSnapshot.operatingLabel, "في موقع العميل، وفي موقع ثابت");
+assert.deepEqual(confirmedArabicService.confirmedAnswers, {
+  selectedIntent: "service",
+  coreOffering: "فني إصلاح المكيفات و العميل",
+  selectedOperatingApproach: "mixed",
+  selectedOperatingApproaches: ["customer_site", "fixed_location"],
+});
+
+const mutatedAfterConfirmation = buildDiscoveryState({
+  ...confirmedArabicService,
+  selectedIntent: "marketplace",
+  selectedOperatingApproach: "online",
+  selectedOperatingApproaches: [],
+  confirmationStatus: "confirmed",
+  confirmedAnswers: confirmedArabicService.confirmedAnswers,
+});
+const snapshotAfterProviderLikeMutation = buildConfirmedDiscoverySnapshot(mutatedAfterConfirmation);
+assert.equal(snapshotAfterProviderLikeMutation.selectedIntent, "service");
+assert.equal(snapshotAfterProviderLikeMutation.selectedOperatingApproach, "mixed");
+assert.deepEqual(snapshotAfterProviderLikeMutation.selectedOperatingApproaches, ["customer_site", "fixed_location"]);
+const summaryAfterProviderLikeMutation = buildUnderstandingSummary(mutatedAfterConfirmation, "en");
+assert.equal(summaryAfterProviderLikeMutation.intentLabel, discoveryContent.en.intentSummaryOptions.service);
+assert.equal(summaryAfterProviderLikeMutation.operatingLabel, "At the customer’s location and at a fixed location");
+
+const confirmedArabicMarketplace = confirmDiscoveryUnderstanding(buildDiscoveryState({
+  originalIdea: "منصة تربط بين مزودي الخدمة والعملاء.",
+  selectedIntent: "marketplace",
+  coreOffering: "مزودو الخدمة والعملاء",
+  selectedOperatingApproach: "online",
+}));
+assert.equal(buildUnderstandingSummary(confirmedArabicMarketplace, "en").intentLabel, discoveryContent.en.intentSummaryOptions.marketplace);
+assert.equal(buildUnderstandingSummary(confirmedArabicMarketplace, "ar").intentLabel, discoveryContent.ar.intentSummaryOptions.marketplace);
+
+const confirmedEnglishRetail = confirmDiscoveryUnderstanding(buildDiscoveryState({
+  originalIdea: "A shop for practical home products.",
+  selectedIntent: "retail",
+  coreOffering: "Home products",
+  selectedOperatingApproach: "fixed_location",
+}));
+assert.equal(buildUnderstandingSummary(confirmedEnglishRetail, "ar").intentLabel, discoveryContent.ar.intentSummaryOptions.retail);
+assert.equal(buildUnderstandingSummary(confirmedEnglishRetail, "en").intentLabel, discoveryContent.en.intentSummaryOptions.retail);
 
 const changedIntent = applyDiscoveryFieldChange(baseConfirmedState, "selectedIntent", "retail");
 assert.equal(changedIntent.selectedIntent, "retail");
@@ -296,7 +355,7 @@ const enCompleteMixedSummary = buildUnderstandingSummary(
   }),
   "en"
 );
-assert.equal(enCompleteMixedSummary.operatingLabel, "At a fixed location and At the customer’s location");
+assert.equal(enCompleteMixedSummary.operatingLabel, "At a fixed location and at the customer’s location");
 
 const hiddenTerms = ["generic", "unknown", "primaryType", "operatingModel", "marketplace_platform", "confidence", "fieldSignals"];
 const visiblePrototypeText = [
@@ -333,6 +392,7 @@ assert.equal(prototypePageSource.includes("content.states.confirmed.notice"), tr
 assert.equal(prototypePageSource.includes("state.confirmationStatus === 'confirmed' ? null"), true);
 assert.equal(prototypePageSource.includes("content.actions.editAnswers"), true);
 assert.equal(prototypePageSource.includes("reopenDiscoveryConfirmation"), true);
+assert.equal(prototypePageSource.includes("summary.confirmationContract"), true);
 assert.equal(prototypePageSource.includes("editSummaryField('selectedIntent')"), true);
 assert.equal(prototypePageSource.includes("editSummaryField('coreOffering')"), true);
 assert.equal(prototypePageSource.includes("selectedOperatingApproaches"), true);

@@ -68,7 +68,7 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
   const operatingChoices = useMemo(() => getOperatingChoices(state.selectedIntent), [state.selectedIntent]);
   const mixedOperatingChoices = useMemo(() => getMixedOperatingChoices(), []);
   const summary = useMemo(() => buildUnderstandingSummary(state, language), [state, language]);
-  const confirmationContract = useMemo(() => buildConfirmationContract(state), [state]);
+  const confirmationContract = useMemo(() => summary.confirmationContract, [summary]);
   const progressText = useMemo(() => getProgressText(state, step, language), [state, step, language]);
   const progressSteps = useMemo(() => getDiscoverySteps(state), [state]);
 
