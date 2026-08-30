@@ -409,6 +409,8 @@ const projectStageOptions = [
   { value: "expanding", label: { en: "expanding", ar: "التوسع" } },
 ];
 
+const guidedProfileFieldIds = ["userExperienceLevel", "firstProject", "projectStageIntent", "country", "decisionObjective"];
+
 const guidedSteps = [
   {
     id: "profileStage",
@@ -1088,6 +1090,7 @@ export function buildGuidedFeasibilityFlow(input = {}, language = "en", options 
   const validation = options.validation;
   const classificationPrompt = options.classificationPrompt || null;
   const phase3Only = Boolean(options.phase3Only);
+  const deferProfileFields = options.source === "guided_discovery";
   const userProfile = buildUserJourneyProfile(answers, lang);
   const requestedByUser = hasAny(textOf(input), guidedIntentPatterns);
   const hasIdeaSeed = normalize(input.businessIdea || input.businessName || "").length >= 5;
@@ -1098,9 +1101,7 @@ export function buildGuidedFeasibilityFlow(input = {}, language = "en", options 
     normalize(input.monetization || input.revenueModel).length >= 4;
   const activeClassificationPrompt = hasMinimumIdeaForClassification ? classificationPrompt : null;
   const hasMissingPrimaryFields = Boolean(validation && !validation.ok);
-  const hasMissingJourneyProfile = ["userExperienceLevel", "firstProject", "projectStageIntent", "country", "decisionObjective"].some(
-    (fieldId) => !normalize(answers[fieldId])
-  );
+  const hasMissingJourneyProfile = !deferProfileFields && guidedProfileFieldIds.some((fieldId) => !normalize(answers[fieldId]));
   const shouldGuide =
     hasIdeaSeed &&
     (hasMissingJourneyProfile ||
@@ -1117,7 +1118,7 @@ export function buildGuidedFeasibilityFlow(input = {}, language = "en", options 
     };
   }
 
-  const fields = buildGuidedFields({ foundation, input, answers, userProfile, language: lang, classificationPrompt: activeClassificationPrompt, phase3Only });
+  const fields = buildGuidedFields({ foundation, input, answers, userProfile, language: lang, classificationPrompt: activeClassificationPrompt, phase3Only, deferProfileFields });
   const requiredFields = fields.filter((field) => field.required);
   const missingRequired = requiredFields.filter((field) => !normalize(answers[field.id]));
   const availableSteps = phase3Only ? guidedSteps.filter((step) => step.id === "profileStage") : guidedSteps;
@@ -1339,7 +1340,7 @@ function buildEstimateReadiness(missingRequired, language) {
   };
 }
 
-function buildGuidedFields({ foundation, input, answers, userProfile, language, classificationPrompt, phase3Only = false }) {
+function buildGuidedFields({ foundation, input, answers, userProfile, language, classificationPrompt, phase3Only = false, deferProfileFields = false }) {
   const baseIds = guidedFieldsByType[foundation.businessType] || guidedFieldsByType.generic;
   const classificationFields = Array.isArray(classificationPrompt)
     ? classificationPrompt.filter((field) => !normalize(answers[field.id]) || field.id === "classificationCorrectionReason")
@@ -1347,12 +1348,8 @@ function buildGuidedFields({ foundation, input, answers, userProfile, language, 
       ? [{ ...classificationPrompt, value: answers[classificationPrompt.id] || "" }]
       : [];
   const allowedIds = [
-    "userExperienceLevel",
-    "firstProject",
-    "projectStageIntent",
-    "country",
+    ...(deferProfileFields ? [] : guidedProfileFieldIds),
     "city",
-    "decisionObjective",
     ...(phase3Only ? [] : userProfile.isExistingBusinessPath ? existingBusinessFields : []),
     ...(phase3Only ? [] : baseIds),
   ];
@@ -1366,7 +1363,7 @@ function buildGuidedFields({ foundation, input, answers, userProfile, language, 
     .filter(Boolean)
     .filter((field) => {
       if (normalize(answers[field.id])) return false;
-      if (["userExperienceLevel", "firstProject", "projectStageIntent", "country", "city", "decisionObjective"].includes(field.id)) return true;
+      if ([...guidedProfileFieldIds, "city"].includes(field.id)) return true;
       if (phase3Only) return false;
       if (existingBusinessFields.includes(field.id)) return true;
       if (userProfile.isExistingBusinessPath && ["targetCustomerPromise", "budgetRange"].includes(field.id)) return false;

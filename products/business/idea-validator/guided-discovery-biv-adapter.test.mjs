@@ -87,6 +87,7 @@ assert.equal(Object.hasOwn(adapted.canonicalInput.confirmedUnderstanding, "final
 assert.deepEqual(adapted.currentEngineInput, {
   rawInput: adapted.canonicalInput.rawInput,
   language: "en",
+  source: "guided_discovery",
   industrialDetails: {},
   feasibilityAnswers: {},
 });
@@ -100,24 +101,22 @@ assert.equal(Object.hasOwn(adapted.currentEngineInput.feasibilityAnswers, "decis
 assert.equal(adapted.compatibility.schemaReady, true);
 assert.equal(adapted.compatibility.currentEngineExecutionReady, false);
 assert.deepEqual(adapted.compatibility.blockingLegacyDependencies, [
+  "classificationConfirmation",
+]);
+assert.deepEqual(adapted.compatibility.deferredProfileDependencies, [
   "userExperienceLevel",
   "firstProject",
   "projectStageIntent",
   "country",
   "decisionObjective",
-  "classificationConfirmation",
 ]);
 
 const currentEngineProbe = executeBusinessIdeaValidation(adapted.currentEngineInput);
 assert.equal(currentEngineProbe.validation.ok, true);
 assert.equal(currentEngineProbe.route, "guided_follow_up");
-assert.equal(currentEngineProbe.journeyState, "profile_input");
+assert.equal(currentEngineProbe.journeyState, "classification_review");
+assert.equal(currentEngineProbe.orchestrationDecision.reasonCode, "classification_confirmation_required");
 assert.deepEqual(currentEngineProbe.orchestrationDecision.missingInformation, [
-  "userExperienceLevel",
-  "firstProject",
-  "projectStageIntent",
-  "country",
-  "decisionObjective",
   "classificationConfirmation",
 ]);
 assert.deepEqual(currentEngineProbe.orchestrationDecision.blockedActions, [
@@ -125,6 +124,24 @@ assert.deepEqual(currentEngineProbe.orchestrationDecision.blockedActions, [
   "report",
   "copy_report",
   "download_report",
+]);
+
+const legacyEngineProbe = executeBusinessIdeaValidation({
+  rawInput: adapted.currentEngineInput.rawInput,
+  language: "en",
+  industrialDetails: {},
+  feasibilityAnswers: {},
+});
+assert.equal(legacyEngineProbe.validation.ok, true);
+assert.equal(legacyEngineProbe.route, "guided_follow_up");
+assert.equal(legacyEngineProbe.journeyState, "profile_input");
+assert.deepEqual(legacyEngineProbe.orchestrationDecision.missingInformation, [
+  "userExperienceLevel",
+  "firstProject",
+  "projectStageIntent",
+  "country",
+  "decisionObjective",
+  "classificationConfirmation",
 ]);
 
 const arabicReady = buildReadyFixture({
@@ -171,12 +188,78 @@ const profileOptional = buildReadyFixture({}, {
   city: "Jeddah",
   userExperienceLevel: "first_time_beginner",
   firstProject: "yes",
+  projectStageIntent: "initial_idea",
   decisionObjective: "Decide whether to continue.",
 });
 const optionalAdapted = adaptGuidedDiscoveryHandoffToBiv(profileOptional.handoff, profileOptional.sufficiency);
-assert.equal(optionalAdapted.compatibility.blockingLegacyDependencies.includes("country"), true);
+assert.deepEqual(optionalAdapted.compatibility.blockingLegacyDependencies, ["classificationConfirmation"]);
+assert.deepEqual(optionalAdapted.compatibility.deferredProfileDependencies, [
+  "userExperienceLevel",
+  "firstProject",
+  "projectStageIntent",
+  "country",
+  "decisionObjective",
+]);
+assert.deepEqual(optionalAdapted.currentEngineInput.feasibilityAnswers, {
+  country: "Saudi Arabia",
+  city: "Jeddah",
+  firstProject: "yes",
+  userExperienceLevel: "first_time_beginner",
+  projectStageIntent: "initial_idea",
+  decisionObjective: "Decide whether to continue.",
+});
 assert.deepEqual(optionalAdapted.currentEngineInput.industrialDetails, {});
 assert.equal(optionalAdapted.canonicalInput.confirmedUnderstanding.selectedIntent, "service");
 assert.equal(optionalAdapted.canonicalInput.authority.guidedDiscoveryIntentIsFinalClassification, false);
+
+const guidedIneligible = executeBusinessIdeaValidation({
+  rawInput: {
+    businessIdea: "An online casino and betting marketplace for sports gambling",
+    targetCustomer: "Adults who want to bet on sports.",
+    problem: "They need easier betting access.",
+    monetization: "The platform charges fees on betting activity.",
+  },
+  language: "en",
+  source: "guided_discovery",
+});
+assert.equal(guidedIneligible.route, "ineligible");
+assert.equal(guidedIneligible.journeyState, "ineligible");
+assert.equal(guidedIneligible.evaluationStatus, "ineligible");
+assert.equal(Object.hasOwn(guidedIneligible, "score"), false);
+assert.equal(Object.hasOwn(guidedIneligible, "report"), false);
+
+const guidedFinancingClarification = executeBusinessIdeaValidation({
+  rawInput: {
+    businessIdea: "A funding platform with periodic financial returns and repayment period",
+    targetCustomer: "Small businesses seeking funding.",
+    problem: "They need easier access to capital.",
+    monetization: "Fee on funded amounts with repayment period.",
+  },
+  language: "en",
+  source: "guided_discovery",
+});
+assert.equal(guidedFinancingClarification.route, "needs_clarification");
+assert.equal(guidedFinancingClarification.journeyState, "financing_clarification");
+assert.equal(guidedFinancingClarification.eligibility.clarificationType, "financing");
+assert.equal(Object.hasOwn(guidedFinancingClarification, "score"), false);
+assert.equal(Object.hasOwn(guidedFinancingClarification, "report"), false);
+
+const guidedPetSpecialist = executeBusinessIdeaValidation({
+  rawInput: {
+    businessIdea: "A PET recycling facility that sorts and bales plastic bottles for industrial buyers.",
+    targetCustomer: "Plastic recycling buyers and factories.",
+    problem: "They need sorted PET feedstock in consistent bales.",
+    monetization: "Buyers pay per ton of sorted PET bales.",
+  },
+  language: "en",
+  source: "guided_discovery",
+  feasibilityAnswers: {
+    classificationConfirmation: "confirm",
+  },
+});
+assert.notEqual(guidedPetSpecialist.journeyState, "profile_input");
+assert.equal(guidedPetSpecialist.orchestrationDecision.missingInformation.includes("userExperienceLevel"), false);
+assert.equal(guidedPetSpecialist.orchestrationDecision.missingInformation.includes("country"), false);
+assert.equal(guidedPetSpecialist.orchestrationDecision.matchedSpecialist?.id, "pet_plastic_recycling");
 
 console.log("Guided Discovery BIV adapter tests: PASS");

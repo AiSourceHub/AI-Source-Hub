@@ -4,18 +4,22 @@ export const GUIDED_DISCOVERY_CANONICAL_BIV_VERSION = "biv_canonical_input_v1";
 
 const CORE_REQUIRED_FIELDS = ["businessIdea", "targetCustomer", "problem", "monetization"];
 
-const legacyExecutionDependencies = [
+const legacyProfileDependencies = [
   "userExperienceLevel",
   "firstProject",
   "projectStageIntent",
   "country",
   "decisionObjective",
+];
+
+const guidedDiscoveryExecutionDependencies = [
   "classificationConfirmation",
 ];
 
 const optionalContextFields = [
   "country",
   "city",
+  "projectStageIntent",
   "firstProject",
   "userExperienceLevel",
   "decisionObjective",
@@ -97,6 +101,7 @@ export function projectCanonicalInputToCurrentEngine(canonicalInput = {}) {
   return {
     rawInput: { ...(canonicalInput.rawInput || {}) },
     language: canonicalInput.locale === "ar" ? "ar" : "en",
+    source: canonicalInput.source || "",
     industrialDetails: {},
     feasibilityAnswers: buildCurrentEngineFeasibilityAnswers(optionalContext),
   };
@@ -157,7 +162,7 @@ function normalizeOptionalContext(handoff = {}) {
 }
 
 function buildCurrentEngineFeasibilityAnswers(optionalContext = {}) {
-  return ["country", "city", "firstProject", "userExperienceLevel", "decisionObjective"]
+  return ["country", "city", "firstProject", "userExperienceLevel", "projectStageIntent", "decisionObjective"]
     .reduce((answers, field) => {
       if (cleanString(optionalContext[field])) answers[field] = cleanString(optionalContext[field]);
       return answers;
@@ -166,14 +171,21 @@ function buildCurrentEngineFeasibilityAnswers(optionalContext = {}) {
 
 function buildCompatibility({ schemaReady, currentEngineInput = null } = {}) {
   const providedLegacyAnswers = currentEngineInput?.feasibilityAnswers || {};
-  const blockingLegacyDependencies = legacyExecutionDependencies.filter((field) => !cleanString(providedLegacyAnswers[field]));
+  const isGuidedDiscoverySource = currentEngineInput?.source === "guided_discovery";
+  const requiredDependencies = isGuidedDiscoverySource
+    ? guidedDiscoveryExecutionDependencies
+    : [...legacyProfileDependencies, ...guidedDiscoveryExecutionDependencies];
+  const blockingLegacyDependencies = requiredDependencies.filter((field) => !cleanString(providedLegacyAnswers[field]));
   return {
     schemaReady: Boolean(schemaReady),
     currentEngineExecutionReady: Boolean(schemaReady) && blockingLegacyDependencies.length === 0,
     blockingLegacyDependencies,
+    deferredProfileDependencies: isGuidedDiscoverySource ? legacyProfileDependencies : [],
     notes: [
       "Canonical readiness is based on core BIV input fields only.",
-      "Current-engine execution readiness still reflects legacy profile and classification-confirmation dependencies.",
+      isGuidedDiscoverySource
+        ? "Guided Discovery keeps profile and adaptive fields optional; classification confirmation remains a separate execution boundary."
+        : "Current-engine execution readiness still reflects legacy profile and classification-confirmation dependencies.",
     ],
   };
 }

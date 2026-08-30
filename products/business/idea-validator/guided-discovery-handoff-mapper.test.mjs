@@ -170,6 +170,30 @@ const optionalProfileOnly = buildGuidedDiscoveryBivHandoff(confirmedService, {
 });
 assert.equal(optionalProfileOnly.evaluationReady, true);
 assert.deepEqual(optionalProfileOnly.missingRequiredInformation, []);
+assert.deepEqual(optionalProfileOnly.optionalContext, {});
+
+const optionalProfileProvided = buildGuidedDiscoveryBivHandoff(confirmedService, {
+  locale: "en",
+  downstreamInput: {
+    ...completeDownstreamInput,
+    city: "Jeddah",
+    country: "Saudi Arabia",
+    firstProject: "yes",
+    userExperienceLevel: "first_time_beginner",
+    decisionObjective: "Decide whether to continue.",
+    projectStageIntent: "initial_idea",
+  },
+});
+assert.equal(optionalProfileProvided.evaluationReady, true);
+assert.deepEqual(optionalProfileProvided.missingRequiredInformation, []);
+assert.deepEqual(optionalProfileProvided.optionalContext, {
+  city: "Jeddah",
+  country: "Saudi Arabia",
+  firstProject: "yes",
+  userExperienceLevel: "first_time_beginner",
+  decisionObjective: "Decide whether to continue.",
+  projectStageIntent: "initial_idea",
+});
 
 const shortIdeaConfirmed = confirmedDiscovery({ originalIdea: "Repair" });
 const shortIdeaHandoff = buildGuidedDiscoveryBivHandoff(shortIdeaConfirmed, {

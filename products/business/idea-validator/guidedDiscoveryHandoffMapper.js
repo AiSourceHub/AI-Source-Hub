@@ -31,6 +31,7 @@ const OPTIONAL_LATER_FIELDS = [
   "firstProject",
   "userExperienceLevel",
   "decisionObjective",
+  "projectStageIntent",
   "currentSolution",
   "competitiveAdvantage",
 ];
@@ -62,6 +63,7 @@ export function buildGuidedDiscoveryBivHandoff(discoveryState = {}, options = {}
 
   const confirmedUnderstanding = buildConfirmedUnderstanding(confirmedSnapshot);
   const downstreamClarifications = normalizeDownstreamClarifications(options.downstreamInput);
+  const optionalContext = normalizeOptionalContext(options.downstreamInput);
   const missingRequiredInformation = collectMissingRequiredInformation({
     originalIdea: confirmedSnapshot.originalIdea,
     downstreamInput: downstreamClarifications,
@@ -81,6 +83,7 @@ export function buildGuidedDiscoveryBivHandoff(discoveryState = {}, options = {}
     unresolvedItems: [...confirmedSnapshot.unresolvedItems],
     missingRequiredInformation,
     downstreamClarifications,
+    optionalContext,
     optionalLaterInformation: [...OPTIONAL_LATER_FIELDS],
     bivDraftInput: buildBivDraftInput({
       originalIdea: confirmedSnapshot.originalIdea,
@@ -121,6 +124,7 @@ function buildBlockedHandoff({
     unresolvedItems: normalizedState?.unresolvedItems ? [...normalizedState.unresolvedItems] : [],
     missingRequiredInformation: [],
     downstreamClarifications: {},
+    optionalContext: {},
     optionalLaterInformation: [...OPTIONAL_LATER_FIELDS],
     reasonCode,
     confirmationContract: confirmationContract ? {
@@ -191,6 +195,14 @@ function normalizeDownstreamClarifications(downstreamInput = {}) {
     problem: cleanOptionalString(downstreamInput.problem || downstreamInput.problemSolved),
     monetization: cleanOptionalString(downstreamInput.monetization || downstreamInput.revenueModel),
   };
+}
+
+function normalizeOptionalContext(downstreamInput = {}) {
+  return OPTIONAL_LATER_FIELDS.reduce((context, field) => {
+    const value = cleanOptionalString(downstreamInput[field]);
+    if (value) context[field] = value;
+    return context;
+  }, {});
 }
 
 function collectMissingRequiredInformation({ originalIdea = "", downstreamInput = {} } = {}) {

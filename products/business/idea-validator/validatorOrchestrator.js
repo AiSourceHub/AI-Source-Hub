@@ -238,6 +238,7 @@ export function orchestrateBusinessIdeaValidation({
   language = "en",
   industrialDetails = {},
   feasibilityAnswers = {},
+  source = "",
 } = {}) {
   const lang = language === "ar" ? "ar" : "en";
   const { analysis, validation } = validateForExecution(rawInput, lang);
@@ -359,6 +360,7 @@ export function orchestrateBusinessIdeaValidation({
     classificationPrompt,
     forceGuide: hasTruncatedInput,
     phase3Only: true,
+    source,
   });
 
   if (guidedFeasibility.shouldGuide) {
@@ -376,6 +378,7 @@ export function orchestrateBusinessIdeaValidation({
       validation,
       feasibilityFoundation: foundation,
       guidedFeasibility,
+      source,
       missingInformation: guidedFeasibility.missingFieldIds || [],
       nextRequiredAction: guidedFeasibility.presentation?.closing || guidedFeasibility.message,
     });
@@ -548,6 +551,7 @@ function buildDecision({
   matchedSpecialist,
   missingInformation = [],
   nextRequiredAction = "",
+  source = "",
 }) {
   const normalizedRoute = Object.values(ROUTES).includes(route) ? route : ROUTES.NORMAL_EVALUATION;
   const eligibilityStatus = eligibility?.status || "eligible";
@@ -564,6 +568,7 @@ function buildDecision({
 
   return {
     route: normalizedRoute,
+    source,
     routePrecedence: BIV_ROUTE_PRECEDENCE,
     reasonCode,
     reasonText,

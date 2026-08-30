@@ -56,18 +56,21 @@ export function resolveBusinessIdeaJourneyState(decision = {}) {
   }
 
   if (decision.route === "guided_follow_up") {
+    if (
+      decision.reasonCode === "classification_confirmation_required" &&
+      (decision.source === "guided_discovery" || !hasPendingProfileFields(decision))
+    ) {
+      return hasClassificationCorrectionFields(decision)
+        ? BIV_JOURNEY_STATES.CLASSIFICATION_CORRECTION
+        : BIV_JOURNEY_STATES.CLASSIFICATION_REVIEW;
+    }
+
     if (hasPendingProfileFields(decision)) {
       return BIV_JOURNEY_STATES.PROFILE_INPUT;
     }
 
     if (hasPendingIdeaFields(decision)) {
       return BIV_JOURNEY_STATES.IDEA_INPUT;
-    }
-
-    if (decision.reasonCode === "classification_confirmation_required") {
-      return hasClassificationCorrectionFields(decision)
-        ? BIV_JOURNEY_STATES.CLASSIFICATION_CORRECTION
-        : BIV_JOURNEY_STATES.CLASSIFICATION_REVIEW;
     }
 
     return BIV_JOURNEY_STATES.GUIDED_FOLLOWUP;
@@ -127,6 +130,7 @@ export function executeBusinessIdeaValidation({
   language = "en",
   industrialDetails = {},
   feasibilityAnswers = {},
+  source = "",
   content,
 } = {}) {
   const lang = language === "ar" ? "ar" : "en";
@@ -135,6 +139,7 @@ export function executeBusinessIdeaValidation({
     language: lang,
     industrialDetails,
     feasibilityAnswers,
+    source,
   });
   const { analysis, validation } = decision;
 

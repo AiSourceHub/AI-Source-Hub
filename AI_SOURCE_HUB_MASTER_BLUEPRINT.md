@@ -168,6 +168,8 @@ The local development prototype can render this sufficiency bridge after confirm
 
 The local adapter converts a valid `ready_for_biv_draft` handoff into a canonical BIV input contract and a separate current-engine-compatible projection for migration testing. This establishes the intended convergence path for Guided Discovery and the legacy production form through one canonical engine contract while preserving current production behavior.
 
+For the Guided Discovery source only, the local adapter and current-engine projection treat `firstProject`, `userExperienceLevel`, `decisionObjective`, `country`, and `projectStageIntent` as optional profile/adaptive context rather than execution blockers. Supplied values are preserved and forwarded as context; absent values are not fabricated. Classification confirmation remains a separate execution boundary, and this local decoupling does not change the public production BIV form behavior.
+
 Confirmed answers are preserved in a snapshot. Locale switching changes presentation only and should not mutate canonical user text, stable IDs, selected intent, operating approaches, or confirmation state.
 
 Display-only translation is a presentation convenience. It must not rewrite canonical data, confirmed answers, original free text, semantic requests, route, or journey state.
