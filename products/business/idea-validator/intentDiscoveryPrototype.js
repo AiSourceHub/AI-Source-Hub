@@ -41,6 +41,8 @@ export const discoveryJourneyStates = {
   mixedOperatingDetail: "mixed_operating_detail",
   understandingReview: "understanding_review",
   understandingConfirmed: "understanding_confirmed",
+  sufficiencyClarification: "sufficiency_clarification",
+  bivDraftReady: "biv_draft_ready",
 };
 
 const legacyStepJourneyStateMap = {
@@ -60,6 +62,8 @@ const journeyStateStepMap = {
   [discoveryJourneyStates.mixedOperatingDetail]: "mixedOperating",
   [discoveryJourneyStates.understandingReview]: "summary",
   [discoveryJourneyStates.understandingConfirmed]: "summary",
+  [discoveryJourneyStates.sufficiencyClarification]: "sufficiency",
+  [discoveryJourneyStates.bivDraftReady]: "ready",
 };
 
 export const discoveryContent = {
@@ -119,6 +123,17 @@ export const discoveryContent = {
         heading: "Understanding confirmed",
         body: "The information you confirmed for this stage has been saved. Your idea is now ready to move to the next step when it is approved.",
         notice: "This is a local idea-understanding prototype only; evaluation or report preparation has not started yet.",
+      },
+      sufficiency: {
+        heading: "One more detail",
+        body: "To prepare a responsible draft for the validator, answer the next important question.",
+      },
+      ready: {
+        heading: "Ready for a draft evaluation step",
+        body: "We now have the essential information needed to begin evaluating this business idea.",
+        notice: "This is still a local prototype. No score, recommendation, eligibility result, or report has been generated.",
+        confirmedInformation: "Confirmed understanding",
+        clarifiedInformation: "Newly clarified business information",
       },
     },
     semanticIntent: {
@@ -255,6 +270,17 @@ export const discoveryContent = {
         heading: "تم تأكيد فهم الفكرة",
         body: "تم حفظ المعلومات التي أكّدتها لهذه المرحلة. أصبحت فكرتك الآن جاهزة للانتقال إلى الخطوة التالية عندما يتم اعتمادها.",
         notice: "هذا نموذج محلي لفهم الفكرة فقط، ولم يبدأ التقييم أو إعداد التقرير بعد.",
+      },
+      sufficiency: {
+        heading: "تفصيل واحد إضافي",
+        body: "حتى نجهز مسودة مسؤولة للمقيّم، أجب عن السؤال المهم التالي.",
+      },
+      ready: {
+        heading: "جاهزة لخطوة مسودة التقييم",
+        body: "أصبحت لدينا الآن المعلومات الأساسية اللازمة لبدء تقييم هذه الفكرة التجارية.",
+        notice: "ما زال هذا نموذجاً محلياً فقط. لم يتم إنشاء درجة أو توصية أو نتيجة أهلية أو تقرير.",
+        confirmedInformation: "الفهم المؤكد",
+        clarifiedInformation: "معلومات العمل التي تم توضيحها",
       },
     },
     semanticIntent: {
@@ -703,6 +729,9 @@ export function getDiscoverySteps(discoveryState = createInitialDiscoveryState()
   ];
   if (discoveryState.selectedOperatingApproach === "mixed") steps.push(discoveryJourneyStates.mixedOperatingDetail);
   steps.push(discoveryJourneyStates.understandingReview);
+  if ([discoveryJourneyStates.sufficiencyClarification, discoveryJourneyStates.bivDraftReady].includes(discoveryState.journeyState)) {
+    steps.push(discoveryJourneyStates.sufficiencyClarification, discoveryJourneyStates.bivDraftReady);
+  }
   return steps;
 }
 
@@ -930,6 +959,9 @@ function isJourneyStateReachable(discoveryState, targetJourneyState) {
     return discoveryState.selectedOperatingApproach !== "mixed" || validateDiscoveryStep(discoveryState, "mixedOperating").ok;
   }
   if (targetJourneyState === discoveryJourneyStates.understandingConfirmed) {
+    return discoveryState.confirmationStatus === "confirmed" && buildConfirmationContract(discoveryState).isComplete;
+  }
+  if ([discoveryJourneyStates.sufficiencyClarification, discoveryJourneyStates.bivDraftReady].includes(targetJourneyState)) {
     return discoveryState.confirmationStatus === "confirmed" && buildConfirmationContract(discoveryState).isComplete;
   }
   return false;

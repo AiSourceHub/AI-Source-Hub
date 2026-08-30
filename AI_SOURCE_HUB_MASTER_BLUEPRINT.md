@@ -154,6 +154,17 @@ Guided Discovery currently includes:
 - confirmed-state language stability;
 - display-only translation principle for known local examples.
 
+Guided Discovery also has a local-only draft handoff mapper:
+
+- `products/business/idea-validator/guidedDiscoveryHandoffMapper.js`
+- `products/business/idea-validator/guidedDiscoverySufficiencyBridge.js`
+
+The mapper converts only a confirmed Guided Discovery snapshot into a BIV-compatible draft handoff object. It preserves the original idea separately from confirmed interpretation, identifies missing downstream information, and does not generate a verdict, score, eligibility decision, classification decision, feasibility decision, recommendation, or report permission.
+
+The sufficiency bridge consumes that draft handoff and selects only the next missing decision-critical concept to clarify before a future BIV handoff. It is local-only, one-question-at-a-time, and does not own eligibility, classification, feasibility, scoring, recommendations, reports, specialist conclusions, or report permission.
+
+The local development prototype can render this sufficiency bridge after confirmed understanding, asking one missing BIV-required concept at a time and ending at a local `ready_for_biv_draft` state. This remains isolated behind the development-only Guided Discovery route and does not call the production BIV orchestrator.
+
 Confirmed answers are preserved in a snapshot. Locale switching changes presentation only and should not mutate canonical user text, stable IDs, selected intent, operating approaches, or confirmation state.
 
 Display-only translation is a presentation convenience. It must not rewrite canonical data, confirmed answers, original free text, semantic requests, route, or journey state.
@@ -455,6 +466,8 @@ Clarify which BIV surfaces are production, local, legacy, or transitional. Avoid
 ### Phase 3 — Connect Confirmed Guided Discovery Output to BIV Input Contract
 
 Define the contract that maps confirmed Guided Discovery output into the existing BIV orchestrator without changing eligibility or decision authority.
+
+Status: a local isolated draft mapper, sufficiency bridge, and prototype UI bridge flow exist. They are not connected to the production BIV route.
 
 ### Phase 4 — Unify Sufficiency / Classification Ownership
 

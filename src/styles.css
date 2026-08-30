@@ -925,6 +925,27 @@ button:focus-visible,
   margin-top: var(--space-2);
 }
 
+.discovery-clarified-list {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.discovery-clarified-list div {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.discovery-clarified-list dt {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.discovery-clarified-list dd {
+  margin: 0;
+}
+
 .button--compact {
   min-height: 36px;
   padding: 0.45rem 0.75rem;

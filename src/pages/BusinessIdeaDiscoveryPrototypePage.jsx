@@ -26,6 +26,12 @@ import {
   updateMixedOperatingSelection,
   validateDiscoveryStep,
 } from '../../products/business/idea-validator/intentDiscoveryPrototype.js';
+import { buildGuidedDiscoveryBivHandoff } from '../../products/business/idea-validator/guidedDiscoveryHandoffMapper.js';
+import {
+  applyGuidedDiscoveryClarificationAnswer,
+  evaluateGuidedDiscoverySufficiency,
+  GUIDED_DISCOVERY_SUFFICIENCY_STATUS,
+} from '../../products/business/idea-validator/guidedDiscoverySufficiencyBridge.js';
 import { createSemanticIntentRequest } from '../../products/business/idea-validator/semanticIntentContract.js';
 import { createMockSemanticIntentProvider } from '../../products/business/idea-validator/semanticIntentMockProvider.js';
 import { buildDeterministicIntentPresentation, buildSemanticIntentPresentation } from '../../products/business/idea-validator/semanticIntentPresentation.js';
@@ -40,6 +46,8 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
   const [error, setError] = useState('');
   const [semanticStatus, setSemanticStatus] = useState('idle');
   const [semanticPresentation, setSemanticPresentation] = useState(null);
+  const [downstreamAnswers, setDownstreamAnswers] = useState({});
+  const [activeClarificationAnswer, setActiveClarificationAnswer] = useState('');
   const semanticParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const semanticScenario = semanticParams.get('semanticScenario') || 'valid';
   const semanticLocale = semanticParams.get('lang') || semanticParams.get('locale');
@@ -77,6 +85,16 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
     ? discoveryJourneyStates.understandingReview
     : journeyState;
   const progressIndex = progressSteps.indexOf(progressJourneyState);
+  const handoff = useMemo(() => buildGuidedDiscoveryBivHandoff(state, {
+    locale: language,
+    downstreamInput: downstreamAnswers,
+  }), [state, language, downstreamAnswers]);
+  const sufficiency = useMemo(() => evaluateGuidedDiscoverySufficiency(handoff, { locale: language }), [handoff, language]);
+
+  const resetDownstreamSufficiency = () => {
+    setDownstreamAnswers({});
+    setActiveClarificationAnswer('');
+  };
 
   const transitionToJourneyState = (nextJourneyState) => {
     setState((currentState) => resolveDiscoveryTransition(currentState, nextJourneyState).nextState);
@@ -88,6 +106,7 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
       originalIdea: value,
       confirmationStatus: 'not_confirmed',
     }));
+    resetDownstreamSufficiency();
     setSemanticStatus('idle');
     setSemanticPresentation(null);
     setError('');
@@ -131,6 +150,7 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
       ...nextState,
       journeyState: targetJourneyState,
     }));
+    resetDownstreamSufficiency();
     setError('');
   };
 
@@ -255,14 +275,40 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
 
   const reviewConfirmedAnswers = () => {
     setState(reopenDiscoveryConfirmation(state));
+    resetDownstreamSufficiency();
     setError('');
   };
 
   const reset = () => {
     setState(createInitialDiscoveryState());
+    resetDownstreamSufficiency();
     setSemanticStatus('idle');
     setSemanticPresentation(null);
     setError('');
+  };
+
+  const continueAfterConfirmation = () => {
+    const nextState = sufficiency.status === GUIDED_DISCOVERY_SUFFICIENCY_STATUS.READY_FOR_BIV_DRAFT
+      ? discoveryJourneyStates.bivDraftReady
+      : discoveryJourneyStates.sufficiencyClarification;
+    transitionToJourneyState(nextState);
+    setError('');
+  };
+
+  const applySufficiencyAnswer = () => {
+    const activeId = sufficiency.activeClarification?.id || '';
+    const result = applyGuidedDiscoveryClarificationAnswer(handoff, activeId, activeClarificationAnswer, { locale: language });
+    if (!result.ok) {
+      setError(language === 'ar' ? 'أضف إجابة قصيرة قبل المتابعة.' : 'Add a short answer before continuing.');
+      return;
+    }
+    setDownstreamAnswers(result.handoff.downstreamClarifications || {});
+    setActiveClarificationAnswer('');
+    setError('');
+    const nextState = result.sufficiency.status === GUIDED_DISCOVERY_SUFFICIENCY_STATUS.READY_FOR_BIV_DRAFT
+      ? discoveryJourneyStates.bivDraftReady
+      : discoveryJourneyStates.sufficiencyClarification;
+    transitionToJourneyState(nextState);
   };
 
   return (
@@ -482,6 +528,80 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
                         {content.actions.editAnswers}
                       </button>
                     ) : null}
+                    {state.confirmationStatus === 'confirmed' ? (
+                      <button className="button button--primary" type="button" onClick={continueAfterConfirmation}>
+                        {content.actions.continue}
+                      </button>
+                    ) : null}
+                    <button className="button button--secondary" type="button" onClick={reset}>
+                      {content.actions.reset}
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+
+              {journeyState === discoveryJourneyStates.sufficiencyClarification ? (
+                <div className="discovery-step">
+                  <h2 id="discovery-title">{content.states.sufficiency.heading}</h2>
+                  <p className="validator-intro">{content.states.sufficiency.body}</p>
+                  {sufficiency.activeClarification ? (
+                    <label className="field">
+                      <span className="field__label">{sufficiency.activeClarification.label}</span>
+                      <span className="field__help">{sufficiency.activeClarification.prompt}</span>
+                      <textarea
+                        className="field__control field__control--textarea"
+                        value={activeClarificationAnswer}
+                        onChange={(event) => {
+                          setActiveClarificationAnswer(event.target.value);
+                          setError('');
+                        }}
+                      />
+                      <span className="field__error">{error}</span>
+                    </label>
+                  ) : (
+                    <div className="alert-box alert-box--success">{content.states.ready.body}</div>
+                  )}
+                  <div className="validator-actions">
+                    <button className="button button--secondary" type="button" onClick={() => transitionToJourneyState(discoveryJourneyStates.understandingConfirmed)}>
+                      {content.actions.back}
+                    </button>
+                    <button className="button button--primary" type="button" onClick={applySufficiencyAnswer}>
+                      {content.actions.continue}
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+
+              {journeyState === discoveryJourneyStates.bivDraftReady ? (
+                <div className="discovery-step">
+                  <div className="discovery-confirmed-state" role="status" aria-live="polite">
+                    <div className="discovery-confirmed-state__mark" aria-hidden="true">✓</div>
+                    <div>
+                      <h2 id="discovery-title">{content.states.ready.heading}</h2>
+                      <p className="validator-intro">{content.states.ready.body}</p>
+                      <p className="discovery-confirmed-state__notice">{content.states.ready.notice}</p>
+                    </div>
+                  </div>
+                  <div className="discovery-summary">
+                    <div>
+                      <p className="eyebrow">{content.states.summary.originalIdea}</p>
+                      <p>{summary.originalIdea}</p>
+                    </div>
+                    <div>
+                      <p className="eyebrow">{content.states.ready.confirmedInformation}</p>
+                      <p>{summary.intentLabel}</p>
+                      <p>{summary.coreOfferingLabel}</p>
+                      <p>{summary.operatingLabel}</p>
+                    </div>
+                    <div>
+                      <p className="eyebrow">{content.states.ready.clarifiedInformation}</p>
+                      <ClarifiedAnswerList answers={downstreamAnswers} language={language} />
+                    </div>
+                  </div>
+                  <div className="validator-actions">
+                    <button className="button button--secondary" type="button" onClick={reviewConfirmedAnswers}>
+                      {content.actions.editAnswers}
+                    </button>
                     <button className="button button--secondary" type="button" onClick={reset}>
                       {content.actions.reset}
                     </button>
@@ -494,6 +614,34 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
       </main>
       <div dangerouslySetInnerHTML={{ __html: footerHtml }} />
     </>
+  );
+}
+
+function ClarifiedAnswerList({ answers, language }) {
+  const labels = language === 'ar'
+    ? {
+      targetCustomer: 'العميل المستهدف',
+      problem: 'مشكلة العميل',
+      monetization: 'طريقة الإيرادات',
+      additionalIdeaContext: 'توضيح إضافي للفكرة',
+    }
+    : {
+      targetCustomer: 'Target customer',
+      problem: 'Customer problem',
+      monetization: 'Revenue model',
+      additionalIdeaContext: 'Additional idea context',
+    };
+  const items = Object.entries(answers || {}).filter(([, value]) => String(value || '').trim());
+  if (!items.length) return <p>{language === 'ar' ? 'لا توجد معلومات إضافية بعد.' : 'No additional information yet.'}</p>;
+  return (
+    <dl className="discovery-clarified-list">
+      {items.map(([key, value]) => (
+        <div key={key}>
+          <dt>{labels[key] || key}</dt>
+          <dd>{value}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }
 
