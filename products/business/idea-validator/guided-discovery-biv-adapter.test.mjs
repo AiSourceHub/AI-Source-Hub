@@ -182,8 +182,17 @@ const confirmedEngineProbe = executeWithContent({
 });
 assert.notEqual(confirmedEngineProbe.journeyState, "classification_review");
 assert.notEqual(confirmedEngineProbe.journeyState, "classification_correction");
+assert.equal(confirmedEngineProbe.journeyState, "normal_evaluation");
+assert.equal(confirmedEngineProbe.evaluationStatus, "evaluated");
 assert.equal(confirmedEngineProbe.orchestrationDecision.classification.classificationConfirmed, true);
 assert.equal(confirmedEngineProbe.orchestrationDecision.classification.confirmedClassification.engineType, "service");
+assert.equal(typeof confirmedEngineProbe.score.total, "number");
+assert.equal(Array.isArray(confirmedEngineProbe.criteria), true);
+assert.equal(confirmedEngineProbe.criteria.length > 0, true);
+assert.equal(typeof confirmedEngineProbe.biggestRisk, "string");
+assert.equal(typeof confirmedEngineProbe.nextAction, "string");
+assert.equal(typeof confirmedEngineProbe.recommendation.executiveSummary, "string");
+assert.equal(Array.isArray(confirmedEngineProbe.report.sections), true);
 
 const correctionPromptProbe = executeWithContent({
   ...adapted.currentEngineInput,

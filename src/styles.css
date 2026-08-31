@@ -966,6 +966,11 @@ button:focus-visible,
   padding: var(--space-5);
 }
 
+.local-biv-report,
+.local-biv-blocked {
+  background: var(--color-surface);
+}
+
 .local-biv-classification,
 .local-biv-form {
   display: grid;
@@ -1050,6 +1055,29 @@ button:focus-visible,
 
 .report-card strong {
   font-size: 1.02rem;
+}
+
+.score-breakdown {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.score-item {
+  display: grid;
+  gap: var(--space-1);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+  padding: var(--space-4);
+}
+
+.score-item strong {
+  color: var(--color-primary-strong);
+}
+
+.score-item p {
+  margin: 0;
+  color: var(--color-text-muted);
 }
 
 .report-section {

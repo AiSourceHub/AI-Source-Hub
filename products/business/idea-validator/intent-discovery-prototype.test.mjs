@@ -525,9 +525,24 @@ assert.equal(prototypePageSource.includes("مراجعة تصنيف BIV"), true);
 assert.equal(prototypePageSource.includes("Review BIV classification"), true);
 assert.equal(styleSource.includes(".local-biv-panel"), true);
 assert.equal(styleSource.includes(".local-biv-panel .validator-actions"), true);
-assert.equal(prototypePageSource.includes("reportText"), false);
-assert.equal(prototypePageSource.includes("copyReport"), false);
-assert.equal(prototypePageSource.includes("downloadReport"), false);
+assert.equal(prototypePageSource.includes("buildBusinessIdeaReportText"), true);
+assert.equal(prototypePageSource.includes("buildIndustrialReportText"), true);
+assert.equal(prototypePageSource.includes("buildLocalBivReportText"), true);
+assert.equal(prototypePageSource.includes("GuidedNormalEvaluationReport"), true);
+assert.equal(prototypePageSource.includes("GuidedIndustrialReport"), true);
+assert.equal(prototypePageSource.includes("GuidedBivBlockingStatePanel"), true);
+assert.equal(prototypePageSource.includes("ReportActions"), true);
+assert.equal(prototypePageSource.includes("localBivReportText"), true);
+assert.equal(prototypePageSource.includes("copyReport"), true);
+assert.equal(prototypePageSource.includes("downloadReport"), true);
+assert.equal(prototypePageSource.includes("journeyState === 'normal_evaluation'"), true);
+assert.equal(prototypePageSource.includes("evaluationStatus !== 'evaluated'"), true);
+assert.equal(prototypePageSource.includes("classification_correction"), true);
+assert.equal(prototypePageSource.includes("classification_review"), true);
+assert.equal(prototypePageSource.includes("result.presentation"), true);
+assert.equal(styleSource.includes(".local-biv-report"), true);
+assert.equal(styleSource.includes(".local-biv-blocked"), true);
+assert.equal(styleSource.includes(".score-breakdown"), true);
 assert.equal(prototypePageSource.includes("states.summary.operating"), true);
 assert.equal(prototypePageSource.includes("states.operating.heading}</p>"), false);
 assert.equal(prototypePageSource.includes("summary.unresolvedItems.length"), true);
@@ -586,7 +601,7 @@ console.log(
         "localized progress text hides raw step numbers",
         "summary separates original idea",
         "prototype absent from public navigation",
-        "no copy/download/public report flow",
+        "local-only BIV report renderer reuses engine output",
       ],
     },
     null,

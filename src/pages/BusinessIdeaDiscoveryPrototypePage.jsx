@@ -3,8 +3,11 @@ import { useLocation } from 'react-router-dom';
 import { renderHeader } from '../../components/Header/index.js';
 import { renderFooter } from '../../components/Footer/index.js';
 import { applyDocumentLocale, bindLanguageSwitcher, getFooterContent, getHeaderContent } from '../../core/localization.js';
+import productConfig from '../../products/business/idea-validator/config.js';
 import bivContentEn from '../../products/business/idea-validator/content.en.js';
 import bivContentAr from '../../products/business/idea-validator/content.ar.js';
+import { buildIndustrialReportText } from '../../products/business/idea-validator/industrialAnalysis.js';
+import { buildBusinessIdeaReportText } from '../../products/business/idea-validator/report.js';
 import {
   buildDiscoveryState,
   buildConfirmationContract,
@@ -56,6 +59,7 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
   const [activeClarificationAnswer, setActiveClarificationAnswer] = useState('');
   const [bivExecutionAnswers, setBivExecutionAnswers] = useState({});
   const [bivExecutionResult, setBivExecutionResult] = useState(null);
+  const [bivExecutionNotice, setBivExecutionNotice] = useState('');
   const semanticParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const semanticScenario = semanticParams.get('semanticScenario') || 'valid';
   const semanticLocale = semanticParams.get('lang') || semanticParams.get('locale');
@@ -100,6 +104,11 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
   const sufficiency = useMemo(() => evaluateGuidedDiscoverySufficiency(handoff, { locale: language }), [handoff, language]);
   const bivClassificationFields = useMemo(() => getBivClassificationFields(bivExecutionResult), [bivExecutionResult]);
   const bivClassificationAnswers = bivExecutionAnswers;
+  const bivContent = bivContentMap[language] || bivContentMap.en;
+  const localBivReportText = useMemo(
+    () => buildLocalBivReportText(bivExecutionResult, bivContent, language),
+    [bivExecutionResult, bivContent, language]
+  );
 
   const resetDownstreamSufficiency = () => {
     setDownstreamAnswers({});
@@ -110,6 +119,7 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
   const resetBivExecution = () => {
     setBivExecutionAnswers({});
     setBivExecutionResult(null);
+    setBivExecutionNotice('');
   };
 
   const invalidateBivExecutionForAnswerChange = () => {
@@ -346,11 +356,36 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
         ...(adapted.currentEngineInput.feasibilityAnswers || {}),
         ...answers,
       },
-      content: bivContentMap[language] || bivContentMap.en,
+      content: bivContent,
     });
     setBivExecutionResult(result);
+    setBivExecutionNotice('');
     setError('');
     return result;
+  };
+
+  const copyLocalBivReport = async () => {
+    if (!localBivReportText) return;
+    try {
+      await navigator.clipboard.writeText(localBivReportText);
+      setBivExecutionNotice(bivContent.report?.copied || (language === 'ar' ? 'تم نسخ التقرير.' : 'Report copied.'));
+    } catch {
+      setBivExecutionNotice(bivContent.report?.copyFailed || (language === 'ar' ? 'تعذر نسخ التقرير.' : 'Unable to copy the report.'));
+    }
+  };
+
+  const downloadLocalBivReport = () => {
+    if (!localBivReportText) return;
+    const blob = new Blob([localBivReportText], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = language === 'ar' ? 'تقرير-مدقق-فكرة-العمل.txt' : 'business-idea-validator-report.txt';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    setBivExecutionNotice(bivContent.report?.downloaded || (language === 'ar' ? 'تم تجهيز ملف التقرير.' : 'Report file prepared.'));
   };
 
   const startClassificationReview = () => {
@@ -686,7 +721,12 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
                       fields={bivClassificationFields}
                       answers={bivClassificationAnswers}
                       content={content}
+                      bivContent={bivContent}
                       language={language}
+                      reportText={localBivReportText}
+                      reportNotice={bivExecutionNotice}
+                      onCopyReport={copyLocalBivReport}
+                      onDownloadReport={downloadLocalBivReport}
                       onConfirm={confirmBivClassification}
                       onCorrect={startBivClassificationCorrection}
                       onCorrectionChange={updateBivClassificationAnswer}
@@ -751,7 +791,12 @@ function LocalBivExecutionPanel({
   fields,
   answers,
   content,
+  bivContent,
   language,
+  reportText,
+  reportNotice,
+  onCopyReport,
+  onDownloadReport,
   onConfirm,
   onCorrect,
   onCorrectionChange,
@@ -761,6 +806,9 @@ function LocalBivExecutionPanel({
   const copy = getLocalBivCopy(language);
   const isClassificationReview = result?.journeyState === 'classification_review';
   const isClassificationCorrection = result?.journeyState === 'classification_correction';
+  const isNormalEvaluation = result?.journeyState === 'normal_evaluation';
+  const isIndustrialReport = result?.evaluationStatus === 'industrial_assessment' && result?.industrialReport;
+  const isBlockingState = result?.evaluationStatus && result.evaluationStatus !== 'evaluated' && !isIndustrialReport;
   const proposedClassification = result?.orchestrationDecision?.classification?.proposedClassification
     || result?.orchestrationDecision?.proposedClassification
     || {};
@@ -845,6 +893,44 @@ function LocalBivExecutionPanel({
     );
   }
 
+  if (isNormalEvaluation) {
+    return (
+      <GuidedNormalEvaluationReport
+        result={result}
+        bivContent={bivContent}
+        language={language}
+        reportText={reportText}
+        reportNotice={reportNotice}
+        onCopyReport={onCopyReport}
+        onDownloadReport={onDownloadReport}
+      />
+    );
+  }
+
+  if (isIndustrialReport) {
+    return (
+      <GuidedIndustrialReport
+        result={result}
+        bivContent={bivContent}
+        language={language}
+        reportText={reportText}
+        reportNotice={reportNotice}
+        onCopyReport={onCopyReport}
+        onDownloadReport={onDownloadReport}
+      />
+    );
+  }
+
+  if (isBlockingState) {
+    return (
+      <GuidedBivBlockingStatePanel
+        result={result}
+        copy={copy}
+        language={language}
+      />
+    );
+  }
+
   return (
     <div className="local-biv-panel">
       <h2>{copy.resultHeading}</h2>
@@ -881,10 +967,275 @@ function LocalBivExecutionPanel({
   );
 }
 
+function GuidedNormalEvaluationReport({
+  result,
+  bivContent,
+  language,
+  reportText,
+  reportNotice,
+  onCopyReport,
+  onDownloadReport,
+}) {
+  const reportSignals = deriveLocalReportSignals(result, bivContent);
+  const labels = bivContent.labels || {};
+  const verdict = bivContent.verdicts?.[result?.verdictKey] || result?.verdictKey || '';
+  const confidence = bivContent.confidence?.[result?.confidence?.level] || result?.confidence?.level || '';
+
+  return (
+    <div className="local-biv-panel local-biv-report">
+      <p className="eyebrow">{labels.report}</p>
+      <h2>{labels.reportTitle}</h2>
+      {verdict ? <p className="validator-intro">{verdict}</p> : null}
+      {confidence ? (
+        <p className="muted-text">
+          {labels.confidence}: {confidence} ({result.confidence?.value}/100)
+        </p>
+      ) : null}
+
+      <div className="report-grid">
+        <div className="report-card">
+          <span>{labels.overallScore}</span>
+          <strong>{result.score?.total}/100</strong>
+        </div>
+        <div className="report-card">
+          <span>{labels.marketPotential}</span>
+          <strong>{reportSignals.marketPotential}</strong>
+        </div>
+        <div className="report-card">
+          <span>{labels.executionDifficulty}</span>
+          <strong>{reportSignals.executionDifficulty}</strong>
+        </div>
+        <div className="report-card">
+          <span>{labels.competitionLevel}</span>
+          <strong>{reportSignals.competitionLevel}</strong>
+        </div>
+      </div>
+
+      <div className="report-section">
+        <h3>{labels.scoreBreakdown}</h3>
+        <div className="score-breakdown">
+          {(result.criteria || []).map((criterion) => (
+            <div className="score-item" key={criterion.key}>
+              <span>{bivContent.categories?.[criterion.key] || criterion.key}</span>
+              <strong>{criterion.score}/{criterion.max}</strong>
+              <p>{criterion.reason}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="report-section">
+        <h3>{labels.mainRisks}</h3>
+        {reportSignals.mainRisks.length ? (
+          <ul>
+            {reportSignals.mainRisks.map((risk) => (
+              <li key={risk}>{risk}</li>
+            ))}
+          </ul>
+        ) : (
+          <p>{labels.noStrengths}</p>
+        )}
+      </div>
+
+      <div className="report-section">
+        <h3>{labels.keyStrengths}</h3>
+        <div className="tag-list">
+          {reportSignals.strengths.length ? (
+            reportSignals.strengths.map((strength) => <span className="tag" key={strength}>{strength}</span>)
+          ) : (
+            <span className="tag">{labels.noStrengths}</span>
+          )}
+        </div>
+      </div>
+
+      {result.improvedIdea ? (
+        <div className="report-section">
+          <h3>{labels.improvedIdea}</h3>
+          <p>{result.improvedIdea}</p>
+        </div>
+      ) : null}
+
+      <div className="report-section">
+        <h3>{labels.recommendedNextAction}</h3>
+        <p>{result.nextAction}</p>
+      </div>
+
+      <ReportActions
+        labels={labels}
+        reportText={reportText}
+        reportNotice={reportNotice}
+        onCopyReport={onCopyReport}
+        onDownloadReport={onDownloadReport}
+      />
+      {bivContent.report?.disclaimer ? <p className="muted-text">{bivContent.report.disclaimer}</p> : null}
+    </div>
+  );
+}
+
+function GuidedIndustrialReport({
+  result,
+  bivContent,
+  language,
+  reportText,
+  reportNotice,
+  onCopyReport,
+  onDownloadReport,
+}) {
+  const report = result.industrialReport;
+  const labels = bivContent.labels || {};
+  return (
+    <div className="local-biv-panel industrial-report">
+      <p className="eyebrow">{labels.report}</p>
+      <h2>{report.title}</h2>
+      <p className="validator-intro">{report.decision?.label}</p>
+      <div className="report-section">
+        <h3>{language === 'ar' ? 'القرار التنفيذي' : 'Executive decision'}</h3>
+        <p>{report.decision?.explanation}</p>
+        <p>
+          {language === 'ar' ? 'مستوى الثقة' : 'Confidence'}: {report.decision?.confidence?.label} ({report.decision?.confidence?.value}/100)
+        </p>
+      </div>
+      {(report.sections || []).map((section) => (
+        <div className="report-section" key={section.key || section.title}>
+          <h3>{section.status ? `${section.title}: ${section.status}` : section.title}</h3>
+          {section.items ? (
+            <ul>
+              {section.items.map((item) => (
+                <li key={typeof item === 'string' ? item : `${item.title}-${item.detail}`}>
+                  {typeof item === 'string' ? item : (
+                    <>
+                      <strong>{item.title}</strong>{item.status ? ` (${item.status})` : ''}: {item.detail || ''}
+                    </>
+                  )}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {section.groups ? (
+            <div className="industrial-report__groups">
+              {section.groups.map((group) => (
+                <div key={group.title}>
+                  <h4>{group.title}</h4>
+                  <ul>
+                    {group.items.map((item) => <li key={item}>{item}</li>)}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          ) : null}
+          {section.missing?.length ? (
+            <ul>
+              {section.missing.map((item) => <li key={item}>{item}</li>)}
+            </ul>
+          ) : null}
+        </div>
+      ))}
+      <ReportActions
+        labels={labels}
+        reportText={reportText}
+        reportNotice={reportNotice}
+        onCopyReport={onCopyReport}
+        onDownloadReport={onDownloadReport}
+      />
+      {report.disclaimer ? <p className="muted-text">{report.disclaimer}</p> : null}
+    </div>
+  );
+}
+
+function GuidedBivBlockingStatePanel({ result, copy, language }) {
+  const presentation = result.presentation || {};
+  const questions = getBlockingQuestions(result);
+  return (
+    <div className="local-biv-panel local-biv-blocked">
+      <p className="eyebrow">{localizeBivJourneyState(result?.journeyState, language)}</p>
+      <h2>{presentation.heading || copy.blockedHeading}</h2>
+      {presentation.body ? <p className="validator-intro">{presentation.body}</p> : null}
+      {presentation.policy ? <p>{presentation.policy}</p> : null}
+      {questions.length ? (
+        <div className="report-section">
+          <h3>{copy.requiredClarification}</h3>
+          <ul>
+            {questions.map((question) => (
+              <li key={question}>{question}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+      {presentation.closing ? <p className="muted-text">{presentation.closing}</p> : null}
+    </div>
+  );
+}
+
+function ReportActions({ labels, reportText, reportNotice, onCopyReport, onDownloadReport }) {
+  if (!reportText) return null;
+  return (
+    <>
+      <div className="report-actions">
+        <button className="button button--secondary" type="button" onClick={onCopyReport}>
+          {labels.copyReport}
+        </button>
+        <button className="button button--secondary" type="button" onClick={onDownloadReport}>
+          {labels.downloadReport}
+        </button>
+      </div>
+      {reportNotice ? <p className="muted-text" role="status">{reportNotice}</p> : null}
+    </>
+  );
+}
+
 function getBivClassificationFields(result) {
   return result?.clarificationFlow?.steps
     ?.flatMap((step) => step.fields || [])
     ?.filter((field) => ['classificationConfirmation', 'projectTypeCorrection', 'operatingModelCorrection', 'classificationCorrectionReason'].includes(field.id)) || [];
+}
+
+function buildLocalBivReportText(result, bivContent, language) {
+  if (!result) return '';
+  if (result?.evaluationStatus === 'industrial_assessment' && result.industrialReport) {
+    return buildIndustrialReportText({ report: result.industrialReport, language });
+  }
+  if (result?.evaluationStatus && result.evaluationStatus !== 'evaluated') {
+    const presentation = result.presentation || {};
+    const questions = presentation.questions?.length ? presentation.questions.map((question) => `- ${question}`).join('\n') : '';
+    return [presentation.heading, presentation.body, presentation.policy, questions, presentation.closing].filter(Boolean).join('\n\n');
+  }
+  if (!result.criteria || !result.score) return '';
+  return buildBusinessIdeaReportText({
+    productConfig,
+    content: bivContent,
+    language,
+    result,
+  });
+}
+
+function deriveLocalReportSignals(result, bivContent) {
+  const criteria = result.criteria || [];
+  const feasibility = criteria.find((item) => item.key === 'feasibility');
+  const scoreTotal = result.score?.total || 0;
+  const signalValues = bivContent.signalValues || {};
+  const input = result?.orchestrationDecision?.analysis?.input || result?.analysis?.input || {};
+  const strengths = criteria
+    .filter((item) => item.score >= 12)
+    .map((item) => bivContent.categories?.[item.key] || item.key)
+    .slice(0, 3);
+
+  return {
+    marketPotential: scoreTotal >= 75 ? signalValues.high : scoreTotal >= 55 ? signalValues.medium : signalValues.low,
+    executionDifficulty: feasibility?.score >= 14 ? signalValues.low : feasibility?.score >= 10 ? signalValues.medium : signalValues.high,
+    competitionLevel: input.competitiveAdvantage && input.competitiveAdvantage.length > 16 ? signalValues.moderate : signalValues.high,
+    strengths,
+    mainRisks: [result.biggestRisk].filter(Boolean),
+  };
+}
+
+function getBlockingQuestions(result) {
+  const presentationQuestions = result?.presentation?.questions || [];
+  const flowQuestions = result?.clarificationFlow?.steps?.flatMap((step) => {
+    const stepText = [step.title, step.promptText].filter(Boolean);
+    const fieldText = (step.fields || []).flatMap((field) => [field.labelText, field.helpText].filter(Boolean));
+    return [...stepText, ...fieldText];
+  }) || [];
+  return [...presentationQuestions, ...flowQuestions].filter(Boolean);
 }
 
 function getLocalBivCopy(language) {
@@ -908,6 +1259,8 @@ function getLocalBivCopy(language) {
       summary: 'ملخص أولي',
       nextAction: 'الإجراء التالي',
       unknown: 'غير واضح',
+      blockedHeading: 'يحتاج محرك BIV إلى توضيح',
+      requiredClarification: 'التوضيح المطلوب',
     };
   }
   return {
@@ -929,6 +1282,8 @@ function getLocalBivCopy(language) {
     summary: 'Initial summary',
     nextAction: 'Next action',
     unknown: 'Unknown',
+    blockedHeading: 'The BIV engine needs clarification',
+    requiredClarification: 'Required clarification',
   };
 }
 
