@@ -3,6 +3,8 @@ import { useLocation } from 'react-router-dom';
 import { renderHeader } from '../../components/Header/index.js';
 import { renderFooter } from '../../components/Footer/index.js';
 import { applyDocumentLocale, bindLanguageSwitcher, getFooterContent, getHeaderContent } from '../../core/localization.js';
+import bivContentEn from '../../products/business/idea-validator/content.en.js';
+import bivContentAr from '../../products/business/idea-validator/content.ar.js';
 import {
   buildDiscoveryState,
   buildConfirmationContract,
@@ -32,11 +34,15 @@ import {
   evaluateGuidedDiscoverySufficiency,
   GUIDED_DISCOVERY_SUFFICIENCY_STATUS,
 } from '../../products/business/idea-validator/guidedDiscoverySufficiencyBridge.js';
+import { adaptGuidedDiscoveryHandoffToBiv } from '../../products/business/idea-validator/guidedDiscoveryBivAdapter.js';
+import { executeBusinessIdeaValidation } from '../../products/business/idea-validator/executionResult.js';
 import { createSemanticIntentRequest } from '../../products/business/idea-validator/semanticIntentContract.js';
 import { createMockSemanticIntentProvider } from '../../products/business/idea-validator/semanticIntentMockProvider.js';
 import { buildDeterministicIntentPresentation, buildSemanticIntentPresentation } from '../../products/business/idea-validator/semanticIntentPresentation.js';
 import { interpretWithSemanticProvider } from '../../products/business/idea-validator/semanticIntentProvider.js';
 import { BIV_SEMANTIC_WORKER_ENDPOINT, observeSemanticShadow } from '../../products/business/idea-validator/semanticShadowAdapter.js';
+
+const bivContentMap = { en: bivContentEn, ar: bivContentAr };
 
 function BusinessIdeaDiscoveryPrototypePage({ locale }) {
   const location = useLocation();
@@ -48,6 +54,8 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
   const [semanticPresentation, setSemanticPresentation] = useState(null);
   const [downstreamAnswers, setDownstreamAnswers] = useState({});
   const [activeClarificationAnswer, setActiveClarificationAnswer] = useState('');
+  const [bivExecutionAnswers, setBivExecutionAnswers] = useState({});
+  const [bivExecutionResult, setBivExecutionResult] = useState(null);
   const semanticParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const semanticScenario = semanticParams.get('semanticScenario') || 'valid';
   const semanticLocale = semanticParams.get('lang') || semanticParams.get('locale');
@@ -90,10 +98,23 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
     downstreamInput: downstreamAnswers,
   }), [state, language, downstreamAnswers]);
   const sufficiency = useMemo(() => evaluateGuidedDiscoverySufficiency(handoff, { locale: language }), [handoff, language]);
+  const bivClassificationFields = useMemo(() => getBivClassificationFields(bivExecutionResult), [bivExecutionResult]);
+  const bivClassificationAnswers = bivExecutionAnswers;
 
   const resetDownstreamSufficiency = () => {
     setDownstreamAnswers({});
     setActiveClarificationAnswer('');
+    resetBivExecution();
+  };
+
+  const resetBivExecution = () => {
+    setBivExecutionAnswers({});
+    setBivExecutionResult(null);
+  };
+
+  const invalidateBivExecutionForAnswerChange = () => {
+    setActiveClarificationAnswer('');
+    resetBivExecution();
   };
 
   const transitionToJourneyState = (nextJourneyState) => {
@@ -150,7 +171,7 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
       ...nextState,
       journeyState: targetJourneyState,
     }));
-    resetDownstreamSufficiency();
+    invalidateBivExecutionForAnswerChange();
     setError('');
   };
 
@@ -275,7 +296,7 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
 
   const reviewConfirmedAnswers = () => {
     setState(reopenDiscoveryConfirmation(state));
-    resetDownstreamSufficiency();
+    invalidateBivExecutionForAnswerChange();
     setError('');
   };
 
@@ -292,6 +313,7 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
       ? discoveryJourneyStates.bivDraftReady
       : discoveryJourneyStates.sufficiencyClarification;
     transitionToJourneyState(nextState);
+    resetBivExecution();
     setError('');
   };
 
@@ -304,11 +326,69 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
     }
     setDownstreamAnswers(result.handoff.downstreamClarifications || {});
     setActiveClarificationAnswer('');
+    resetBivExecution();
     setError('');
     const nextState = result.sufficiency.status === GUIDED_DISCOVERY_SUFFICIENCY_STATUS.READY_FOR_BIV_DRAFT
       ? discoveryJourneyStates.bivDraftReady
       : discoveryJourneyStates.sufficiencyClarification;
     transitionToJourneyState(nextState);
+  };
+
+  const runLocalBivExecution = (answers = bivExecutionAnswers) => {
+    const adapted = adaptGuidedDiscoveryHandoffToBiv(handoff, sufficiency);
+    if (!adapted.ok || !adapted.currentEngineInput) {
+      setError(language === 'ar' ? 'لم تكتمل بيانات المسودة المحلية بعد.' : 'The local draft is not ready yet.');
+      return null;
+    }
+    const result = executeBusinessIdeaValidation({
+      ...adapted.currentEngineInput,
+      feasibilityAnswers: {
+        ...(adapted.currentEngineInput.feasibilityAnswers || {}),
+        ...answers,
+      },
+      content: bivContentMap[language] || bivContentMap.en,
+    });
+    setBivExecutionResult(result);
+    setError('');
+    return result;
+  };
+
+  const startClassificationReview = () => {
+    runLocalBivExecution({});
+  };
+
+  const confirmBivClassification = () => {
+    const answers = { classificationConfirmation: 'confirm' };
+    setBivExecutionAnswers(answers);
+    runLocalBivExecution(answers);
+  };
+
+  const startBivClassificationCorrection = () => {
+    const answers = { classificationConfirmation: 'correct' };
+    setBivExecutionAnswers(answers);
+    runLocalBivExecution(answers);
+  };
+
+  const updateBivClassificationAnswer = (fieldId, value) => {
+    setBivExecutionAnswers((currentAnswers) => ({
+      ...currentAnswers,
+      classificationConfirmation: 'correct',
+      [fieldId]: value,
+    }));
+    setError('');
+  };
+
+  const submitBivClassificationCorrection = () => {
+    const nextAnswers = {
+      ...bivExecutionAnswers,
+      classificationConfirmation: 'correct',
+    };
+    if (!nextAnswers.projectTypeCorrection || !nextAnswers.operatingModelCorrection) {
+      setError(language === 'ar' ? 'اختر نوع المشروع ونموذج التشغيل قبل المتابعة.' : 'Choose the project type and operating model before continuing.');
+      return;
+    }
+    setBivExecutionAnswers(nextAnswers);
+    runLocalBivExecution(nextAnswers);
   };
 
   return (
@@ -574,14 +654,16 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
 
               {journeyState === discoveryJourneyStates.bivDraftReady ? (
                 <div className="discovery-step">
-                  <div className="discovery-confirmed-state" role="status" aria-live="polite">
+                  {!bivExecutionResult ? (
+                    <div className="discovery-confirmed-state" role="status" aria-live="polite">
                     <div className="discovery-confirmed-state__mark" aria-hidden="true">✓</div>
                     <div>
                       <h2 id="discovery-title">{content.states.ready.heading}</h2>
                       <p className="validator-intro">{content.states.ready.body}</p>
                       <p className="discovery-confirmed-state__notice">{content.states.ready.notice}</p>
                     </div>
-                  </div>
+                    </div>
+                  ) : null}
                   <div className="discovery-summary">
                     <div>
                       <p className="eyebrow">{content.states.summary.originalIdea}</p>
@@ -598,7 +680,26 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
                       <ClarifiedAnswerList answers={downstreamAnswers} language={language} />
                     </div>
                   </div>
+                  {bivExecutionResult ? (
+                    <LocalBivExecutionPanel
+                      result={bivExecutionResult}
+                      fields={bivClassificationFields}
+                      answers={bivClassificationAnswers}
+                      content={content}
+                      language={language}
+                      onConfirm={confirmBivClassification}
+                      onCorrect={startBivClassificationCorrection}
+                      onCorrectionChange={updateBivClassificationAnswer}
+                      onCorrectionSubmit={submitBivClassificationCorrection}
+                      error={error}
+                    />
+                  ) : null}
                   <div className="validator-actions">
+                    {!bivExecutionResult ? (
+                      <button className="button button--primary" type="button" onClick={startClassificationReview}>
+                        {content.actions.continue}
+                      </button>
+                    ) : null}
                     <button className="button button--secondary" type="button" onClick={reviewConfirmedAnswers}>
                       {content.actions.editAnswers}
                     </button>
@@ -643,6 +744,240 @@ function ClarifiedAnswerList({ answers, language }) {
       ))}
     </dl>
   );
+}
+
+function LocalBivExecutionPanel({
+  result,
+  fields,
+  answers,
+  content,
+  language,
+  onConfirm,
+  onCorrect,
+  onCorrectionChange,
+  onCorrectionSubmit,
+  error,
+}) {
+  const copy = getLocalBivCopy(language);
+  const isClassificationReview = result?.journeyState === 'classification_review';
+  const isClassificationCorrection = result?.journeyState === 'classification_correction';
+  const proposedClassification = result?.orchestrationDecision?.classification?.proposedClassification
+    || result?.orchestrationDecision?.proposedClassification
+    || {};
+  const classificationField = fields.find((field) => field.id === 'classificationConfirmation');
+  const correctionFields = fields.filter((field) => ['projectTypeCorrection', 'operatingModelCorrection', 'classificationCorrectionReason'].includes(field.id));
+
+  if (isClassificationCorrection) {
+    return (
+      <div className="local-biv-panel">
+        <h2>{copy.correctionHeading}</h2>
+        <p className="validator-intro">{copy.correctionBody}</p>
+        <div className="local-biv-form">
+          {correctionFields.map((field) => (
+            <label className="field" key={field.id}>
+              <span className="field__label">{field.labelText}</span>
+              {field.helpText ? <span className="field__help">{field.helpText}</span> : null}
+              {field.type === 'textarea' ? (
+                <textarea
+                  className="field__control field__control--textarea"
+                  value={answers[field.id] || ''}
+                  onChange={(event) => onCorrectionChange(field.id, event.target.value)}
+                  placeholder={field.placeholderText}
+                />
+              ) : (
+                <select
+                  className="field__control"
+                  value={answers[field.id] || ''}
+                  onChange={(event) => onCorrectionChange(field.id, event.target.value)}
+                >
+                  <option value="">{field.placeholderText}</option>
+                  {(field.options || []).map((option) => (
+                    <option key={option.value} value={option.value}>{option.labelText}</option>
+                  ))}
+                </select>
+              )}
+            </label>
+          ))}
+          <span className="field__error">{error}</span>
+        </div>
+        <div className="validator-actions">
+          <button className="button button--primary" type="button" onClick={onCorrectionSubmit}>
+            {content.actions.continue}
+          </button>
+          <button className="button button--secondary" type="button" onClick={onConfirm}>
+            {copy.confirmInstead}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (isClassificationReview) {
+    return (
+      <div className="local-biv-panel">
+        <h2>{copy.reviewHeading}</h2>
+        <p className="validator-intro">{classificationField?.labelText || copy.reviewBody}</p>
+        <div className="local-biv-classification">
+          <div>
+            <p className="eyebrow">{copy.projectType}</p>
+            <p>{proposedClassification.label || copy.unknown}</p>
+          </div>
+          <div>
+            <p className="eyebrow">{copy.operatingModel}</p>
+            <p>{proposedClassification.operatingModelLabel || copy.unknown}</p>
+          </div>
+          {proposedClassification.reason ? (
+            <div>
+              <p className="eyebrow">{copy.evidence}</p>
+              <p>{proposedClassification.reason}</p>
+            </div>
+          ) : null}
+        </div>
+        <div className="validator-actions">
+          <button className="button button--primary" type="button" onClick={onConfirm}>
+            {copy.confirmClassification}
+          </button>
+          <button className="button button--secondary" type="button" onClick={onCorrect}>
+            {copy.correctClassification}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="local-biv-panel">
+      <h2>{copy.resultHeading}</h2>
+      <p className="validator-intro">{copy.resultBody}</p>
+      <div className="local-biv-classification">
+        <div>
+          <p className="eyebrow">{copy.nextState}</p>
+          <p>{localizeBivJourneyState(result?.journeyState, language)}</p>
+        </div>
+        <div>
+          <p className="eyebrow">{copy.route}</p>
+          <p>{localizeBivRoute(result?.route, language)}</p>
+        </div>
+        {typeof result?.score === 'number' ? (
+          <div>
+            <p className="eyebrow">{copy.score}</p>
+            <p>{result.score}</p>
+          </div>
+        ) : null}
+        {result?.report?.executiveSummary ? (
+          <div>
+            <p className="eyebrow">{copy.summary}</p>
+            <p>{result.report.executiveSummary}</p>
+          </div>
+        ) : null}
+        {result?.nextRequiredAction ? (
+          <div>
+            <p className="eyebrow">{copy.nextAction}</p>
+            <p>{result.nextRequiredAction}</p>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function getBivClassificationFields(result) {
+  return result?.clarificationFlow?.steps
+    ?.flatMap((step) => step.fields || [])
+    ?.filter((field) => ['classificationConfirmation', 'projectTypeCorrection', 'operatingModelCorrection', 'classificationCorrectionReason'].includes(field.id)) || [];
+}
+
+function getLocalBivCopy(language) {
+  if (language === 'ar') {
+    return {
+      reviewHeading: 'مراجعة تصنيف BIV',
+      reviewBody: 'راجع التصنيف الذي اقترحه محرك BIV قبل بدء التقييم.',
+      correctionHeading: 'تصحيح التصنيف',
+      correctionBody: 'اختر التصنيف الأقرب لفكرتك. سيعاد تشغيل محرك BIV باستخدام إجابتك.',
+      projectType: 'نوع المشروع المقترح',
+      operatingModel: 'نموذج التشغيل المقترح',
+      evidence: 'سبب الاقتراح',
+      confirmClassification: 'تأكيد التصنيف',
+      correctClassification: 'تصحيح التصنيف',
+      confirmInstead: 'تأكيد التصنيف المقترح بدلاً من ذلك',
+      resultHeading: 'نتيجة محرك BIV المحلي',
+      resultBody: 'هذه نتيجة محلية من محرك BIV الحالي بعد تأكيد التصنيف. لا يتم نشرها ولا تغيّر صفحة BIV العامة.',
+      nextState: 'الحالة التالية',
+      route: 'مسار المحرك',
+      score: 'الدرجة',
+      summary: 'ملخص أولي',
+      nextAction: 'الإجراء التالي',
+      unknown: 'غير واضح',
+    };
+  }
+  return {
+    reviewHeading: 'Review BIV classification',
+    reviewBody: 'Review the classification proposed by the BIV engine before evaluation starts.',
+    correctionHeading: 'Correct classification',
+    correctionBody: 'Choose the classification closest to your idea. The BIV engine will run again using your answer.',
+    projectType: 'Proposed project type',
+    operatingModel: 'Proposed operating model',
+    evidence: 'Reason for proposal',
+    confirmClassification: 'Confirm classification',
+    correctClassification: 'Correct classification',
+    confirmInstead: 'Confirm the proposed classification instead',
+    resultHeading: 'Local BIV engine result',
+    resultBody: 'This is a local result from the current BIV engine after classification confirmation. It is not published and does not change the public BIV page.',
+    nextState: 'Next state',
+    route: 'Engine route',
+    score: 'Score',
+    summary: 'Initial summary',
+    nextAction: 'Next action',
+    unknown: 'Unknown',
+  };
+}
+
+function localizeBivJourneyState(value = '', language = 'en') {
+  const labels = {
+    en: {
+      normal_evaluation: 'Normal evaluation',
+      guided_followup: 'Further clarification',
+      specialist_clarification: 'Specialist clarification',
+      specialist_analysis: 'Specialist preliminary result',
+      eligibility_clarification: 'Policy clarification',
+      financing_clarification: 'Financing clarification',
+      ineligible: 'Unable to evaluate',
+      validation_error: 'Input needs correction',
+    },
+    ar: {
+      normal_evaluation: 'تقييم عادي',
+      guided_followup: 'توضيح إضافي',
+      specialist_clarification: 'توضيح متخصص',
+      specialist_analysis: 'نتيجة متخصصة أولية',
+      eligibility_clarification: 'توضيح سياسة الأهلية',
+      financing_clarification: 'توضيح التمويل',
+      ineligible: 'لا يمكن التقييم',
+      validation_error: 'المدخلات تحتاج إلى تصحيح',
+    },
+  };
+  return labels[language]?.[value] || value || labels[language]?.guided_followup || value;
+}
+
+function localizeBivRoute(value = '', language = 'en') {
+  const labels = {
+    en: {
+      normal_evaluation: 'Normal evaluation',
+      guided_follow_up: 'Guided follow-up',
+      specialist_analysis: 'Specialist analysis',
+      needs_clarification: 'Needs clarification',
+      ineligible: 'Ineligible',
+      validation_error: 'Validation error',
+    },
+    ar: {
+      normal_evaluation: 'تقييم عادي',
+      guided_follow_up: 'متابعة موجهة',
+      specialist_analysis: 'تحليل متخصص',
+      needs_clarification: 'يحتاج إلى توضيح',
+      ineligible: 'غير مؤهل',
+      validation_error: 'خطأ في التحقق',
+    },
+  };
+  return labels[language]?.[value] || value || labels[language]?.guided_follow_up || value;
 }
 
 function DisplayTranslationBlock({ translation, labels }) {

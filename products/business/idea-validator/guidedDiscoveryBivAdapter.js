@@ -98,12 +98,16 @@ export function buildCanonicalBivInput(handoff = {}) {
 
 export function projectCanonicalInputToCurrentEngine(canonicalInput = {}) {
   const optionalContext = canonicalInput.optionalContext || {};
+  const guidedClassificationEvidence = buildGuidedClassificationEvidence(canonicalInput.confirmedUnderstanding);
   return {
     rawInput: { ...(canonicalInput.rawInput || {}) },
     language: canonicalInput.locale === "ar" ? "ar" : "en",
     source: canonicalInput.source || "",
     industrialDetails: {},
-    feasibilityAnswers: buildCurrentEngineFeasibilityAnswers(optionalContext),
+    feasibilityAnswers: {
+      ...buildCurrentEngineFeasibilityAnswers(optionalContext),
+      ...guidedClassificationEvidence,
+    },
   };
 }
 
@@ -168,6 +172,40 @@ function buildCurrentEngineFeasibilityAnswers(optionalContext = {}) {
       return answers;
     }, {});
 }
+
+function buildGuidedClassificationEvidence(confirmedUnderstanding = {}) {
+  const evidence = {};
+  const coreOffering = cleanString(confirmedUnderstanding.coreOffering);
+  const operatingEvidence = buildGuidedOperatingModelEvidence(confirmedUnderstanding);
+  if (coreOffering) evidence.guidedDiscoveryCoreOfferingEvidence = coreOffering;
+  if (operatingEvidence) evidence.guidedDiscoveryOperatingModelEvidence = operatingEvidence;
+  return evidence;
+}
+
+function buildGuidedOperatingModelEvidence(confirmedUnderstanding = {}) {
+  const primaryApproach = cleanString(confirmedUnderstanding.selectedOperatingApproach);
+  const selectedApproaches = Array.isArray(confirmedUnderstanding.selectedOperatingApproaches)
+    ? confirmedUnderstanding.selectedOperatingApproaches.map(cleanString).filter(Boolean)
+    : [];
+  const ids = primaryApproach === "mixed" ? selectedApproaches : [primaryApproach].filter(Boolean);
+  if (!ids.length || ids.includes("not_decided")) return "";
+  const phrases = ids
+    .map((id) => guidedOperatingEvidencePhrases[id])
+    .filter(Boolean);
+  if (!phrases.length) return "";
+  return [
+    primaryApproach === "mixed" ? "mixed" : "",
+    ...phrases,
+  ].filter(Boolean).join("; ");
+}
+
+const guidedOperatingEvidencePhrases = {
+  online: "digital remote",
+  fixed_location: "fixed location",
+  customer_site: "customer site",
+  home_based: "home based",
+  other: "mixed",
+};
 
 function buildCompatibility({ schemaReady, currentEngineInput = null } = {}) {
   const providedLegacyAnswers = currentEngineInput?.feasibilityAnswers || {};

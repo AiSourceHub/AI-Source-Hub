@@ -957,6 +957,40 @@ button:focus-visible,
   padding-inline-start: var(--space-5);
 }
 
+.local-biv-panel {
+  display: grid;
+  gap: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  padding: var(--space-5);
+}
+
+.local-biv-classification,
+.local-biv-form {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.local-biv-classification {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+  padding: var(--space-4);
+}
+
+.local-biv-classification p {
+  margin: 0;
+}
+
+.local-biv-panel .validator-actions {
+  align-items: center;
+}
+
+.local-biv-panel .button {
+  margin-inline-end: var(--space-1);
+}
+
 .validator-actions,
 .report-actions {
   display: flex;

@@ -34,6 +34,7 @@ const appSource = readFileSync(new URL("../../../src/App.jsx", import.meta.url),
 const homeSource = readFileSync(new URL("../../../src/pages/HomePage.jsx", import.meta.url), "utf8");
 const productPageSource = readFileSync(new URL("../../../src/pages/BusinessIdeaValidatorPage.jsx", import.meta.url), "utf8");
 const prototypePageSource = readFileSync(new URL("../../../src/pages/BusinessIdeaDiscoveryPrototypePage.jsx", import.meta.url), "utf8");
+const styleSource = readFileSync(new URL("../../../src/styles.css", import.meta.url), "utf8");
 
 const emptyState = buildDiscoveryState({ originalIdea: "" });
 assert.equal(emptyState.originalIdea, "");
@@ -511,7 +512,19 @@ assert.equal(prototypePageSource.includes("resolveDiscoveryTransition(currentSta
 assert.equal(prototypePageSource.includes("discovery-progress__text"), true);
 assert.equal(discoveryContent.en.progress, "Step {current} of {total}");
 assert.equal(discoveryContent.ar.progress, "الخطوة {current} من {total}");
-assert.equal(prototypePageSource.includes("score"), false);
+assert.equal(prototypePageSource.includes("LocalBivExecutionPanel"), true);
+assert.equal(prototypePageSource.includes("executeBusinessIdeaValidation"), true);
+assert.equal(prototypePageSource.includes("adaptGuidedDiscoveryHandoffToBiv"), true);
+assert.equal(prototypePageSource.includes("classificationConfirmation: 'confirm'"), true);
+assert.equal(prototypePageSource.includes("classificationConfirmation: 'correct'"), true);
+assert.equal(prototypePageSource.includes("projectTypeCorrection"), true);
+assert.equal(prototypePageSource.includes("operatingModelCorrection"), true);
+assert.equal(prototypePageSource.includes("buildGuidedDiscoveryBivHandoff(state"), true);
+assert.equal(prototypePageSource.includes("setBivExecutionResult(null)"), true);
+assert.equal(prototypePageSource.includes("مراجعة تصنيف BIV"), true);
+assert.equal(prototypePageSource.includes("Review BIV classification"), true);
+assert.equal(styleSource.includes(".local-biv-panel"), true);
+assert.equal(styleSource.includes(".local-biv-panel .validator-actions"), true);
 assert.equal(prototypePageSource.includes("reportText"), false);
 assert.equal(prototypePageSource.includes("copyReport"), false);
 assert.equal(prototypePageSource.includes("downloadReport"), false);
@@ -541,6 +554,10 @@ assert.equal(prototypePageSource.includes("buildGuidedDiscoveryBivHandoff"), tru
 assert.equal(prototypePageSource.includes("evaluateGuidedDiscoverySufficiency"), true);
 assert.equal(prototypePageSource.includes("applyGuidedDiscoveryClarificationAnswer"), true);
 assert.equal(prototypePageSource.includes("setDownstreamAnswers({})"), true);
+assert.equal(prototypePageSource.includes("invalidateBivExecutionForAnswerChange"), true);
+const reviewConfirmedAnswersBody = prototypePageSource.match(/const reviewConfirmedAnswers = \(\) => \{[\s\S]*?\n  \};/)?.[0] || "";
+assert.equal(reviewConfirmedAnswersBody.includes("invalidateBivExecutionForAnswerChange();"), true);
+assert.equal(reviewConfirmedAnswersBody.includes("resetDownstreamSufficiency();"), false);
 assert.equal(prototypePageSource.includes("discoveryJourneyStates.sufficiencyClarification"), true);
 assert.equal(prototypePageSource.includes("discoveryJourneyStates.bivDraftReady"), true);
 assert.equal(prototypePageSource.includes("content.states.ready.heading"), true);
@@ -569,7 +586,7 @@ console.log(
         "localized progress text hides raw step numbers",
         "summary separates original idea",
         "prototype absent from public navigation",
-        "no score/report/copy/download flow",
+        "no copy/download/public report flow",
       ],
     },
     null,

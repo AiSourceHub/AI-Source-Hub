@@ -40,6 +40,50 @@ assert.equal(ready.status, GUIDED_DISCOVERY_SUFFICIENCY_STATUS.READY_FOR_BIV_DRA
 assert.equal(ready.activeClarification, null);
 assert.deepEqual(ready.remainingMissingInformation, []);
 
+const editedTargetCustomerInput = {
+  ...completeInput,
+  targetCustomer: "Villa owners, tenants, and small businesses",
+};
+const editedTargetCustomer = evaluateGuidedDiscoverySufficiency(handoff({}, editedTargetCustomerInput));
+assert.equal(editedTargetCustomer.status, GUIDED_DISCOVERY_SUFFICIENCY_STATUS.READY_FOR_BIV_DRAFT);
+assert.equal(editedTargetCustomer.activeClarification, null);
+assert.equal(editedTargetCustomerInput.problem, completeInput.problem);
+assert.equal(editedTargetCustomerInput.monetization, completeInput.monetization);
+
+const editedProblemInput = {
+  ...completeInput,
+  problem: "They need urgent repairs when cooling stops at home or work.",
+};
+const editedProblem = evaluateGuidedDiscoverySufficiency(handoff({}, editedProblemInput));
+assert.equal(editedProblem.status, GUIDED_DISCOVERY_SUFFICIENCY_STATUS.READY_FOR_BIV_DRAFT);
+assert.equal(editedProblem.activeClarification, null);
+assert.equal(editedProblemInput.targetCustomer, completeInput.targetCustomer);
+assert.equal(editedProblemInput.monetization, completeInput.monetization);
+
+const editedMonetizationInput = {
+  ...completeInput,
+  monetization: "Customers pay inspection and repair fees per visit.",
+};
+const editedMonetization = evaluateGuidedDiscoverySufficiency(handoff({}, editedMonetizationInput));
+assert.equal(editedMonetization.status, GUIDED_DISCOVERY_SUFFICIENCY_STATUS.READY_FOR_BIV_DRAFT);
+assert.equal(editedMonetization.activeClarification, null);
+assert.equal(editedMonetizationInput.targetCustomer, completeInput.targetCustomer);
+assert.equal(editedMonetizationInput.problem, completeInput.problem);
+
+const onlyProblemMissing = evaluateGuidedDiscoverySufficiency(handoff({}, {
+  targetCustomer: completeInput.targetCustomer,
+  monetization: completeInput.monetization,
+}));
+assert.equal(onlyProblemMissing.activeClarification.id, "problem");
+assert.deepEqual(onlyProblemMissing.remainingMissingInformation.map((item) => item.id), ["problem"]);
+
+const onlyMonetizationMissing = evaluateGuidedDiscoverySufficiency(handoff({}, {
+  targetCustomer: completeInput.targetCustomer,
+  problem: completeInput.problem,
+}));
+assert.equal(onlyMonetizationMissing.activeClarification.id, "monetization");
+assert.deepEqual(onlyMonetizationMissing.remainingMissingInformation.map((item) => item.id), ["monetization"]);
+
 const missingTarget = evaluateGuidedDiscoverySufficiency(handoff({}, {
   problem: completeInput.problem,
   monetization: completeInput.monetization,

@@ -12,6 +12,18 @@ import {
   GUIDED_DISCOVERY_CANONICAL_BIV_VERSION,
   projectCanonicalInputToCurrentEngine,
 } from "./guidedDiscoveryBivAdapter.js";
+import contentEn from "./content.en.js";
+import contentAr from "./content.ar.js";
+
+const contentMap = { en: contentEn, ar: contentAr };
+
+function executeWithContent(input = {}) {
+  const language = input.language === "ar" ? "ar" : "en";
+  return executeBusinessIdeaValidation({
+    ...input,
+    content: contentMap[language],
+  });
+}
 
 function buildReadyFixture(overrides = {}, downstreamInput = {}) {
   const discovery = confirmDiscoveryUnderstanding(buildDiscoveryState({
@@ -89,7 +101,10 @@ assert.deepEqual(adapted.currentEngineInput, {
   language: "en",
   source: "guided_discovery",
   industrialDetails: {},
-  feasibilityAnswers: {},
+  feasibilityAnswers: {
+    guidedDiscoveryCoreOfferingEvidence: "Air-conditioning repair and maintenance",
+    guidedDiscoveryOperatingModelEvidence: "mixed; customer site; fixed location",
+  },
 });
 assert.equal(Object.hasOwn(adapted.currentEngineInput.feasibilityAnswers, "classificationConfirmation"), false);
 assert.equal(Object.hasOwn(adapted.currentEngineInput.feasibilityAnswers, "userExperienceLevel"), false);
@@ -111,11 +126,12 @@ assert.deepEqual(adapted.compatibility.deferredProfileDependencies, [
   "decisionObjective",
 ]);
 
-const currentEngineProbe = executeBusinessIdeaValidation(adapted.currentEngineInput);
+const currentEngineProbe = executeWithContent(adapted.currentEngineInput);
 assert.equal(currentEngineProbe.validation.ok, true);
 assert.equal(currentEngineProbe.route, "guided_follow_up");
 assert.equal(currentEngineProbe.journeyState, "classification_review");
 assert.equal(currentEngineProbe.orchestrationDecision.reasonCode, "classification_confirmation_required");
+assert.equal(currentEngineProbe.orchestrationDecision.proposedClassification.operatingModel, "mixed");
 assert.deepEqual(currentEngineProbe.orchestrationDecision.missingInformation, [
   "classificationConfirmation",
 ]);
@@ -125,8 +141,85 @@ assert.deepEqual(currentEngineProbe.orchestrationDecision.blockedActions, [
   "copy_report",
   "download_report",
 ]);
+assert.equal(currentEngineProbe.orchestrationDecision.proposedClassification.engineType, "service");
+assert.equal(currentEngineProbe.orchestrationDecision.classification.classificationConfirmed, false);
 
-const legacyEngineProbe = executeBusinessIdeaValidation({
+const fixedLocationReady = buildReadyFixture({
+  selectedOperatingApproach: "fixed_location",
+  selectedOperatingApproaches: [],
+});
+const fixedLocationAdapted = adaptGuidedDiscoveryHandoffToBiv(fixedLocationReady.handoff, fixedLocationReady.sufficiency);
+const fixedLocationProbe = executeWithContent(fixedLocationAdapted.currentEngineInput);
+assert.equal(fixedLocationProbe.orchestrationDecision.proposedClassification.operatingModel, "fixed_location");
+assert.equal(fixedLocationProbe.journeyState, "classification_review");
+
+const customerSiteReady = buildReadyFixture({
+  selectedOperatingApproach: "customer_site",
+  selectedOperatingApproaches: [],
+});
+const customerSiteAdapted = adaptGuidedDiscoveryHandoffToBiv(customerSiteReady.handoff, customerSiteReady.sufficiency);
+const customerSiteProbe = executeWithContent(customerSiteAdapted.currentEngineInput);
+assert.equal(customerSiteProbe.orchestrationDecision.proposedClassification.operatingModel, "mobile_or_customer_site");
+assert.equal(customerSiteProbe.journeyState, "classification_review");
+
+const conflictingOperatingProbe = executeWithContent({
+  ...adapted.currentEngineInput,
+  rawInput: {
+    ...adapted.currentEngineInput.rawInput,
+    businessIdea: "An online service for remote air-conditioning maintenance planning.",
+  },
+});
+assert.equal(conflictingOperatingProbe.route, "guided_follow_up");
+assert.equal(conflictingOperatingProbe.journeyState, "classification_review");
+assert.equal(conflictingOperatingProbe.orchestrationDecision.classification.classificationConfirmed, false);
+
+const confirmedEngineProbe = executeWithContent({
+  ...adapted.currentEngineInput,
+  feasibilityAnswers: {
+    ...adapted.currentEngineInput.feasibilityAnswers,
+    classificationConfirmation: "confirm",
+  },
+});
+assert.notEqual(confirmedEngineProbe.journeyState, "classification_review");
+assert.notEqual(confirmedEngineProbe.journeyState, "classification_correction");
+assert.equal(confirmedEngineProbe.orchestrationDecision.classification.classificationConfirmed, true);
+assert.equal(confirmedEngineProbe.orchestrationDecision.classification.confirmedClassification.engineType, "service");
+
+const correctionPromptProbe = executeWithContent({
+  ...adapted.currentEngineInput,
+  feasibilityAnswers: {
+    ...adapted.currentEngineInput.feasibilityAnswers,
+    classificationConfirmation: "correct",
+  },
+});
+assert.equal(correctionPromptProbe.route, "guided_follow_up");
+assert.equal(correctionPromptProbe.journeyState, "classification_correction");
+const correctionFields = correctionPromptProbe.clarificationFlow.steps.flatMap((step) => step.fields || []);
+assert.equal(correctionFields.some((field) => field.id === "projectTypeCorrection"), true);
+assert.equal(correctionFields.some((field) => field.id === "operatingModelCorrection"), true);
+
+const correctedEngineProbe = executeWithContent({
+  ...adapted.currentEngineInput,
+  feasibilityAnswers: {
+    ...adapted.currentEngineInput.feasibilityAnswers,
+    classificationConfirmation: "correct",
+    projectTypeCorrection: "retail",
+    operatingModelCorrection: "fixed_location",
+    classificationCorrectionReason: "The first release is a shop counter service.",
+  },
+});
+assert.notEqual(correctedEngineProbe.journeyState, "classification_review");
+assert.notEqual(correctedEngineProbe.journeyState, "classification_correction");
+assert.equal(correctedEngineProbe.orchestrationDecision.classification.classificationConfirmed, true);
+assert.equal(correctedEngineProbe.orchestrationDecision.classification.classificationCorrected, true);
+assert.equal(correctedEngineProbe.orchestrationDecision.businessType, "retail_trading");
+assert.equal(correctedEngineProbe.orchestrationDecision.operatingModel, "fixed_location");
+assert.equal(correctedEngineProbe.orchestrationDecision.classification.confirmedClassification.engineType, "retail_trading");
+assert.equal(correctedEngineProbe.orchestrationDecision.classification.confirmedClassification.operatingModel, "fixed_location");
+assert.equal(adapted.canonicalInput.confirmedUnderstanding.selectedIntent, "service");
+assert.equal(adapted.canonicalInput.authority.guidedDiscoveryIntentIsFinalClassification, false);
+
+const legacyEngineProbe = executeWithContent({
   rawInput: adapted.currentEngineInput.rawInput,
   language: "en",
   industrialDetails: {},
@@ -207,12 +300,14 @@ assert.deepEqual(optionalAdapted.currentEngineInput.feasibilityAnswers, {
   userExperienceLevel: "first_time_beginner",
   projectStageIntent: "initial_idea",
   decisionObjective: "Decide whether to continue.",
+  guidedDiscoveryCoreOfferingEvidence: "Air-conditioning repair and maintenance",
+  guidedDiscoveryOperatingModelEvidence: "mixed; customer site; fixed location",
 });
 assert.deepEqual(optionalAdapted.currentEngineInput.industrialDetails, {});
 assert.equal(optionalAdapted.canonicalInput.confirmedUnderstanding.selectedIntent, "service");
 assert.equal(optionalAdapted.canonicalInput.authority.guidedDiscoveryIntentIsFinalClassification, false);
 
-const guidedIneligible = executeBusinessIdeaValidation({
+const guidedIneligible = executeWithContent({
   rawInput: {
     businessIdea: "An online casino and betting marketplace for sports gambling",
     targetCustomer: "Adults who want to bet on sports.",
@@ -228,7 +323,7 @@ assert.equal(guidedIneligible.evaluationStatus, "ineligible");
 assert.equal(Object.hasOwn(guidedIneligible, "score"), false);
 assert.equal(Object.hasOwn(guidedIneligible, "report"), false);
 
-const guidedFinancingClarification = executeBusinessIdeaValidation({
+const guidedFinancingClarification = executeWithContent({
   rawInput: {
     businessIdea: "A funding platform with periodic financial returns and repayment period",
     targetCustomer: "Small businesses seeking funding.",
@@ -244,7 +339,7 @@ assert.equal(guidedFinancingClarification.eligibility.clarificationType, "financ
 assert.equal(Object.hasOwn(guidedFinancingClarification, "score"), false);
 assert.equal(Object.hasOwn(guidedFinancingClarification, "report"), false);
 
-const guidedPetSpecialist = executeBusinessIdeaValidation({
+const guidedPetSpecialist = executeWithContent({
   rawInput: {
     businessIdea: "A PET recycling facility that sorts and bales plastic bottles for industrial buyers.",
     targetCustomer: "Plastic recycling buyers and factories.",
@@ -261,5 +356,23 @@ assert.notEqual(guidedPetSpecialist.journeyState, "profile_input");
 assert.equal(guidedPetSpecialist.orchestrationDecision.missingInformation.includes("userExperienceLevel"), false);
 assert.equal(guidedPetSpecialist.orchestrationDecision.missingInformation.includes("country"), false);
 assert.equal(guidedPetSpecialist.orchestrationDecision.matchedSpecialist?.id, "pet_plastic_recycling");
+assert.equal(Object.hasOwn(guidedPetSpecialist, "score"), false);
+assert.equal(Object.hasOwn(guidedPetSpecialist, "report"), false);
+
+const guidedPetBeforeConfirmation = executeWithContent({
+  rawInput: {
+    businessIdea: "A PET recycling facility that sorts and bales plastic bottles for industrial buyers.",
+    targetCustomer: "Plastic recycling buyers and factories.",
+    problem: "They need sorted PET feedstock in consistent bales.",
+    monetization: "Buyers pay per ton of sorted PET bales.",
+  },
+  language: "en",
+  source: "guided_discovery",
+});
+assert.equal(guidedPetBeforeConfirmation.route, "guided_follow_up");
+assert.equal(guidedPetBeforeConfirmation.journeyState, "classification_review");
+assert.equal(guidedPetBeforeConfirmation.orchestrationDecision.reasonCode, "classification_confirmation_required");
+assert.equal(Object.hasOwn(guidedPetBeforeConfirmation, "score"), false);
+assert.equal(Object.hasOwn(guidedPetBeforeConfirmation, "report"), false);
 
 console.log("Guided Discovery BIV adapter tests: PASS");
