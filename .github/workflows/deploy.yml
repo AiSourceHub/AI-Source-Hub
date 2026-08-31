@@ -36,6 +36,8 @@ jobs:
 
       - name: Build Vite project
         run: npm run build
+        env:
+          VITE_BIV_GUIDED_DISCOVERY_CANDIDATE: ${{ vars.BIV_GUIDED_DISCOVERY_CANDIDATE }}
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
