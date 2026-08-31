@@ -58,6 +58,8 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
   const [downstreamAnswers, setDownstreamAnswers] = useState({});
   const [activeClarificationAnswer, setActiveClarificationAnswer] = useState('');
   const [bivExecutionAnswers, setBivExecutionAnswers] = useState({});
+  const [engineClarificationAnswers, setEngineClarificationAnswers] = useState({});
+  const [engineClarificationErrors, setEngineClarificationErrors] = useState({});
   const [bivExecutionResult, setBivExecutionResult] = useState(null);
   const [bivExecutionNotice, setBivExecutionNotice] = useState('');
   const semanticParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
@@ -118,6 +120,8 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
 
   const resetBivExecution = () => {
     setBivExecutionAnswers({});
+    setEngineClarificationAnswers({});
+    setEngineClarificationErrors({});
     setBivExecutionResult(null);
     setBivExecutionNotice('');
   };
@@ -344,17 +348,29 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
     transitionToJourneyState(nextState);
   };
 
-  const runLocalBivExecution = (answers = bivExecutionAnswers) => {
+  const runLocalBivExecution = (answers = bivExecutionAnswers, clarificationAnswers = engineClarificationAnswers) => {
     const adapted = adaptGuidedDiscoveryHandoffToBiv(handoff, sufficiency);
     if (!adapted.ok || !adapted.currentEngineInput) {
       setError(language === 'ar' ? 'لم تكتمل بيانات المسودة المحلية بعد.' : 'The local draft is not ready yet.');
       return null;
     }
+    const clarificationFlowType = bivExecutionResult?.clarificationFlow?.type || '';
+    const projectedIndustrialDetails = clarificationFlowType && clarificationFlowType !== 'feasibility_guided'
+      ? clarificationAnswers
+      : {};
+    const projectedFeasibilityClarifications = clarificationFlowType === 'feasibility_guided'
+      ? clarificationAnswers
+      : {};
     const result = executeBusinessIdeaValidation({
       ...adapted.currentEngineInput,
+      industrialDetails: {
+        ...(adapted.currentEngineInput.industrialDetails || {}),
+        ...projectedIndustrialDetails,
+      },
       feasibilityAnswers: {
         ...(adapted.currentEngineInput.feasibilityAnswers || {}),
         ...answers,
+        ...projectedFeasibilityClarifications,
       },
       content: bivContent,
     });
@@ -424,6 +440,36 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
     }
     setBivExecutionAnswers(nextAnswers);
     runLocalBivExecution(nextAnswers);
+  };
+
+  const updateEngineClarificationAnswer = (fieldId, value) => {
+    setEngineClarificationAnswers((currentAnswers) => ({
+      ...currentAnswers,
+      [fieldId]: value,
+    }));
+    setEngineClarificationErrors((currentErrors) => ({
+      ...currentErrors,
+      [fieldId]: '',
+    }));
+    setError('');
+  };
+
+  const submitEngineClarificationAnswers = () => {
+    const fields = getEngineClarificationFields(bivExecutionResult);
+    const copy = getLocalBivCopy(language);
+    const nextErrors = fields.reduce((messages, field) => {
+      if (field.required && !String(engineClarificationAnswers[field.id] || '').trim()) {
+        messages[field.id] = copy.requiredField;
+      }
+      return messages;
+    }, {});
+    if (Object.keys(nextErrors).length > 0) {
+      setEngineClarificationErrors(nextErrors);
+      setError(language === 'ar' ? 'أكمل الحقول المطلوبة قبل المتابعة.' : 'Complete the required fields before continuing.');
+      return;
+    }
+    setEngineClarificationErrors({});
+    runLocalBivExecution(bivExecutionAnswers, engineClarificationAnswers);
   };
 
   return (
@@ -731,6 +777,10 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
                       onCorrect={startBivClassificationCorrection}
                       onCorrectionChange={updateBivClassificationAnswer}
                       onCorrectionSubmit={submitBivClassificationCorrection}
+                      engineClarificationAnswers={engineClarificationAnswers}
+                      engineClarificationErrors={engineClarificationErrors}
+                      onEngineClarificationChange={updateEngineClarificationAnswer}
+                      onEngineClarificationSubmit={submitEngineClarificationAnswers}
                       error={error}
                     />
                   ) : null}
@@ -801,6 +851,10 @@ function LocalBivExecutionPanel({
   onCorrect,
   onCorrectionChange,
   onCorrectionSubmit,
+  engineClarificationAnswers,
+  engineClarificationErrors,
+  onEngineClarificationChange,
+  onEngineClarificationSubmit,
   error,
 }) {
   const copy = getLocalBivCopy(language);
@@ -927,6 +981,10 @@ function LocalBivExecutionPanel({
         result={result}
         copy={copy}
         language={language}
+        answers={engineClarificationAnswers}
+        errors={engineClarificationErrors}
+        onAnswerChange={onEngineClarificationChange}
+        onSubmit={onEngineClarificationSubmit}
       />
     );
   }
@@ -1142,16 +1200,41 @@ function GuidedIndustrialReport({
   );
 }
 
-function GuidedBivBlockingStatePanel({ result, copy, language }) {
+function GuidedBivBlockingStatePanel({ result, copy, language, answers = {}, errors = {}, onAnswerChange, onSubmit }) {
   const presentation = result.presentation || {};
   const questions = getBlockingQuestions(result);
+  const actionableFields = getEngineClarificationFields(result);
+  const hasActionableFlow = actionableFields.length > 0;
   return (
     <div className="local-biv-panel local-biv-blocked">
       <p className="eyebrow">{localizeBivJourneyState(result?.journeyState, language)}</p>
       <h2>{presentation.heading || copy.blockedHeading}</h2>
       {presentation.body ? <p className="validator-intro">{presentation.body}</p> : null}
       {presentation.policy ? <p>{presentation.policy}</p> : null}
-      {questions.length ? (
+      {hasActionableFlow ? (
+        <div className="local-biv-form">
+          {(result.clarificationFlow?.steps || []).map((step) => (
+            <div className="local-biv-clarification-step" key={step.id || step.title}>
+              {step.title ? <h3>{step.title}</h3> : null}
+              {step.promptText ? <p className="muted-text">{step.promptText}</p> : null}
+              {(step.fields || []).map((field) => (
+                <EngineClarificationField
+                  field={field}
+                  key={field.id}
+                  value={answers[field.id] || ''}
+                  error={errors[field.id] || ''}
+                  onChange={(value) => onAnswerChange?.(field.id, value)}
+                />
+              ))}
+            </div>
+          ))}
+          <div className="validator-actions">
+            <button className="button button--primary" type="button" onClick={onSubmit}>
+              {result.clarificationFlow?.labels?.continue || copy.continueClarification}
+            </button>
+          </div>
+        </div>
+      ) : questions.length ? (
         <div className="report-section">
           <h3>{copy.requiredClarification}</h3>
           <ul>
@@ -1163,6 +1246,39 @@ function GuidedBivBlockingStatePanel({ result, copy, language }) {
       ) : null}
       {presentation.closing ? <p className="muted-text">{presentation.closing}</p> : null}
     </div>
+  );
+}
+
+function EngineClarificationField({ field, value, error, onChange }) {
+  return (
+    <label className="field">
+      <span className="field__label">{field.labelText}</span>
+      {field.helpText ? <span className="field__help">{field.helpText}</span> : null}
+      {field.type === 'select' ? (
+        <select className="field__control" value={value} onChange={(event) => onChange(event.target.value)}>
+          <option value="">{field.placeholderText}</option>
+          {(field.options || []).map((option) => (
+            <option key={option.value} value={option.value}>{option.labelText}</option>
+          ))}
+        </select>
+      ) : field.type === 'textarea' ? (
+        <textarea
+          className="field__control field__control--textarea"
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={field.placeholderText}
+        />
+      ) : (
+        <input
+          className="field__control"
+          type="text"
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={field.placeholderText}
+        />
+      )}
+      {error ? <span className="field__error">{error}</span> : null}
+    </label>
   );
 }
 
@@ -1187,6 +1303,13 @@ function getBivClassificationFields(result) {
   return result?.clarificationFlow?.steps
     ?.flatMap((step) => step.fields || [])
     ?.filter((field) => ['classificationConfirmation', 'projectTypeCorrection', 'operatingModelCorrection', 'classificationCorrectionReason'].includes(field.id)) || [];
+}
+
+function getEngineClarificationFields(result) {
+  if (['classification_review', 'classification_correction'].includes(result?.journeyState)) return [];
+  return result?.clarificationFlow?.steps
+    ?.flatMap((step) => step.fields || [])
+    ?.filter((field) => !['classificationConfirmation', 'projectTypeCorrection', 'operatingModelCorrection', 'classificationCorrectionReason'].includes(field.id)) || [];
 }
 
 function buildLocalBivReportText(result, bivContent, language) {
@@ -1261,6 +1384,8 @@ function getLocalBivCopy(language) {
       unknown: 'غير واضح',
       blockedHeading: 'يحتاج محرك BIV إلى توضيح',
       requiredClarification: 'التوضيح المطلوب',
+      requiredField: 'أكمل هذا الحقل قبل المتابعة.',
+      continueClarification: 'متابعة التقييم',
     };
   }
   return {
@@ -1284,6 +1409,8 @@ function getLocalBivCopy(language) {
     unknown: 'Unknown',
     blockedHeading: 'The BIV engine needs clarification',
     requiredClarification: 'Required clarification',
+    requiredField: 'Complete this field before continuing.',
+    continueClarification: 'Continue evaluation',
   };
 }
 

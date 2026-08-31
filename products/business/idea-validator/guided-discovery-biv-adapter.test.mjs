@@ -362,11 +362,42 @@ const guidedPetSpecialist = executeWithContent({
   },
 });
 assert.notEqual(guidedPetSpecialist.journeyState, "profile_input");
+assert.equal(guidedPetSpecialist.journeyState, "specialist_clarification");
+assert.equal(guidedPetSpecialist.clarificationFlow?.type, "industrial");
+assert.equal(guidedPetSpecialist.clarificationFlow?.steps?.length > 0, true);
+assert.equal(guidedPetSpecialist.clarificationFlow.steps.every((step) => step.fields.length > 0), true);
+assert.equal(guidedPetSpecialist.clarificationFlow.steps.every((step) => step.fields.every((field) => field.id && field.labelText && field.type)), true);
 assert.equal(guidedPetSpecialist.orchestrationDecision.missingInformation.includes("userExperienceLevel"), false);
 assert.equal(guidedPetSpecialist.orchestrationDecision.missingInformation.includes("country"), false);
 assert.equal(guidedPetSpecialist.orchestrationDecision.matchedSpecialist?.id, "pet_plastic_recycling");
 assert.equal(Object.hasOwn(guidedPetSpecialist, "score"), false);
 assert.equal(Object.hasOwn(guidedPetSpecialist, "report"), false);
+
+const guidedPetSpecialistReady = executeWithContent({
+  rawInput: guidedPetSpecialist.orchestrationDecision.analysis.input,
+  language: "en",
+  source: "guided_discovery",
+  feasibilityAnswers: {
+    classificationConfirmation: "confirm",
+  },
+  industrialDetails: {
+    plasticWasteType: "pet",
+    intendedOutput: "washed_flakes",
+    targetProductionCapacity: "1 ton per day",
+    availableBudgetSar: "750,000 SAR",
+    preferredCityRegion: "Riyadh",
+    existingPremises: "yes",
+    wasteSourceQuantity: "Supplier agreement for 20 tons monthly",
+    industrialExperienceTeam: "One operations supervisor and two technicians",
+    expectedBuyers: "Packaging factories that accept PET flakes",
+    salesScope: "local",
+  },
+});
+assert.equal(guidedPetSpecialistReady.journeyState, "specialist_analysis");
+assert.equal(guidedPetSpecialistReady.evaluationStatus, "industrial_assessment");
+assert.equal(guidedPetSpecialistReady.industrialReport?.subtype, "plastic_recycling");
+assert.equal(Object.hasOwn(guidedPetSpecialistReady, "score"), false);
+assert.equal(Object.hasOwn(guidedPetSpecialistReady, "report"), false);
 
 const guidedPetBeforeConfirmation = executeWithContent({
   rawInput: {
