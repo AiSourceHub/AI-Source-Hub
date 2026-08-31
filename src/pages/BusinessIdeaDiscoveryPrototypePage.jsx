@@ -47,7 +47,7 @@ import { BIV_SEMANTIC_WORKER_ENDPOINT, observeSemanticShadow } from '../../produ
 
 const bivContentMap = { en: bivContentEn, ar: bivContentAr };
 
-function BusinessIdeaDiscoveryPrototypePage({ locale }) {
+function BusinessIdeaDiscoveryPrototypePage({ locale, allowUrlSemanticControls = true }) {
   const location = useLocation();
   const { language } = locale;
   const content = discoveryContent[language] || discoveryContent.en;
@@ -63,8 +63,8 @@ function BusinessIdeaDiscoveryPrototypePage({ locale }) {
   const [bivExecutionResult, setBivExecutionResult] = useState(null);
   const [bivExecutionNotice, setBivExecutionNotice] = useState('');
   const semanticParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
-  const semanticScenario = semanticParams.get('semanticScenario') || 'valid';
-  const semanticLocale = semanticParams.get('lang') || semanticParams.get('locale');
+  const semanticScenario = allowUrlSemanticControls ? semanticParams.get('semanticScenario') || 'valid' : 'valid';
+  const semanticLocale = allowUrlSemanticControls ? semanticParams.get('lang') || semanticParams.get('locale') : null;
 
   useEffect(() => {
     applyDocumentLocale(language);

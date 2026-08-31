@@ -2,15 +2,16 @@ import { Suspense, lazy, useMemo, useState } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import HomePage from './pages/HomePage.jsx';
 import ProductPage from './pages/ProductPage.jsx';
-import BusinessIdeaValidatorPage from './pages/BusinessIdeaValidatorPage.jsx';
+import BusinessIdeaValidatorRoute from './pages/BusinessIdeaValidatorRoute.jsx';
 import StartupRiskScannerPage from './pages/StartupRiskScannerPage.jsx';
 import { productRegistry } from '../core/productRegistry.js';
-import { getBusinessValidatorShellContent, getInitialLanguage } from '../core/localization.js';
+import { getInitialLanguage } from '../core/localization.js';
 import './styles.css';
 
 const INTENT_DISCOVERY_ROUTE = ['/dev', 'biv-guided-discovery'].join('/');
 const enableDevelopmentRoutes = import.meta.env.DEV;
-const BusinessIdeaDiscoveryPrototypePage = enableDevelopmentRoutes
+const enableGuidedDiscoveryCandidate = import.meta.env.VITE_BIV_GUIDED_DISCOVERY_CANDIDATE === 'true';
+const BusinessIdeaDiscoveryCandidatePage = enableDevelopmentRoutes || enableGuidedDiscoveryCandidate
   ? lazy(() => import('./pages/BusinessIdeaDiscoveryPrototypePage.jsx'))
   : null;
 
@@ -29,14 +30,20 @@ function App() {
         <Route path="/" element={<HomePage locale={locale} products={productRegistry} />} />
         <Route
           path="/products/business-idea-validator"
-          element={<BusinessIdeaValidatorPage locale={locale} product={productRegistry.find((item) => item.id === 'business-idea-validator')} content={getBusinessValidatorShellContent(language)} />}
+          element={(
+            <BusinessIdeaValidatorRoute
+              locale={locale}
+              CandidatePage={BusinessIdeaDiscoveryCandidatePage}
+              candidateEnabled={enableGuidedDiscoveryCandidate}
+            />
+          )}
         />
-        {enableDevelopmentRoutes && BusinessIdeaDiscoveryPrototypePage ? (
+        {enableDevelopmentRoutes && BusinessIdeaDiscoveryCandidatePage ? (
           <Route
             path={INTENT_DISCOVERY_ROUTE}
             element={(
               <Suspense fallback={null}>
-                <BusinessIdeaDiscoveryPrototypePage locale={locale} />
+                <BusinessIdeaDiscoveryCandidatePage locale={locale} />
               </Suspense>
             )}
           />
