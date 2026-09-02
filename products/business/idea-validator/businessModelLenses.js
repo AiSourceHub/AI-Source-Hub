@@ -238,7 +238,7 @@ export function selectBusinessModelLensV1(input = {}) {
   const sourceFields = buildSourceFields(normalized);
   const classificationEvidence = collectClassificationEvidence(sourceFields);
   const fieldSignals = evidenceToFieldSignals(classificationEvidence);
-  const specialistCandidate = matchSpecialistEvidence(sourceFields, normalized.locale);
+  const specialistCandidate = filterContextualSpecialistCandidate(matchSpecialistEvidence(sourceFields, normalized.locale));
   const candidateSignals = collectCandidateSignals({
     normalized,
     sourceFields,
@@ -381,19 +381,22 @@ function collectCandidateSignals({ normalized, sourceFields, fieldSignals, class
   }
 
   for (const record of classificationEvidence) {
+    if (record.semanticRole === "customer_industry_signal") continue;
     const lens = classificationToLens[record.conceptId] || classificationToLens[record.proposedValue];
     if (!lens) continue;
     signals.push(signal({
       lens,
       source: "classification_evidence",
       sourceField: record.sourceField,
-      strength: record.evidenceStrength === "strong" ? "medium" : "weak",
-      priority: 5,
+      strength: record.evidenceStrength === "strong" ? "strong" : "weak",
+      priority: record.semanticRole === "business_model_signal" ? 4 : 5,
+      semanticRole: record.semanticRole,
     }));
   }
 
   const text = sourceFields.map((field) => field.value).join(" ");
   for (const rule of keywordRules) {
+    if (shouldSkipContextualKeywordRule({ rule, text })) continue;
     if (!rule.patterns.some((pattern) => pattern.test(text))) continue;
     signals.push(signal({
       lens: rule.lens,
@@ -401,6 +404,7 @@ function collectCandidateSignals({ normalized, sourceFields, fieldSignals, class
       sourceField: "owner_text",
       strength: rule.strength || "weak",
       priority: 6,
+      semanticRole: "business_model_signal",
     }));
   }
 
@@ -412,6 +416,7 @@ function collectCandidateSignals({ normalized, sourceFields, fieldSignals, class
       sourceField: "customerModel.two_sided",
       strength: "medium",
       priority: 4,
+      semanticRole: "business_model_signal",
     }));
   }
 
@@ -424,7 +429,11 @@ function chooseLens(signals = []) {
   }
   const ranked = [...signals].sort(compareSignals);
   const primary = ranked[0];
-  const secondary = ranked.find((record) => record.lens !== primary.lens && record.priority <= 5);
+  const secondary = ranked.find((record) =>
+    record.lens !== primary.lens &&
+    record.priority <= 5 &&
+    record.semanticRole !== "customer_industry_signal"
+  );
   return {
     lens: primary.lens,
     secondaryLens: shouldUseSecondary(primary.lens, secondary?.lens) ? secondary.lens : "",
@@ -445,7 +454,12 @@ function compareSignals(a, b) {
 
 function shouldUseSecondary(primaryLens, secondaryLens = "") {
   if (!secondaryLens || secondaryLens === primaryLens) return false;
-  if (primaryLens === BUSINESS_MODEL_LENSES.MARKETPLACE_PLATFORM && [BUSINESS_MODEL_LENSES.SERVICE, BUSINESS_MODEL_LENSES.SAAS_SOFTWARE, BUSINESS_MODEL_LENSES.RETAIL_TRADING].includes(secondaryLens)) return true;
+  if (primaryLens === BUSINESS_MODEL_LENSES.MARKETPLACE_PLATFORM && [
+    BUSINESS_MODEL_LENSES.SERVICE,
+    BUSINESS_MODEL_LENSES.SAAS_SOFTWARE,
+    BUSINESS_MODEL_LENSES.RETAIL_TRADING,
+    BUSINESS_MODEL_LENSES.MANUFACTURING_INDUSTRIAL,
+  ].includes(secondaryLens)) return true;
   if (primaryLens === BUSINESS_MODEL_LENSES.SAAS_SOFTWARE && secondaryLens === BUSINESS_MODEL_LENSES.MARKETPLACE_PLATFORM) return true;
   if (primaryLens === BUSINESS_MODEL_LENSES.MANUFACTURING_INDUSTRIAL && secondaryLens === BUSINESS_MODEL_LENSES.PROFESSIONAL_SERVICES) return true;
   return false;
@@ -459,8 +473,10 @@ function detectExistingBusinessExpansion({ rawInput = {}, optionalContext = {}, 
 function detectContradiction(signals = [], selectedLens) {
   const strongOther = signals.filter((record) =>
     record.lens !== selectedLens &&
+    !isContextualNonContradiction({ selectedLens, otherLens: record.lens }) &&
     ["strong", "medium"].includes(record.strength) &&
-    record.priority <= 6
+    record.priority <= 6 &&
+    record.semanticRole !== "customer_industry_signal"
   );
   return {
     hasContradiction: strongOther.length > 0,
@@ -471,7 +487,7 @@ function detectContradiction(signals = [], selectedLens) {
 function deriveConfidence({ selected, contradiction, expansionLens }) {
   if (contradiction.hasContradiction) return LENS_CONFIDENCE.LOW;
   if (selected.lens === BUSINESS_MODEL_LENSES.GENERIC) return LENS_CONFIDENCE.LOW;
-  if (selected.winningPriority <= 2) return LENS_CONFIDENCE.HIGH;
+  if (selected.winningPriority <= 4) return LENS_CONFIDENCE.HIGH;
   if (expansionLens && selected.signalCount > 0) return LENS_CONFIDENCE.HIGH;
   if (selected.winningPriority <= 5) return LENS_CONFIDENCE.MEDIUM;
   return LENS_CONFIDENCE.LOW;
@@ -480,7 +496,7 @@ function deriveConfidence({ selected, contradiction, expansionLens }) {
 function buildSourceSignals(signals, selectedLens, expansionLens) {
   const selectedSignals = signals
     .filter((record) => record.lens === selectedLens || record.priority <= 4)
-    .map(({ lens, source, sourceField, strength }) => ({ lens, source, sourceField, strength }));
+    .map(({ lens, source, sourceField, strength, semanticRole }) => ({ lens, source, sourceField, strength, semanticRole }));
   if (expansionLens) {
     selectedSignals.unshift({
       lens: BUSINESS_MODEL_LENSES.EXISTING_BUSINESS_EXPANSION,
@@ -506,8 +522,8 @@ function buildRationale({ primaryLens, secondaryLens, selected, contradiction, e
   return parts.join(" ");
 }
 
-function signal({ lens, source, sourceField, strength, priority }) {
-  return { lens, source, sourceField, strength, priority };
+function signal({ lens, source, sourceField, strength, priority, semanticRole = "business_model_signal" }) {
+  return { lens, source, sourceField, strength, priority, semanticRole };
 }
 
 function dedupeSignals(signals) {
@@ -522,4 +538,23 @@ function dedupeSignals(signals) {
 
 function cleanString(value = "") {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function shouldSkipContextualKeywordRule({ rule, text }) {
+  if (rule.lens !== BUSINESS_MODEL_LENSES.FOOD_BEVERAGE) return false;
+  return hasDominantNonFoodBusinessMechanic(text);
+}
+
+function hasDominantNonFoodBusinessMechanic(text = "") {
+  return /\b(saas|software|mobile app|web app|marketplace|platform connects|connects .* with|wholesale|distribution|distributor|retail|shop|store|supplier|factory|manufacturing|industrial|fabrication|fabricates|fabricated|workshop|service|maintenance|repair|cleaning|consulting|consultancy|advisory|rental warehouse|warehouse rental|storage units)\b/i.test(text);
+}
+
+function isContextualNonContradiction({ selectedLens, otherLens }) {
+  return selectedLens === BUSINESS_MODEL_LENSES.PROFESSIONAL_SERVICES && otherLens === BUSINESS_MODEL_LENSES.SERVICE;
+}
+
+function filterContextualSpecialistCandidate(candidate) {
+  if (candidate?.id !== "pet_plastic_recycling") return candidate || null;
+  const requirements = new Set((candidate.evidence || []).map((record) => record.requirement));
+  return requirements.has("plastic") ? candidate : null;
 }

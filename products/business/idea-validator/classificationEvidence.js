@@ -128,10 +128,22 @@ const conceptDefinitions = [
     evidenceStrength: "strong",
     weight: 3,
     reasonCode: "manufacturing_industrial_evidence",
-    tokens: ["factory", "plant", "manufacturing", "industrial", "fabrication", "fabricates", "fabricated"],
+    tokens: ["factory", "plant", "manufacture", "manufacturer", "manufacturers", "manufacturing", "industrial", "fabrication", "fabricates", "fabricated"],
     phrases: [["production", "line"], ["assembly", "line"], ["stainless", "workshop"], ["equipment", "workshop"], ["restaurant", "equipment", "workshop"]],
     arTokens: ["مصنع", "معمل", "تصنيع", "صناعي"],
     arPhrases: [["خط", "إنتاج"], ["خط", "انتاج"], ["إنتاج", "صناعي"], ["انتاج", "صناعي"], ["موقع", "صناعي"]],
+  },
+  {
+    conceptId: "professional_service",
+    dimension: "businessType",
+    proposedValue: "professional_service",
+    evidenceStrength: "strong",
+    weight: 3,
+    reasonCode: "professional_service_evidence",
+    tokens: ["consulting", "consultancy", "advisory"],
+    phrases: [["engineering", "consultancy"], ["engineering", "service"], ["professional", "service"]],
+    arTokens: ["استشارة", "استشارات", "استشارية"],
+    arPhrases: [["خدمات", "مهنية"], ["استشارات", "هندسية"], ["خدمة", "استشارية"]],
   },
   {
     conceptId: "retail_trading",
@@ -321,9 +333,12 @@ export function collectClassificationEvidence(sourceFields = []) {
 
       const matches = matchDefinition(definition, tokenized);
       for (const match of matches) {
+        const semanticRole = semanticRoleForMatch({ definition, field });
         const fieldScopedStrength = weakOnlyFields.has(field) && definition.evidenceStrength !== "strong"
           ? "weak"
-          : definition.evidenceStrength;
+          : semanticRole === "customer_industry_signal" && definition.dimension === "businessType"
+            ? "weak"
+            : definition.evidenceStrength;
         const fieldScopedWeight = Math.max(1, Math.round(definition.weight * sourceWeight));
         evidence.push({
           conceptId: definition.conceptId,
@@ -335,6 +350,7 @@ export function collectClassificationEvidence(sourceFields = []) {
           evidenceStrength: fieldScopedStrength,
           weight: fieldScopedWeight,
           reasonCode: definition.reasonCode,
+          semanticRole,
           isAffirmative: true,
           requiresConfirmation: fieldScopedStrength !== "strong",
           isDetail: Boolean(source.detail),
@@ -365,10 +381,23 @@ export function evidenceToFieldSignals(evidenceRecords = []) {
     matchedPhrase: record.matchedPhrase,
     evidenceStrength: record.evidenceStrength,
     reasonCode: record.reasonCode,
+    semanticRole: record.semanticRole,
     isAffirmative: record.isAffirmative,
     requiresConfirmation: record.requiresConfirmation,
     isDetail: record.isDetail,
   }));
+}
+
+function semanticRoleForMatch({ definition, field }) {
+  if (definition.conceptId === "real_estate_context") return "business_model_signal";
+  if (definition.dimension === "sector") return "customer_industry_signal";
+  if (definition.dimension === "operatingModel") return "operating_model_signal";
+  if (definition.dimension === "assetIntensity") return "product_object_signal";
+  if (definition.dimension === "customerModel") return "customer_industry_signal";
+  if (definition.dimension === "businessType" && ["targetCustomer", "problem", "problemSolved"].includes(field)) {
+    return "customer_industry_signal";
+  }
+  return "business_model_signal";
 }
 
 export function matchSpecialistEvidence(sourceFields = [], language = "en") {
