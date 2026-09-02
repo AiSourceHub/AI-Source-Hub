@@ -38,6 +38,52 @@ const structuralModules = new Set([
   "customer_stakeholders",
 ]);
 
+const genericReadinessModules = new Set([
+  "customer_stakeholders",
+  "implementation",
+]);
+
+const materialLensFindingPattern = /^finding_(real_estate|marketplace|retail|manufacturing|service|saas|food|wholesale|professional|expansion)_/;
+
+const decisionDimensionPriority = {
+  proceed: [
+    "opportunity_attractiveness",
+    "execution_feasibility",
+    "evidence_confidence",
+    "risk_exposure",
+    "information_readiness",
+  ],
+  test_first: [
+    "evidence_confidence",
+    "opportunity_attractiveness",
+    "execution_feasibility",
+    "risk_exposure",
+    "information_readiness",
+  ],
+  revise: [
+    "execution_feasibility",
+    "risk_exposure",
+    "economic_feasibility",
+    "opportunity_attractiveness",
+    "evidence_confidence",
+    "information_readiness",
+  ],
+  do_not_proceed_yet: [
+    "risk_exposure",
+    "execution_feasibility",
+    "opportunity_attractiveness",
+    "evidence_confidence",
+    "information_readiness",
+  ],
+  insufficient_information: [
+    "information_readiness",
+    "evidence_confidence",
+    "opportunity_attractiveness",
+    "execution_feasibility",
+    "risk_exposure",
+  ],
+};
+
 export function synthesizeDecisionV1({
   structuredFindings = {},
   evidenceLedger = {},
@@ -239,45 +285,54 @@ function choosePrimaryReasonFindingId({
   structuralRevisionFindingIds,
   testAssumptionFindingIds,
 }) {
-  if (state === SHADOW_DECISION_STATES.DO_NOT_PROCEED_YET) return blockerFindingIds[0] || firstFindingId(findings);
-  if (state === SHADOW_DECISION_STATES.REVISE) return structuralRevisionFindingIds[0] || firstFindingId(findings);
-  if (state === SHADOW_DECISION_STATES.TEST_FIRST) return chooseLensSpecificTestFinding(findings, testAssumptionFindingIds) || firstFindingId(findings);
-  if (state === SHADOW_DECISION_STATES.PROCEED) return findings.find((finding) => finding.effect === FINDING_EFFECTS.SUPPORTS)?.id || firstFindingId(findings);
+  if (state === SHADOW_DECISION_STATES.DO_NOT_PROCEED_YET) {
+    return chooseHighestPriorityFinding({
+      state,
+      findings: findings.filter((finding) => blockerFindingIds.includes(finding.id)),
+    })?.id || blockerFindingIds[0] || firstFindingId(findings);
+  }
+  if (state === SHADOW_DECISION_STATES.REVISE) {
+    return chooseHighestPriorityFinding({
+      state,
+      findings: findings.filter((finding) => structuralRevisionFindingIds.includes(finding.id)),
+    })?.id || structuralRevisionFindingIds[0] || firstFindingId(findings);
+  }
+  if (state === SHADOW_DECISION_STATES.TEST_FIRST) {
+    return chooseHighestPriorityFinding({
+      state,
+      findings: findings.filter((finding) => testAssumptionFindingIds.includes(finding.id)),
+    })?.id || firstFindingId(findings);
+  }
+  if (state === SHADOW_DECISION_STATES.PROCEED) {
+    return chooseHighestPriorityFinding({
+      state,
+      findings: findings.filter((finding) => [FINDING_EFFECTS.SUPPORTS, FINDING_EFFECTS.NEUTRAL].includes(finding.effect)),
+    })?.id || firstFindingId(findings);
+  }
   return findings.find((finding) => coreReadinessFindingIds.has(finding.id) && finding.effect === FINDING_EFFECTS.UNKNOWN)?.id || firstFindingId(findings);
 }
 
 function chooseSupportingFindingIds({ state, findings, primaryReasonFindingId }) {
-  const materialIds = findings
-    .filter((finding) => finding.id !== primaryReasonFindingId && finding.severity === "material")
-    .map((finding) => finding.id);
+  const primary = findings.find((finding) => finding.id === primaryReasonFindingId);
   if (state === SHADOW_DECISION_STATES.PROCEED) {
-    return findings
-      .filter((finding) => finding.id !== primaryReasonFindingId && finding.effect === FINDING_EFFECTS.SUPPORTS)
+    return rankFindingsForDecision({
+      state,
+      findings: findings.filter((finding) =>
+        finding.id !== primaryReasonFindingId &&
+        [FINDING_EFFECTS.SUPPORTS, FINDING_EFFECTS.NEUTRAL].includes(finding.effect)
+      ),
+    })
+      .filter((finding) => !isDuplicateSupportFinding({ primary, candidate: finding }))
       .map((finding) => finding.id)
       .slice(0, 5);
   }
-  return materialIds.slice(0, 6);
-}
-
-function chooseLensSpecificTestFinding(findings, testAssumptionFindingIds) {
-  const preferredPatterns = [
-    /^finding_real_estate_/,
-    /^finding_marketplace_/,
-    /^finding_retail_/,
-    /^finding_manufacturing_/,
-    /^finding_service_/,
-    /^finding_saas_/,
-    /^finding_food_/,
-    /^finding_wholesale_/,
-    /^finding_professional_/,
-    /^finding_expansion_/,
-    /^finding_demand_/,
-  ];
-  for (const pattern of preferredPatterns) {
-    const match = testAssumptionFindingIds.find((id) => pattern.test(id));
-    if (match) return match;
-  }
-  return testAssumptionFindingIds[0] || "";
+  return rankFindingsForDecision({
+    state,
+    findings: findings.filter((finding) => finding.id !== primaryReasonFindingId && finding.severity === "material"),
+  })
+    .filter((finding) => !isDuplicateSupportFinding({ primary, candidate: finding }))
+    .map((finding) => finding.id)
+    .slice(0, 6);
 }
 
 function deriveDecisionConfidence({ findings, state, criticalUnknownIds, blockerFindingIds, dimensionAssessments }) {
@@ -296,20 +351,27 @@ function buildRationale({ state, primaryReasonFindingId, findings, lensSelection
   const primary = findings.find((finding) => finding.id === primaryReasonFindingId);
   const lens = lensSelection.primaryLens || "generic";
   const objectiveText = decisionObjective ? ` for the ${decisionObjective} objective` : "";
-  const prefix = {
-    proceed: "Evidence is sufficient for the next stage, while remaining conditional.",
-    test_first: "The main business hypothesis is identifiable, but a high-impact assumption should be tested first.",
-    revise: "The current model shows a structural issue that should be revised before relying on the decision.",
-    do_not_proceed_yet: "A material blocker is present, so a larger commitment is not justified yet.",
-    insufficient_information: "The basic commercial foundation is missing, so the idea itself cannot yet be judged.",
-  }[state];
-  return `${prefix} Primary basis: ${primary?.claim || "No primary finding available."} Lens: ${lens}${objectiveText}.`;
+  const evidenceText = describeEvidenceStrength(primary);
+  const claim = primary?.claim || "No primary finding available.";
+  if (state === SHADOW_DECISION_STATES.PROCEED) {
+    return `The next staged commitment is justified because ${claim} This is supported by ${evidenceText}, and it does not guarantee full-scale success. Lens: ${lens}${objectiveText}.`;
+  }
+  if (state === SHADOW_DECISION_STATES.TEST_FIRST) {
+    return `The idea is coherent enough to test, but ${claim} This assumption is decision-driving because it determines whether the model can advance beyond owner belief. Lens: ${lens}${objectiveText}.`;
+  }
+  if (state === SHADOW_DECISION_STATES.REVISE) {
+    return `The current model should be revised because ${claim} This is a structural issue, not just a request for more information. Lens: ${lens}${objectiveText}.`;
+  }
+  if (state === SHADOW_DECISION_STATES.DO_NOT_PROCEED_YET) {
+    return `A larger commitment is not justified because ${claim} This blocker or adverse evidence must be resolved before the idea can be relied on. Lens: ${lens}${objectiveText}.`;
+  }
+  return `The idea cannot be meaningfully judged yet because ${claim} The missing foundation prevents a responsible decision. Lens: ${lens}${objectiveText}.`;
 }
 
 function buildNextDecisionAction({ state, primaryReasonFindingId, findings, lensSelection }) {
   const primary = findings.find((finding) => finding.id === primaryReasonFindingId);
   if (state === SHADOW_DECISION_STATES.PROCEED) {
-    return `Proceed only to the next staged commitment while monitoring: ${primary?.whatWouldChangeIt || "new contradictory evidence"}.`;
+    return buildProceedAction({ primary, lens: lensSelection.primaryLens || "generic" });
   }
   if (state === SHADOW_DECISION_STATES.INSUFFICIENT_INFORMATION) {
     return `Collect the missing owner inputs first: ${primary?.whatWouldChangeIt || "target customer, problem, and revenue mechanism"}.`;
@@ -329,6 +391,12 @@ function buildTestFirstAction({ primary, lens }) {
     marketplace_platform: "Test both customer demand and provider participation in the same matching flow before building scale.",
     retail_trading: "Test repeat purchasing, supplier terms, and margin assumptions before holding significant inventory.",
     manufacturing_industrial: "Test equipment/capacity assumptions and buyer procurement evidence before major setup cost.",
+    service: "Test paid repeat demand, delivery capacity, and service quality before adding fixed overhead.",
+    saas_software: "Test activation, retention, and payment behavior before expanding product scope.",
+    food_beverage: "Test repeat demand, throughput, waste, and site economics before larger location commitment.",
+    wholesale_import_distribution: "Test repeat orders, supplier terms, margin, and working-capital timing before holding significant stock.",
+    professional_services: "Test retainer demand, delivery capacity, and quality control before adding delivery commitments.",
+    existing_business_expansion: "Test incremental demand, spare capacity, and cannibalization risk before expanding beyond the core business.",
   };
   const assumption = primary?.claim || "the critical assumption";
   const evidence = primary?.whatWouldChangeIt || "behavioral evidence from the relevant customer or operating path";
@@ -338,7 +406,7 @@ function buildTestFirstAction({ primary, lens }) {
 function buildWhatWouldChangeDecision({ state, primaryReasonFindingId, findings }) {
   const primary = findings.find((finding) => finding.id === primaryReasonFindingId);
   const fallback = primary?.whatWouldChangeIt || "More reliable evidence tied to the primary finding.";
-  if (state === SHADOW_DECISION_STATES.PROCEED) return `Downgrade if new evidence contradicts the primary assumption or exposes a blocker. Watch: ${fallback}`;
+  if (state === SHADOW_DECISION_STATES.PROCEED) return `Downgrade if the supporting evidence weakens or a material blocker appears. Watch the most material condition: ${fallback}`;
   if (state === SHADOW_DECISION_STATES.TEST_FIRST) return `Move toward proceed if the test produces credible supportive evidence. Reconsider or revise if it fails. Evidence: ${fallback}`;
   if (state === SHADOW_DECISION_STATES.REVISE) return `A revised model with evidence resolving the structural issue. Evidence: ${fallback}`;
   if (state === SHADOW_DECISION_STATES.DO_NOT_PROCEED_YET) return `Verified resolution of the blocker. Evidence: ${fallback}`;
@@ -371,4 +439,156 @@ function isMissingInformationFinding(finding) {
 
 function firstFindingId(findings) {
   return findings[0]?.id || "no_structured_finding";
+}
+
+function chooseHighestPriorityFinding({ state, findings }) {
+  return rankFindingsForDecision({ state, findings })[0] || null;
+}
+
+function rankFindingsForDecision({ state, findings }) {
+  return [...findings].sort((a, b) => findingPriorityValue({ state, finding: b }) - findingPriorityValue({ state, finding: a }));
+}
+
+function findingPriorityValue({ state, finding }) {
+  return [
+    statePriorityValue({ state, finding }),
+    testAssumptionPriorityValue({ state, finding }),
+    severityPriorityValue(finding.severity),
+    effectPriorityValue({ state, effect: finding.effect }),
+    dimensionPriorityValue({ state, dimension: finding.dimension }),
+    lensSpecificPriorityValue(finding),
+    evidenceStrengthPriorityValue(finding.evidenceIds),
+    confidencePriorityValue(finding.confidence),
+    genericReadinessPenalty(finding),
+  ].reduce((total, value) => total + value, 0);
+}
+
+function testAssumptionPriorityValue({ state, finding }) {
+  if (state !== SHADOW_DECISION_STATES.TEST_FIRST) return 0;
+  const preferredPatterns = [
+    /_occupancy_|_utilization_/,
+    /marketplace_supply_side|provider/,
+    /marketplace_liquidity/,
+    /retail_repeat_purchase/,
+    /manufacturing_equipment_capacity|manufacturing_production_capacity/,
+    /service_billable_utilization|service_repeat_demand/,
+    /saas_activation_retention/,
+    /food_location_throughput|food_repeat_demand/,
+    /wholesale_supplier_concentration|wholesale_customer_order/,
+    /professional_expertise|professional_billable/,
+    /expansion_spare_capacity|expansion_baseline/,
+    /finding_demand_/,
+  ];
+  const index = preferredPatterns.findIndex((pattern) => pattern.test(finding.id));
+  return index === -1 ? 0 : (preferredPatterns.length - index) * 12;
+}
+
+function statePriorityValue({ state, finding }) {
+  if (state === SHADOW_DECISION_STATES.PROCEED) {
+    if (![FINDING_EFFECTS.SUPPORTS, FINDING_EFFECTS.NEUTRAL].includes(finding.effect)) return -100;
+    if (genericReadinessModules.has(finding.module) && finding.dimension === "information_readiness") return 0;
+    return finding.effect === FINDING_EFFECTS.SUPPORTS ? 35 : 28;
+  }
+  if (state === SHADOW_DECISION_STATES.TEST_FIRST) {
+    if (![FINDING_EFFECTS.UNKNOWN, FINDING_EFFECTS.NEUTRAL].includes(finding.effect)) return -30;
+    return isMissingInformationFinding(finding) ? -25 : 30;
+  }
+  if (state === SHADOW_DECISION_STATES.REVISE) {
+    return [FINDING_EFFECTS.CONTRADICTS, FINDING_EFFECTS.WEAKENS].includes(finding.effect) ? 35 : -30;
+  }
+  if (state === SHADOW_DECISION_STATES.DO_NOT_PROCEED_YET) {
+    return finding.severity === "critical" && [FINDING_EFFECTS.CONTRADICTS, FINDING_EFFECTS.WEAKENS].includes(finding.effect) ? 45 : -30;
+  }
+  return isMissingInformationFinding(finding) ? 35 : 0;
+}
+
+function severityPriorityValue(severity = "") {
+  return {
+    critical: 30,
+    material: 20,
+    informational: 8,
+  }[severity] || 0;
+}
+
+function effectPriorityValue({ state, effect }) {
+  if (state === SHADOW_DECISION_STATES.PROCEED) {
+    return effect === FINDING_EFFECTS.SUPPORTS ? 18 : effect === FINDING_EFFECTS.NEUTRAL ? 10 : 0;
+  }
+  if (state === SHADOW_DECISION_STATES.TEST_FIRST) return [FINDING_EFFECTS.UNKNOWN, FINDING_EFFECTS.NEUTRAL].includes(effect) ? 18 : 0;
+  if ([SHADOW_DECISION_STATES.REVISE, SHADOW_DECISION_STATES.DO_NOT_PROCEED_YET].includes(state)) {
+    return effect === FINDING_EFFECTS.CONTRADICTS ? 20 : effect === FINDING_EFFECTS.WEAKENS ? 16 : 0;
+  }
+  return effect === FINDING_EFFECTS.UNKNOWN ? 16 : 0;
+}
+
+function dimensionPriorityValue({ state, dimension }) {
+  const index = (decisionDimensionPriority[state] || []).indexOf(dimension);
+  return index === -1 ? 0 : (decisionDimensionPriority[state].length - index) * 6;
+}
+
+function lensSpecificPriorityValue(finding) {
+  return materialLensFindingPattern.test(finding.id) ? 16 : 0;
+}
+
+function evidenceStrengthPriorityValue(evidenceIds = []) {
+  const joined = evidenceIds.join(" ").toLowerCase();
+  if (/repeat|renew|retention|retainer|deposit|paid|order|verified|records/.test(joined)) return 22;
+  if (/pilot|behavior|usage|capacity|supplier_terms|quote/.test(joined)) return 18;
+  if (/external_evidence/.test(joined)) return 14;
+  if (/owner_data/.test(joined)) return 6;
+  return 0;
+}
+
+function confidencePriorityValue(confidence = "") {
+  return {
+    high: 10,
+    medium: 6,
+    low: 2,
+  }[confidence] || 0;
+}
+
+function genericReadinessPenalty(finding) {
+  if (coreReadinessFindingIds.has(finding.id)) return -35;
+  if (materialLensFindingPattern.test(finding.id)) return 0;
+  if (genericReadinessModules.has(finding.module) && finding.dimension === "information_readiness") return -18;
+  return 0;
+}
+
+function isDuplicateSupportFinding({ primary, candidate }) {
+  if (!primary || !candidate) return false;
+  if (primary.id === candidate.id) return true;
+  return claimFamily(primary.id) && claimFamily(primary.id) === claimFamily(candidate.id);
+}
+
+function claimFamily(id = "") {
+  return id
+    .replace(/^finding_/, "")
+    .replace(/_(readiness|supported|dependency|evidence|unknown|conflict|failure|blocker|signal)$/, "");
+}
+
+function describeEvidenceStrength(finding) {
+  const evidenceIds = finding?.evidenceIds || [];
+  const joined = evidenceIds.join(" ").toLowerCase();
+  if (/repeat|renew|retention|retainer|deposit|paid|order/.test(joined)) return "repeated or paid behavioral evidence";
+  if (/pilot|behavior|usage|capacity|verified|records/.test(joined)) return "behavioral operating evidence";
+  if (/external_evidence/.test(joined)) return "external or owner-supplied factual evidence";
+  if (/owner_data/.test(joined)) return "owner-provided operating facts";
+  return "the structured findings available at this stage";
+}
+
+function buildProceedAction({ primary, lens }) {
+  const lensActions = {
+    service: "Proceed to a controlled service-capacity pilot, not broad hiring or fixed overhead.",
+    saas_software: "Proceed to the next commercial validation stage focused on retained paid usage.",
+    food_beverage: "Proceed only to a limited operating test that protects cash, waste, and throughput risk.",
+    wholesale_import_distribution: "Proceed to supplier negotiation or a limited first order, not major inventory exposure.",
+    professional_services: "Proceed to a limited client-capacity expansion while protecting delivery quality.",
+    existing_business_expansion: "Proceed to a limited incremental expansion that protects the existing core business.",
+    real_estate: "Proceed only to lease or site negotiation subject to verified occupancy and site economics.",
+    marketplace_platform: "Proceed to a controlled marketplace pilot with both sides active in the same transaction flow.",
+    retail_trading: "Proceed to a limited inventory test tied to repeat purchasing and supplier terms.",
+    manufacturing_industrial: "Proceed to a limited production or procurement commitment tied to buyer and capacity evidence.",
+  };
+  const watch = primary?.whatWouldChangeIt || "new contradictory evidence";
+  return `${lensActions[lens] || "Proceed only to the next staged commitment, keeping it reversible."} Continue monitoring the downgrade condition: ${watch}`;
 }
