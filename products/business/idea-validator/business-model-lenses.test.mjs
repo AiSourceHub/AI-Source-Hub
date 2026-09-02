@@ -253,6 +253,60 @@ assert.equal(petRecycling.specialistCandidate.id, "pet_plastic_recycling");
 assert.equal(petRecycling.specialistCandidate.runtimeInvoked, false);
 assert.equal(Object.values(BUSINESS_MODEL_LENSES).includes("pet_plastic_recycling"), false);
 
+const professionalLensCases = [
+  ["bookkeeping service", "A bookkeeping service for small businesses.", "en"],
+  ["accounting advisory firm", "An accounting advisory firm for small businesses.", "en"],
+  ["tax consultancy", "A tax consultancy for small businesses.", "en"],
+  ["engineering consultancy for factories", "An engineering consultancy for factories.", "en"],
+  ["management consulting", "A management consulting firm for growing companies.", "en"],
+  ["arabic bookkeeping", "خدمات مسك الدفاتر للشركات الصغيرة.", "ar"],
+  ["arabic accounting advisory", "مكتب استشارات محاسبية للشركات الصغيرة.", "ar"],
+  ["arabic tax consultancy", "استشارات ضريبية للشركات.", "ar"],
+  ["arabic engineering consultancy", "استشارات هندسية للمصانع.", "ar"],
+];
+for (const [name, businessIdea, locale] of professionalLensCases) {
+  const selection = selectBusinessModelLensV1({
+    locale,
+    rawInput: {
+      businessIdea,
+      targetCustomer: locale === "ar" ? "الشركات الصغيرة" : "Small businesses",
+      problem: locale === "ar" ? "تحتاج إلى حكم مهني متخصص." : "They need specialized professional judgment.",
+      monetization: locale === "ar" ? "اشتراك شهري أو أتعاب استشارية." : "Monthly retainer or advisory fee.",
+    },
+  });
+  assert.equal(selection.primaryLens, BUSINESS_MODEL_LENSES.PROFESSIONAL_SERVICES, name);
+  assert.equal(selection.confidence, LENS_CONFIDENCE.HIGH, name);
+}
+
+const generalServiceControls = [
+  ["ac maintenance service", "An AC maintenance service for homes.", "en"],
+  ["technician service company", "A technician service company for homeowners.", "en"],
+  ["arabic ac maintenance", "شركة صيانة مكيفات للمنازل.", "ar"],
+];
+for (const [name, businessIdea, locale] of generalServiceControls) {
+  const selection = selectBusinessModelLensV1({
+    locale,
+    rawInput: {
+      businessIdea,
+      targetCustomer: locale === "ar" ? "ملاك المنازل" : "Homeowners",
+      problem: locale === "ar" ? "تحتاج المكيفات إلى صيانة." : "They need reliable maintenance.",
+      monetization: locale === "ar" ? "الدفع لكل زيارة." : "Pay per visit.",
+    },
+  });
+  assert.equal(selection.primaryLens, BUSINESS_MODEL_LENSES.SERVICE, name);
+  assert.notEqual(selection.primaryLens, BUSINESS_MODEL_LENSES.PROFESSIONAL_SERVICES, name);
+}
+
+const customerIndustryOnlyProfessionalContext = selectBusinessModelLensV1({
+  rawInput: {
+    businessIdea: "AI service for accountants.",
+    targetCustomer: "Accounting firms",
+    problem: "They need faster document review.",
+    monetization: "Monthly service retainer.",
+  },
+});
+assert.equal(customerIndustryOnlyProfessionalContext.primaryLens, BUSINESS_MODEL_LENSES.SERVICE);
+
 const genericIndustrial = selectBusinessModelLensV1({
   rawInput: {
     businessIdea: "An industrial workshop producing metal shelves.",

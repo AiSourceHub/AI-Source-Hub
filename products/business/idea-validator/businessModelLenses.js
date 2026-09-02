@@ -134,6 +134,7 @@ const classificationToLens = {
   manufacturing_industrial: BUSINESS_MODEL_LENSES.MANUFACTURING_INDUSTRIAL,
   food_and_beverage: BUSINESS_MODEL_LENSES.FOOD_BEVERAGE,
   food_beverage: BUSINESS_MODEL_LENSES.FOOD_BEVERAGE,
+  food: BUSINESS_MODEL_LENSES.FOOD_BEVERAGE,
   digital_software: BUSINESS_MODEL_LENSES.SAAS_SOFTWARE,
   marketplace_platform: BUSINESS_MODEL_LENSES.MARKETPLACE_PLATFORM,
   real_estate: BUSINESS_MODEL_LENSES.REAL_ESTATE,
@@ -192,8 +193,8 @@ const keywordRules = [
     lens: BUSINESS_MODEL_LENSES.PROFESSIONAL_SERVICES,
     strength: "medium",
     patterns: [
-      /\b(consulting|legal service|accounting service|engineering service|advisory|professional service)\b/i,
-      /(استشارة|خدمات مهنية|محاسبة|هندسية|قانونية)/u,
+      /\b(consulting|consultancy|legal service|accounting service|accounting advisory|tax advisory|tax consultancy|engineering service|engineering consulting|management consulting|advisory|professional service)\b/i,
+      /(استشارة|استشارات|خدمات مهنية|مسك الدفاتر|استشارات محاسبية|استشارات ضريبية|استشارات هندسية|محاسبة|هندسية|قانونية|تدقيق)/u,
     ],
   },
   {
@@ -355,7 +356,7 @@ function collectCandidateSignals({ normalized, sourceFields, fieldSignals, class
   const confirmedClassification = normalized.classification.confirmedClassification || {};
   const confirmedType = cleanString(confirmedClassification.primaryType || confirmedClassification.engineType || confirmedClassification.type);
   const confirmedClassificationLens = classificationToLens[confirmedType];
-  if (confirmedClassificationLens) {
+  if (confirmedClassificationLens && hasBusinessModelSupportForClassificationLens(classificationEvidence, confirmedClassificationLens)) {
     signals.push(signal({
       lens: confirmedClassificationLens,
       source: "confirmed_classification",
@@ -368,7 +369,7 @@ function collectCandidateSignals({ normalized, sourceFields, fieldSignals, class
   const proposed = normalized.classification.proposedClassification || {};
   for (const type of [proposed.primaryType, proposed.engineType, proposed.type, normalized.classification.businessType]) {
     const lens = classificationToLens[cleanString(type)];
-    if (lens) {
+    if (lens && hasBusinessModelSupportForClassificationLens(classificationEvidence, lens)) {
       signals.push(signal({
         lens,
         source: "system_classification",
@@ -422,6 +423,15 @@ function collectCandidateSignals({ normalized, sourceFields, fieldSignals, class
   }
 
   return dedupeSignals(signals);
+}
+
+function hasBusinessModelSupportForClassificationLens(classificationEvidence = [], lens = "") {
+  if (!classificationEvidence.length) return true;
+  const ownerModelFields = new Set(["businessName", "businessIdea", "industry", "competitiveAdvantage"]);
+  return classificationEvidence.some((record) =>
+    (record.semanticRole === "business_model_signal" || ownerModelFields.has(record.sourceField)) &&
+    (classificationToLens[record.conceptId] === lens || classificationToLens[record.proposedValue] === lens)
+  );
 }
 
 function chooseLens(signals = []) {

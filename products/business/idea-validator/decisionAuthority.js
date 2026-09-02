@@ -220,8 +220,11 @@ function validateV2Result(v2Result) {
   if (validateAnalyticalPlanV1(v2Result.analyticalPlan).ok !== true) return { ok: false, reason: "v2_plan_contract_invalid" };
   if (validateStructuredFindingsV1(v2Result.structuredFindings).ok !== true) return { ok: false, reason: "v2_findings_contract_invalid" };
   if (validateDecisionSynthesisV1(v2Result.shadowDecision).ok !== true) return { ok: false, reason: "v2_decision_contract_invalid" };
-  if (v2Result.lensSelection.confidence === "low" && v2Result.lensSelection.requiresConfirmation) {
-    return { ok: false, reason: "v2_low_confidence_review_required" };
+  if (v2Result.shadowDecision.confidence === "low") {
+    return { ok: false, reason: "v2_low_confidence" };
+  }
+  if (v2Result.lensSelection.requiresConfirmation) {
+    return { ok: false, reason: "v2_review_required" };
   }
   return { ok: true, reason: "" };
 }
@@ -236,8 +239,8 @@ function resolveFallbackReason({
 }) {
   if (!legacyDecision) return "legacy_unavailable";
   if (mode === BIV_DECISION_AUTHORITY_MODES.LEGACY) return "";
-  if (fallbackRequested) return "explicit_fallback_requested";
-  if (v2Error) return "v2_error";
+  if (fallbackRequested) return "v2_explicit_fallback";
+  if (v2Error) return "v2_execution_error";
   if (!v2Result) return "v2_unavailable";
   if (!v2Validation.ok) return v2Validation.reason || "v2_contract_invalid";
   return "";

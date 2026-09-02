@@ -140,7 +140,7 @@ const throwingCandidateAuthority = selectBusinessIdeaDecisionAuthorityV1({
 });
 assert.equal(throwingCandidateAuthority.authoritativeSource, BIV_DECISION_AUTHORITY_SOURCES.LEGACY);
 assert.equal(throwingCandidateAuthority.fallbackUsed, true);
-assert.equal(throwingCandidateAuthority.fallbackReason, "v2_error");
+assert.equal(throwingCandidateAuthority.fallbackReason, "v2_execution_error");
 
 const lowConfidenceV2 = buildAnalyticalCoreV2Decision({
   rawInput: {
@@ -161,7 +161,25 @@ const lowConfidenceCandidateAuthority = selectBusinessIdeaDecisionAuthorityV1({
 });
 assert.equal(lowConfidenceCandidateAuthority.authoritativeSource, BIV_DECISION_AUTHORITY_SOURCES.LEGACY);
 assert.equal(lowConfidenceCandidateAuthority.fallbackUsed, true);
-assert.equal(lowConfidenceCandidateAuthority.fallbackReason, "v2_low_confidence_review_required");
+assert.equal(lowConfidenceCandidateAuthority.fallbackReason, "v2_review_required");
+
+const lowDecisionConfidenceCandidateAuthority = selectBusinessIdeaDecisionAuthorityV1({
+  mode: BIV_DECISION_AUTHORITY_MODES.V2_CANDIDATE,
+  legacyDecision: legacyDirect,
+  v2Result: buildAnalyticalCoreV2Decision({
+    rawInput: {
+      businessIdea: "Business idea.",
+      targetCustomer: "",
+      problem: "",
+      monetization: "",
+    },
+    language: "en",
+    legacyDecision: legacyDirect,
+  }),
+});
+assert.equal(lowDecisionConfidenceCandidateAuthority.authoritativeSource, BIV_DECISION_AUTHORITY_SOURCES.LEGACY);
+assert.equal(lowDecisionConfidenceCandidateAuthority.fallbackUsed, true);
+assert.equal(lowDecisionConfidenceCandidateAuthority.fallbackReason, "v2_low_confidence");
 
 const rollbackAuthority = selectBusinessIdeaDecisionAuthorityV1({
   mode: BIV_DECISION_AUTHORITY_MODES.LEGACY,
@@ -180,7 +198,7 @@ const explicitFallbackAuthority = selectBusinessIdeaDecisionAuthorityV1({
   fallbackRequested: true,
 });
 assert.equal(explicitFallbackAuthority.authoritativeSource, BIV_DECISION_AUTHORITY_SOURCES.LEGACY);
-assert.equal(explicitFallbackAuthority.fallbackReason, "explicit_fallback_requested");
+assert.equal(explicitFallbackAuthority.fallbackReason, "v2_explicit_fallback");
 
 const insufficientV2 = buildAnalyticalCoreV2Decision({
   rawInput: {
@@ -199,7 +217,7 @@ const insufficientDualRun = selectBusinessIdeaDecisionAuthorityV1({
 });
 assert.equal(insufficientDualRun.authoritativeSource, BIV_DECISION_AUTHORITY_SOURCES.LEGACY);
 assert.equal(insufficientDualRun.fallbackUsed, true);
-assert.equal(insufficientDualRun.fallbackReason, "v2_low_confidence_review_required");
+assert.equal(insufficientDualRun.fallbackReason, "v2_low_confidence");
 
 const sourceFiles = [
   "executionResult.js",

@@ -80,7 +80,7 @@ const failureIsolated = executeBusinessIdeaValidationRuntime({
 assert.deepEqual(withoutAuthority(failureIsolated), legacyDirect, "V2 failure must not affect legacy public output");
 assert.equal(failureIsolated.authority.authoritativeSource, BIV_DECISION_AUTHORITY_SOURCES.LEGACY);
 assert.equal(failureIsolated.authority.fallbackUsed, true);
-assert.equal(failureIsolated.authority.fallbackReason, "v2_error");
+assert.equal(failureIsolated.authority.fallbackReason, "v2_execution_error");
 
 const supportedCandidateDiagnostics = executeBusinessIdeaValidationRuntime({
   ...baseArgs,

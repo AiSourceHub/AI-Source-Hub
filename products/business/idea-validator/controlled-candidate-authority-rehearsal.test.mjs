@@ -43,7 +43,7 @@ const cases = [
       competitiveAdvantage: "Better availability and faster service.",
     },
     expectedV2State: SHADOW_DECISION_STATES.TEST_FIRST,
-    expectedFallbackReason: "v2_low_confidence_review_required",
+    expectedFallbackReason: "v2_review_required",
   },
   {
     id: "stainless_workshop",
@@ -84,12 +84,12 @@ const cases = [
       monetization: "",
     },
     expectedV2State: SHADOW_DECISION_STATES.INSUFFICIENT_INFORMATION,
-    expectedFallbackReason: "v2_low_confidence_review_required",
+    expectedFallbackReason: "v2_low_confidence",
   },
   {
     id: "strong_proceed_fixture",
     rawInput: {
-      businessIdea: "A local lunch subscription for office teams.",
+      businessIdea: "A meal prep kitchen with a local lunch subscription for office teams.",
       targetCustomer: "Office teams near the kitchen",
       problem: "Teams need reliable daily lunch delivery.",
       monetization: "Weekly prepaid meal subscription.",
@@ -138,7 +138,7 @@ const cases = [
       monetization: "Sell packaging products.",
     },
     expectedV2State: SHADOW_DECISION_STATES.TEST_FIRST,
-    expectedFallbackReason: "v2_low_confidence_review_required",
+    expectedFallbackReason: "v2_review_required",
   },
   {
     id: "existing_business_expansion",
@@ -150,7 +150,6 @@ const cases = [
       stage: "expanding",
     },
     expectedV2State: SHADOW_DECISION_STATES.TEST_FIRST,
-    expectedFallbackReason: "v2_low_confidence_review_required",
   },
 ];
 
@@ -226,7 +225,7 @@ const thrownV2Fallback = selectBusinessIdeaDecisionAuthorityV1({
   v2Error: new Error("simulated V2 failure"),
 });
 assert.equal(thrownV2Fallback.authoritativeSource, BIV_DECISION_AUTHORITY_SOURCES.LEGACY);
-assert.equal(thrownV2Fallback.fallbackReason, "v2_error");
+assert.equal(thrownV2Fallback.fallbackReason, "v2_execution_error");
 
 const explicitFallback = selectBusinessIdeaDecisionAuthorityV1({
   mode: BIV_DECISION_AUTHORITY_MODES.V2_CANDIDATE,
@@ -235,7 +234,7 @@ const explicitFallback = selectBusinessIdeaDecisionAuthorityV1({
   fallbackRequested: true,
 });
 assert.equal(explicitFallback.authoritativeSource, BIV_DECISION_AUTHORITY_SOURCES.LEGACY);
-assert.equal(explicitFallback.fallbackReason, "explicit_fallback_requested");
+assert.equal(explicitFallback.fallbackReason, "v2_explicit_fallback");
 
 const arabicService = rehearseLanguagePair({
   en: {
@@ -270,8 +269,8 @@ const ambiguousLanguage = rehearseLanguagePair({
 });
 assert.equal(ambiguousLanguage.en.candidate.authoritativeSource, BIV_DECISION_AUTHORITY_SOURCES.LEGACY);
 assert.equal(ambiguousLanguage.ar.candidate.authoritativeSource, BIV_DECISION_AUTHORITY_SOURCES.LEGACY);
-assert.equal(ambiguousLanguage.en.candidate.fallbackReason, "v2_low_confidence_review_required");
-assert.equal(ambiguousLanguage.ar.candidate.fallbackReason, "v2_low_confidence_review_required");
+assert.equal(ambiguousLanguage.en.candidate.fallbackReason, "v2_review_required");
+assert.equal(ambiguousLanguage.ar.candidate.fallbackReason, "v2_review_required");
 
 assert.equal(rehearsalRows.some((row) => row.Disagreement === BIV_DECISION_DISAGREEMENT_CATEGORIES.SAME_DIRECTION), true);
 assert.equal(rehearsalRows.some((row) => row.Disagreement === BIV_DECISION_DISAGREEMENT_CATEGORIES.V2_MORE_CONSERVATIVE), true);
