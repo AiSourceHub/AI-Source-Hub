@@ -38,7 +38,7 @@ import {
   GUIDED_DISCOVERY_SUFFICIENCY_STATUS,
 } from '../../products/business/idea-validator/guidedDiscoverySufficiencyBridge.js';
 import { adaptGuidedDiscoveryHandoffToBiv } from '../../products/business/idea-validator/guidedDiscoveryBivAdapter.js';
-import { executeBusinessIdeaValidation } from '../../products/business/idea-validator/executionResult.js';
+import { executeBusinessIdeaValidationRuntime } from '../../products/business/idea-validator/runtimeExecutionBoundary.js';
 import { createSemanticIntentRequest } from '../../products/business/idea-validator/semanticIntentContract.js';
 import { createMockSemanticIntentProvider } from '../../products/business/idea-validator/semanticIntentMockProvider.js';
 import { buildDeterministicIntentPresentation, buildSemanticIntentPresentation } from '../../products/business/idea-validator/semanticIntentPresentation.js';
@@ -361,7 +361,7 @@ function BusinessIdeaDiscoveryPrototypePage({ locale, allowUrlSemanticControls =
     const projectedFeasibilityClarifications = clarificationFlowType === 'feasibility_guided'
       ? clarificationAnswers
       : {};
-    const result = executeBusinessIdeaValidation({
+    const result = executeBusinessIdeaValidationRuntime({
       ...adapted.currentEngineInput,
       industrialDetails: {
         ...(adapted.currentEngineInput.industrialDetails || {}),
@@ -373,6 +373,7 @@ function BusinessIdeaDiscoveryPrototypePage({ locale, allowUrlSemanticControls =
         ...projectedFeasibilityClarifications,
       },
       content: bivContent,
+      env: import.meta.env,
     });
     setBivExecutionResult(result);
     setBivExecutionNotice('');

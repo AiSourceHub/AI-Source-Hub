@@ -8,7 +8,8 @@ import { buildBusinessIdeaReportText } from '../../products/business/idea-valida
 import { buildIndustrialReportText } from '../../products/business/idea-validator/industrialAnalysis.js';
 import { inputSchema } from '../../products/business/idea-validator/questions.js';
 import { applyDocumentLocale, bindLanguageSwitcher } from '../../core/localization.js';
-import { BIV_JOURNEY_STATES, executeBusinessIdeaValidation } from '../../products/business/idea-validator/executionResult.js';
+import { BIV_JOURNEY_STATES } from '../../products/business/idea-validator/executionResult.js';
+import { executeBusinessIdeaValidationRuntime } from '../../products/business/idea-validator/runtimeExecutionBoundary.js';
 
 const contentMap = { en: contentEn, ar: contentAr };
 
@@ -178,12 +179,13 @@ function deriveReportSignals(result, formData, content) {
 }
 
 function executeBusinessValidation(rawInput, language, industrialDetails = {}, feasibilityAnswers = {}) {
-  return executeBusinessIdeaValidation({
+  return executeBusinessIdeaValidationRuntime({
     rawInput,
     language,
     industrialDetails,
     feasibilityAnswers,
     content: contentMap[language],
+    env: import.meta.env,
   });
 }
 

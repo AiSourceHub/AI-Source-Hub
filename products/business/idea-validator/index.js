@@ -17,7 +17,7 @@ import {
   bindLanguageSwitcher,
   getInitialLanguage,
 } from "../../../core/localization.js";
-import { executeBusinessIdeaValidation } from "./executionResult.js";
+import { executeBusinessIdeaValidationRuntime } from "./runtimeExecutionBoundary.js";
 
 const contents = { en: contentEn, ar: contentAr };
 const app = typeof document !== "undefined" ? document.querySelector("#app") : null;
@@ -130,7 +130,7 @@ function validateInputs(rawInput, language) {
 }
 
 export function executeValidation(rawInput, language = "en", industrialDetails = {}, feasibilityAnswers = {}) {
-  return executeBusinessIdeaValidation({
+  return executeBusinessIdeaValidationRuntime({
     rawInput,
     language,
     industrialDetails,

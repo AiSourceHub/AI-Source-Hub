@@ -38,6 +38,7 @@ jobs:
         run: npm run build
         env:
           VITE_BIV_GUIDED_DISCOVERY_CANDIDATE: ${{ vars.BIV_GUIDED_DISCOVERY_CANDIDATE }}
+          VITE_BIV_DECISION_AUTHORITY: ${{ vars.BIV_DECISION_AUTHORITY }}
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
