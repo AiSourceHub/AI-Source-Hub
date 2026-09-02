@@ -184,7 +184,7 @@ const keywordRules = [
     lens: BUSINESS_MODEL_LENSES.MANUFACTURING_INDUSTRIAL,
     strength: "medium",
     patterns: [
-      /\b(factory|manufacturing|industrial|fabrication|production line|stainless workshop)\b/i,
+      /\b(factory|manufacturing|industrial|fabrication|fabricates|fabricated|production line|stainless workshop|equipment workshop|restaurant equipment workshop)\b/i,
       /(مصنع|تصنيع|صناعي|خط إنتاج|خط انتاج|ورشة تصنيع)/u,
     ],
   },
