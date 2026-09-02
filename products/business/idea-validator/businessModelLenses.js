@@ -176,7 +176,7 @@ const keywordRules = [
     lens: BUSINESS_MODEL_LENSES.WHOLESALE_IMPORT_DISTRIBUTION,
     strength: "medium",
     patterns: [
-      /\b(wholesale|import|distribution|distributor|supply to retailers)\b/i,
+      /\b(wholesale|import|importer|importers|distribution|distributor|supply to retailers)\b/i,
       /(جملة|استيراد|توزيع|موزع)/u,
     ],
   },
@@ -184,7 +184,7 @@ const keywordRules = [
     lens: BUSINESS_MODEL_LENSES.MANUFACTURING_INDUSTRIAL,
     strength: "medium",
     patterns: [
-      /\b(factory|manufacturing|industrial|fabrication|fabricates|fabricated|production line|stainless workshop|equipment workshop|restaurant equipment workshop)\b/i,
+      /\b(factory|manufacture|manufactures|manufactured|manufacturing|industrial|fabrication|fabricates|fabricated|production line|stainless workshop|equipment workshop|restaurant equipment workshop)\b/i,
       /(مصنع|تصنيع|صناعي|خط إنتاج|خط انتاج|ورشة تصنيع)/u,
     ],
   },
@@ -215,13 +215,13 @@ const keywordRules = [
 const lensTiePriority = {
   marketplace_platform: 1,
   wholesale_import_distribution: 2,
-  manufacturing_industrial: 3,
+  professional_services: 3,
+  manufacturing_industrial: 4,
   saas_software: 4,
   food_beverage: 5,
   real_estate: 6,
-  professional_services: 7,
+  service: 7,
   retail_trading: 8,
-  service: 9,
   generic: 10,
 };
 
@@ -384,12 +384,13 @@ function collectCandidateSignals({ normalized, sourceFields, fieldSignals, class
     if (record.semanticRole === "customer_industry_signal") continue;
     const lens = classificationToLens[record.conceptId] || classificationToLens[record.proposedValue];
     if (!lens) continue;
+    const evidenceStrength = normalizeSignalStrength(record.evidenceStrength);
     signals.push(signal({
       lens,
       source: "classification_evidence",
       sourceField: record.sourceField,
-      strength: record.evidenceStrength === "strong" ? "strong" : "weak",
-      priority: record.semanticRole === "business_model_signal" ? 4 : 5,
+      strength: evidenceStrength,
+      priority: record.semanticRole === "business_model_signal" && evidenceStrength !== "weak" ? 4 : 6,
       semanticRole: record.semanticRole,
     }));
   }
@@ -439,6 +440,7 @@ function chooseLens(signals = []) {
     secondaryLens: shouldUseSecondary(primary.lens, secondary?.lens) ? secondary.lens : "",
     signalCount: signals.filter((record) => record.lens === primary.lens).length,
     winningPriority: primary.priority,
+    winningStrength: primary.strength,
   };
 }
 
@@ -487,6 +489,7 @@ function detectContradiction(signals = [], selectedLens) {
 function deriveConfidence({ selected, contradiction, expansionLens }) {
   if (contradiction.hasContradiction) return LENS_CONFIDENCE.LOW;
   if (selected.lens === BUSINESS_MODEL_LENSES.GENERIC) return LENS_CONFIDENCE.LOW;
+  if (selected.winningStrength === "weak") return LENS_CONFIDENCE.LOW;
   if (selected.winningPriority <= 4) return LENS_CONFIDENCE.HIGH;
   if (expansionLens && selected.signalCount > 0) return LENS_CONFIDENCE.HIGH;
   if (selected.winningPriority <= 5) return LENS_CONFIDENCE.MEDIUM;
@@ -550,11 +553,29 @@ function hasDominantNonFoodBusinessMechanic(text = "") {
 }
 
 function isContextualNonContradiction({ selectedLens, otherLens }) {
-  return selectedLens === BUSINESS_MODEL_LENSES.PROFESSIONAL_SERVICES && otherLens === BUSINESS_MODEL_LENSES.SERVICE;
+  if (selectedLens === BUSINESS_MODEL_LENSES.PROFESSIONAL_SERVICES) {
+    return [
+      BUSINESS_MODEL_LENSES.SERVICE,
+      BUSINESS_MODEL_LENSES.MANUFACTURING_INDUSTRIAL,
+    ].includes(otherLens);
+  }
+  if (selectedLens === BUSINESS_MODEL_LENSES.SAAS_SOFTWARE) {
+    return [
+      BUSINESS_MODEL_LENSES.RETAIL_TRADING,
+      BUSINESS_MODEL_LENSES.FOOD_BEVERAGE,
+      BUSINESS_MODEL_LENSES.REAL_ESTATE,
+    ].includes(otherLens);
+  }
+  return false;
 }
 
 function filterContextualSpecialistCandidate(candidate) {
   if (candidate?.id !== "pet_plastic_recycling") return candidate || null;
   const requirements = new Set((candidate.evidence || []).map((record) => record.requirement));
   return requirements.has("plastic") ? candidate : null;
+}
+
+function normalizeSignalStrength(value = "") {
+  if (value === "strong" || value === "medium") return value;
+  return "weak";
 }
