@@ -80,6 +80,7 @@ export function buildStructuredFindingsV1({
     buildEvidenceConfidenceFinding(context),
     buildSystemInferenceFinding(context),
     buildUnknownsFinding(context),
+    ...buildLensAwareFindings({ context, lensSelection, analyticalPlan: plan }),
   ].filter(Boolean);
 
   return {
@@ -290,6 +291,433 @@ function buildUnknownsFinding(context) {
     limitations: "Unknowns should not be scored as business weakness without evidence.",
     userFacingSummary: "Some important information is still unknown.",
   });
+}
+
+function buildLensAwareFindings({ context, lensSelection = {}, analyticalPlan = {} }) {
+  const primaryLens = analyticalPlan.primaryLens || lensSelection.primaryLens || "generic";
+  const moduleSet = new Set((analyticalPlan.modules || []).map((modulePlan) => modulePlan.module));
+  const builders = {
+    real_estate: buildRealEstateFindings,
+    marketplace_platform: buildMarketplaceFindings,
+    retail_trading: buildRetailTradingFindings,
+    manufacturing_industrial: buildManufacturingFindings,
+  };
+  const builder = builders[primaryLens];
+  if (!builder) return [];
+  return builder({ context, analyticalPlan, hasModule: (module) => moduleSet.has(module) });
+}
+
+function buildRealEstateFindings({ context, hasModule }) {
+  const businessIdea = findItem(context, "business_idea") || findItem(context, "original_idea");
+  const revenueItem = findItem(context, "planned_revenue_mechanism");
+  const locationEvidence = findAnyItem(context, ["location_requirement", "location_context", "owner_context_city", "owner_context_country"]);
+  const capitalEvidence = findAnyItem(context, ["available_capital", "available_budget", "startup", "budget"]);
+  const occupancyEvidence = findAnyItem(context, ["operating_capacity", "target_operating_capacity", "repeat_business"]);
+  const rentalDemandEvidence = findExternalItem(context, /occupancy|tenant|rental|demand|lease|booking|reservation/i);
+  const anchorIds = idsOf([businessIdea]);
+  const findings = [];
+
+  if (hasModule("operational_capacity") && businessIdea) {
+    findings.push(finding({
+      id: "finding_real_estate_occupancy_utilization_readiness",
+      module: "operational_capacity",
+      dimension: "information_readiness",
+      claim: occupancyEvidence || rentalDemandEvidence
+        ? "Real estate utilization has some case evidence, but viable occupancy still requires separate interpretation."
+        : "The case does not yet establish what occupancy or utilization level is required for viable operation.",
+      reason: occupancyEvidence || rentalDemandEvidence
+        ? "The lens-aware plan treats utilization as a real estate capacity question distinct from demand and pricing."
+        : "The real estate lens depends on units, space, or occupancy being used enough to support the economics.",
+      evidenceIds: idsOf([businessIdea, occupancyEvidence, rentalDemandEvidence]),
+      confidence: "high",
+      severity: "material",
+      effect: "unknown",
+      whatWouldChangeIt: "Evidence of expected occupancy, utilization, bookings, tenant commitments, or break-even occupancy assumptions.",
+      limitations: "This does not predict low occupancy; it records that occupancy economics are not yet evidenced.",
+      userFacingSummary: "Occupancy or utilization still needs evidence before economics can be trusted.",
+    }));
+  }
+
+  if (hasModule("location") && businessIdea) {
+    findings.push(finding({
+      id: "finding_real_estate_location_dependency",
+      module: "location",
+      dimension: "risk_exposure",
+      claim: locationEvidence
+        ? "Location is present as case context and remains a decision-relevant dependency."
+        : "Location is decision-relevant for this real estate model, but location evidence is not yet established.",
+      reason: "Real estate demand and economics are materially affected by site, access, local competition, and customer or tenant proximity.",
+      evidenceIds: idsOf([businessIdea, locationEvidence]),
+      confidence: "high",
+      severity: "material",
+      effect: locationEvidence ? "neutral" : "unknown",
+      whatWouldChangeIt: "A named area, site criteria, tenant catchment evidence, comparable rents, or location-specific demand evidence.",
+      limitations: "The finding identifies dependency only; it does not rate the location as good or bad.",
+    }));
+  }
+
+  if (hasModule("economic_feasibility") && (businessIdea || revenueItem)) {
+    findings.push(finding({
+      id: "finding_real_estate_revenue_economic_readiness",
+      module: "economic_feasibility",
+      dimension: "evidence_confidence",
+      claim: revenueItem
+        ? "Rental revenue mechanism is stated, but occupancy and economics remain separate evidence questions."
+        : "Real estate economics cannot yet be assessed because revenue basis is not established.",
+      reason: "Rental price assumptions, occupancy, operating cost, and site commitment are different evidence concepts.",
+      evidenceIds: idsOf([businessIdea, revenueItem]),
+      unknownIds: revenueItem ? [] : unknownIdsFor(context, ["planned_revenue_mechanism"]),
+      confidence: "high",
+      severity: "material",
+      effect: "unknown",
+      whatWouldChangeIt: "Rental pricing basis, expected occupancy, operating-cost assumptions, and comparable tenant or customer demand evidence.",
+      limitations: "A stated rental model is not proof of occupancy or profitability.",
+    }));
+  }
+
+  if (hasModule("startup_capital") && businessIdea) {
+    findings.push(finding({
+      id: "finding_real_estate_capital_site_commitment",
+      module: "startup_capital",
+      dimension: "risk_exposure",
+      claim: capitalEvidence
+        ? "Owner capital context is present, but required real estate commitment remains a separate question."
+        : "Capital and site commitment requirements are not yet established for this real estate model.",
+      reason: "Real estate cases can involve rent, fit-out, deposits, property commitments, and irreversible setup costs.",
+      evidenceIds: idsOf([businessIdea, capitalEvidence]),
+      confidence: "high",
+      severity: "material",
+      effect: "unknown",
+      whatWouldChangeIt: "Required capital, deposit or lease terms, fit-out cost, ownership/rental status, and whether location costs are included.",
+      limitations: "Available budget must not be treated as proof that required capital is sufficient.",
+    }));
+  }
+
+  return findings;
+}
+
+function buildMarketplaceFindings({ context, hasModule }) {
+  const businessIdea = findItem(context, "business_idea") || findItem(context, "original_idea");
+  const targetCustomer = findItem(context, "target_customer");
+  const problemItem = findItem(context, "customer_problem");
+  const revenueItem = findItem(context, "planned_revenue_mechanism");
+  const supplierEvidence = findExternalItem(context, /provider|supplier|technician|seller|supply|participation|availability/i);
+  const demandEvidence = findExternalItem(context, /customer|buyer|demand|booking|order|purchase|interview|behavior/i);
+  const findings = [];
+
+  if (hasModule("customer_stakeholders") && businessIdea) {
+    findings.push(finding({
+      id: "finding_marketplace_supply_side_readiness",
+      module: "customer_stakeholders",
+      dimension: "information_readiness",
+      claim: supplierEvidence
+        ? "Provider-side participation has some supporting evidence and remains distinct from customer demand."
+        : "Provider-side supply is not yet evidenced.",
+      reason: "A marketplace depends on one participant group being willing and able to provide the product or service.",
+      evidenceIds: idsOf([businessIdea, supplierEvidence]),
+      confidence: "high",
+      severity: "material",
+      effect: supplierEvidence ? "neutral" : "unknown",
+      whatWouldChangeIt: "Evidence that providers, sellers, technicians, or suppliers are available and willing to participate.",
+      limitations: "This does not claim suppliers are unavailable; it records that participation evidence is missing or limited.",
+    }));
+  }
+
+  if (hasModule("market_demand") && (businessIdea || problemItem || targetCustomer)) {
+    findings.push(finding({
+      id: "finding_marketplace_demand_side_readiness",
+      module: "market_demand",
+      dimension: "evidence_confidence",
+      claim: demandEvidence
+        ? "Demand-side participation has some supporting evidence and remains distinct from provider supply."
+        : "Demand-side customer participation is not yet evidenced beyond owner-provided context.",
+      reason: "Marketplace demand must be assessed separately from supply availability and matching mechanics.",
+      evidenceIds: idsOf([businessIdea, problemItem, targetCustomer, demandEvidence]),
+      confidence: "high",
+      severity: "material",
+      effect: demandEvidence ? "neutral" : "unknown",
+      whatWouldChangeIt: "Customer interviews, booking attempts, waitlists, paid transactions, or other behavioral demand evidence.",
+      limitations: "A stated customer problem does not prove marketplace demand or repeat usage.",
+    }));
+  }
+
+  if (hasModule("operational_capacity") && businessIdea) {
+    findings.push(finding({
+      id: "finding_marketplace_liquidity_dependency",
+      module: "operational_capacity",
+      dimension: "risk_exposure",
+      claim: supplierEvidence && demandEvidence
+        ? "Marketplace liquidity can be examined because both sides have some evidence."
+        : "Marketplace liquidity cannot yet be assessed because both sides do not have sufficient behavioral evidence.",
+      reason: "Two-sided models require enough active demand and supply within the same time, location, category, or use case.",
+      evidenceIds: idsOf([businessIdea, supplierEvidence, demandEvidence]),
+      confidence: "high",
+      severity: "material",
+      effect: "unknown",
+      whatWouldChangeIt: "Matched transactions, response rates, active provider availability, customer bookings, or comparable liquidity evidence.",
+      limitations: "This is a model dependency, not a claim that liquidity will be weak.",
+    }));
+  }
+
+  if (hasModule("revenue_model") && revenueItem) {
+    findings.push(finding({
+      id: "finding_marketplace_monetization_participation_separation",
+      module: "revenue_model",
+      dimension: "evidence_confidence",
+      claim: "Marketplace monetization is stated, but acceptance by each side is not yet evidenced.",
+      reason: "A commission or fee model is revenue design; it is separate from customer tolerance and provider willingness.",
+      evidenceIds: [revenueItem.id],
+      confidence: "high",
+      severity: "material",
+      effect: "unknown",
+      whatWouldChangeIt: "Evidence that customers complete bookings at the resulting price and providers accept the platform economics.",
+      limitations: "Planned commission or fees do not prove take-rate sustainability.",
+    }));
+  }
+
+  if (hasModule("risk_sensitivity") && businessIdea) {
+    findings.push(finding({
+      id: "finding_marketplace_trust_quality_dependency",
+      module: "risk_sensitivity",
+      dimension: "risk_exposure",
+      claim: "The marketplace model depends on trust and provider quality controls.",
+      reason: "When fulfillment is performed by third-party providers, user trust, provider reliability, and quality assurance become model dependencies.",
+      evidenceIds: [businessIdea.id],
+      confidence: "high",
+      severity: "material",
+      effect: "neutral",
+      whatWouldChangeIt: "Provider vetting evidence, service standards, dispute handling, ratings, guarantees, or quality control process.",
+      limitations: "This identifies a dependency only; it does not conclude that trust risk is high.",
+    }));
+  }
+
+  return findings;
+}
+
+function buildRetailTradingFindings({ context, hasModule }) {
+  const businessIdea = findItem(context, "business_idea") || findItem(context, "original_idea");
+  const problemItem = findItem(context, "customer_problem");
+  const revenueItem = findItem(context, "planned_revenue_mechanism");
+  const differentiationItem = findItem(context, "competitive_advantage_claim") || findItem(context, "owner_context_competitive_advantage");
+  const supplierEvidence = findAnyItem(context, ["inventory_materials_requirement", "supplier_dependency"]);
+  const repeatEvidence = findExternalItem(context, /repeat|recurring|reorder|retention|purchase|order|invoice/i);
+  const findings = [];
+
+  if (hasModule("market_demand") && (businessIdea || problemItem)) {
+    findings.push(finding({
+      id: "finding_retail_repeat_purchase_readiness",
+      module: "market_demand",
+      dimension: "evidence_confidence",
+      claim: repeatEvidence
+        ? "Repeat purchasing has some supporting evidence and should be interpreted separately from stated need."
+        : "The customer need is stated, but repeat-purchase behavior has not been evidenced.",
+      reason: "Retail and trading models often depend on reorder frequency, basket size, and customer switching from current suppliers.",
+      evidenceIds: idsOf([businessIdea, problemItem, repeatEvidence]),
+      confidence: "high",
+      severity: "material",
+      effect: repeatEvidence ? "neutral" : "unknown",
+      whatWouldChangeIt: "Repeat orders, reorder history, purchase frequency data, interviews about restocking, or signed customer commitments.",
+      limitations: "Need for a product category is not the same as repeated buying behavior.",
+    }));
+  }
+
+  if (hasModule("equipment_inventory") && businessIdea) {
+    findings.push(finding({
+      id: "finding_retail_supplier_inventory_dependency",
+      module: "equipment_inventory",
+      dimension: "execution_feasibility",
+      claim: supplierEvidence
+        ? "Inventory or supplier requirements are owner-stated and remain important to trading feasibility."
+        : "Supplier terms and inventory requirements are not yet established.",
+      reason: "Trading models depend on supply availability, minimum order quantities, stockouts, and capital tied in inventory.",
+      evidenceIds: idsOf([businessIdea, supplierEvidence]),
+      confidence: "high",
+      severity: "material",
+      effect: supplierEvidence ? "neutral" : "unknown",
+      whatWouldChangeIt: "Supplier quotes, MOQ terms, lead time, inventory list, purchase cost, or stocking plan.",
+      limitations: "The finding does not assume favorable or unfavorable supplier terms.",
+    }));
+  }
+
+  if (hasModule("competition_alternatives") && businessIdea) {
+    findings.push(finding({
+      id: "finding_retail_differentiation_evidence",
+      module: "competition_alternatives",
+      dimension: "evidence_confidence",
+      claim: differentiationItem
+        ? "Differentiation is currently owner-stated rather than evidenced against customer alternatives."
+        : "Differentiation against current alternatives has not yet been evidenced.",
+      reason: "Retail attractiveness depends on why customers would switch from existing suppliers or shops.",
+      evidenceIds: idsOf([businessIdea, differentiationItem]),
+      confidence: "high",
+      severity: "material",
+      effect: "unknown",
+      whatWouldChangeIt: "Evidence comparing price, availability, quality, service speed, assortment, or customer switching behavior.",
+      limitations: "Owner-stated advantage is useful context but not independent differentiation evidence.",
+    }));
+  }
+
+  if (hasModule("economic_feasibility") && (businessIdea || revenueItem)) {
+    findings.push(finding({
+      id: "finding_retail_working_capital_dependency",
+      module: "economic_feasibility",
+      dimension: "risk_exposure",
+      claim: "The retail/trading model creates working-capital dependency before validated margins are known.",
+      reason: "Inventory businesses may require cash tied in stock before sales convert that stock back into revenue.",
+      evidenceIds: idsOf([businessIdea, revenueItem]),
+      confidence: "high",
+      severity: "material",
+      effect: "neutral",
+      whatWouldChangeIt: "Inventory cost, gross margin assumptions, supplier payment terms, stock turnover, and first-order quantities.",
+      limitations: "This does not calculate working capital or margin without numerical inputs.",
+    }));
+  }
+
+  return findings;
+}
+
+function buildManufacturingFindings({ context, hasModule }) {
+  const businessIdea = findItem(context, "business_idea") || findItem(context, "original_idea");
+  const revenueItem = findItem(context, "planned_revenue_mechanism");
+  const equipmentEvidence = findAnyItem(context, ["equipment_requirement", "equipment_level"]);
+  const materialsEvidence = findAnyItem(context, ["inventory_materials_requirement", "supplier_dependency"]);
+  const laborEvidence = findAnyItem(context, ["labor_skills_requirement", "staffing_plan"]);
+  const capacityEvidence = findAnyItem(context, ["operating_capacity_assumption", "target_operating_capacity", "production_capacity_target"]);
+  const quoteEvidence = findAnyItem(context, ["pricing_evidence_status", "actualPurchases"]);
+  const capitalEvidence = findAnyItem(context, ["available_capital", "available_budget", "startup"]);
+  const findings = [];
+
+  if (hasModule("equipment_inventory") && businessIdea) {
+    findings.push(finding({
+      id: "finding_manufacturing_equipment_capacity_readiness",
+      module: "equipment_inventory",
+      dimension: "execution_feasibility",
+      claim: equipmentEvidence
+        ? "Equipment requirements are partly stated, but capacity and suitability still need separate evidence."
+        : "Execution feasibility cannot yet be assessed confidently because the required equipment set and capacity are not established.",
+      reason: "Manufacturing feasibility depends on tools, machines, capacity, maintenance, installation, and suitability for the intended output.",
+      evidenceIds: idsOf([businessIdea, equipmentEvidence]),
+      confidence: "high",
+      severity: "material",
+      effect: "unknown",
+      whatWouldChangeIt: "Equipment list, supplier quotation, capacity rating, installation requirement, maintenance dependency, or tested production output.",
+      limitations: "Specialist industrial equipment is not inferred from generic manufacturing evidence.",
+    }));
+  }
+
+  if (hasModule("labor_skills") && businessIdea) {
+    findings.push(finding({
+      id: "finding_manufacturing_skilled_labor_dependency",
+      module: "labor_skills",
+      dimension: "execution_feasibility",
+      claim: laborEvidence
+        ? "Skilled labor requirements are owner-stated and remain a material execution dependency."
+        : "Skilled labor or staffing requirements are not yet established for the manufacturing operation.",
+      reason: "Custom or industrial production often depends on fabrication, installation, quality control, and operational skill.",
+      evidenceIds: idsOf([businessIdea, laborEvidence]),
+      confidence: "high",
+      severity: "material",
+      effect: laborEvidence ? "neutral" : "unknown",
+      whatWouldChangeIt: "Named roles, staffing plan, operator skill requirements, supervisor experience, or outsourcing plan.",
+      limitations: "This identifies labor dependency; it does not assume the team lacks skills.",
+    }));
+  }
+
+  if (hasModule("operational_capacity") && businessIdea) {
+    findings.push(finding({
+      id: "finding_manufacturing_production_capacity_unknown",
+      module: "operational_capacity",
+      dimension: "information_readiness",
+      claim: capacityEvidence
+        ? "Production capacity is owner-stated and should be compared with expected customer volume later."
+        : "Production capacity is not yet established.",
+      reason: "Manufacturing analysis must separate theoretical production capability from required order volume and available capacity.",
+      evidenceIds: idsOf([businessIdea, capacityEvidence]),
+      confidence: "high",
+      severity: "material",
+      effect: "unknown",
+      whatWouldChangeIt: "Capacity per day or month, batch size, lead time, bottleneck step, downtime assumption, or first customer volume target.",
+      limitations: "Technical possibility is not the same as feasible operating capacity.",
+    }));
+  }
+
+  if (hasModule("revenue_model") && (businessIdea || revenueItem)) {
+    findings.push(finding({
+      id: "finding_manufacturing_b2b_procurement_order_evidence",
+      module: "revenue_model",
+      dimension: "evidence_confidence",
+      claim: quoteEvidence
+        ? "Quotation or order evidence is present and remains separate from planned revenue."
+        : "B2B procurement or order evidence is not yet established.",
+      reason: "Workshop-style manufacturing often depends on quotation requests, approvals, specifications, deposits, and accepted orders.",
+      evidenceIds: idsOf([businessIdea, revenueItem, quoteEvidence]),
+      confidence: "high",
+      severity: "material",
+      effect: quoteEvidence ? "neutral" : "unknown",
+      whatWouldChangeIt: "Accepted quotation, paid deposit, purchase order, specification request, buyer approval process, or repeat order evidence.",
+      limitations: "Naming restaurants or business buyers is not a complete procurement-path analysis.",
+    }));
+  }
+
+  if (hasModule("risk_sensitivity") && businessIdea) {
+    findings.push(finding({
+      id: "finding_manufacturing_material_supplier_dependency",
+      module: "risk_sensitivity",
+      dimension: "risk_exposure",
+      claim: materialsEvidence
+        ? "Material or supplier dependency is present as owner context and should be validated before relying on feasibility."
+        : "Raw material or supplier dependency is not yet established.",
+      reason: "Manufacturing can depend on material availability, quality, lead time, supplier reliability, and input cost stability.",
+      evidenceIds: idsOf([businessIdea, materialsEvidence]),
+      confidence: "high",
+      severity: "material",
+      effect: materialsEvidence ? "neutral" : "unknown",
+      whatWouldChangeIt: "Material list, supplier quotes, lead times, quality specifications, alternate suppliers, or purchase terms.",
+      limitations: "This does not infer favorable or unfavorable supplier conditions.",
+    }));
+  }
+
+  if (hasModule("startup_capital") && businessIdea) {
+    findings.push(finding({
+      id: "finding_manufacturing_capital_readiness",
+      module: "startup_capital",
+      dimension: "execution_feasibility",
+      claim: capitalEvidence
+        ? "Owner capital context is present, but required manufacturing capital remains separate from available budget."
+        : "Manufacturing capital requirement is not yet established.",
+      reason: "Industrial execution can require equipment, installation, inventory, labor setup, utilities, and working capital.",
+      evidenceIds: idsOf([businessIdea, capitalEvidence]),
+      confidence: "high",
+      severity: "material",
+      effect: "unknown",
+      whatWouldChangeIt: "Equipment quotations, setup costs, raw material cost, installation cost, labor setup, utilities, and working-capital assumptions.",
+      limitations: "Available capital is not treated as proof that required capital is sufficient.",
+    }));
+  }
+
+  return findings;
+}
+
+function idsOf(items = []) {
+  return items.filter(Boolean).map((item) => item.id);
+}
+
+function findAnyItem(context, evidenceClasses = []) {
+  return context.items.find((item) =>
+    evidenceClasses.some((evidenceClass) => item.evidenceClass === evidenceClass || item.evidenceClass?.includes(evidenceClass))
+  ) || null;
+}
+
+function findExternalItem(context, pattern) {
+  return context.items.find((item) =>
+    item.origin === "external_evidence" && pattern.test(`${item.evidenceClass} ${item.claim} ${item.value}`)
+  ) || null;
+}
+
+function unknownIdsFor(context, topics = []) {
+  return context.unknowns
+    .filter((unknown) => topics.some((topic) => unknown.topic === topic || unknown.topic?.includes(topic)))
+    .map((unknown) => unknown.id);
 }
 
 function finding({
