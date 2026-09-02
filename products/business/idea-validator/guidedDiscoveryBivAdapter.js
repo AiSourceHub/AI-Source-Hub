@@ -1,4 +1,5 @@
 import { inputSchema } from "./questions.js";
+import { buildEvidenceLedgerV1 } from "./evidenceLedger.js";
 
 export const GUIDED_DISCOVERY_CANONICAL_BIV_VERSION = "biv_canonical_input_v1";
 
@@ -66,7 +67,7 @@ export function buildCanonicalBivInput(handoff = {}) {
     competitiveAdvantage: cleanString(handoff.bivDraftInput?.competitiveAdvantage),
   };
 
-  return {
+  const canonicalInput = {
     source: "guided_discovery",
     version: GUIDED_DISCOVERY_CANONICAL_BIV_VERSION,
     locale: handoff.locale === "ar" ? "ar" : "en",
@@ -93,6 +94,10 @@ export function buildCanonicalBivInput(handoff = {}) {
       semanticProviderCanonical: Boolean(handoff.ownership?.semanticProviderCanonical),
       confirmedUnderstandingCanonical: Boolean(handoff.ownership?.confirmedUnderstandingCanonical),
     },
+  };
+  return {
+    ...canonicalInput,
+    evidenceLedger: buildEvidenceLedgerV1(canonicalInput),
   };
 }
 

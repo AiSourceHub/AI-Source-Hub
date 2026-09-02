@@ -4,6 +4,7 @@ import { buildIndustrialPreliminaryAnalysis } from "./industrialAnalysis.js";
 import { buildBusinessIdeaRecommendation, refineBusinessIdeaCriteria } from "./recommendations.js";
 import { buildImprovedIdeaStatement, scoreBusinessIdea } from "./scoring.js";
 import { orchestrateBusinessIdeaValidation } from "./validatorOrchestrator.js";
+import { buildEvidenceLedgerV1 } from "./evidenceLedger.js";
 
 export const BIV_JOURNEY_STATES = {
   PROFILE_INPUT: "profile_input",
@@ -116,12 +117,13 @@ function collectClarificationFields(decision) {
   return [...renderedFields, ...missingFields];
 }
 
-function withJourneyState(result, decision) {
+function withJourneyState(result, decision, evidenceLedger = null) {
   const journeyState = resolveBusinessIdeaJourneyState(decision);
   return {
     ...result,
     route: decision.route,
     journeyState,
+    evidenceLedger,
   };
 }
 
@@ -142,6 +144,10 @@ export function executeBusinessIdeaValidation({
     source,
   });
   const { analysis, validation } = decision;
+  const evidenceLedger = buildEvidenceLedgerV1({
+    rawInput,
+    classification: decision.classification,
+  });
 
   if (decision.route === "validation_error") {
     return withJourneyState({
@@ -150,7 +156,7 @@ export function executeBusinessIdeaValidation({
       analysis,
       validation,
       orchestrationDecision: decision,
-    }, decision);
+    }, decision, evidenceLedger);
   }
 
   if (decision.route === "ineligible" && decision.eligibility) {
@@ -166,7 +172,7 @@ export function executeBusinessIdeaValidation({
       title: decision.eligibility.title,
       presentation: decision.eligibility.presentation,
       orchestrationDecision: decision,
-    }, decision);
+    }, decision, evidenceLedger);
   }
 
   if (decision.route === "needs_clarification") {
@@ -183,7 +189,7 @@ export function executeBusinessIdeaValidation({
         title: decision.eligibility.title,
         presentation: decision.eligibility.presentation,
         orchestrationDecision: decision,
-      }, decision);
+      }, decision, evidenceLedger);
     }
 
     if (decision.requestAssessment) {
@@ -200,7 +206,7 @@ export function executeBusinessIdeaValidation({
         clarificationFlow: decision.requestAssessment.clarificationFlow,
         feasibilityFoundation: decision.feasibilityFoundation,
         orchestrationDecision: decision,
-      }, decision);
+      }, decision, evidenceLedger);
     }
   }
 
@@ -222,7 +228,7 @@ export function executeBusinessIdeaValidation({
       feasibilityFoundation: decision.feasibilityFoundation,
       feasibilityGuidance: guidedFeasibility,
       orchestrationDecision: decision,
-    }, decision);
+    }, decision, evidenceLedger);
   }
 
   if (decision.route === "specialist_analysis") {
@@ -246,7 +252,7 @@ export function executeBusinessIdeaValidation({
       industrialDetails,
       feasibilityFoundation: decision.feasibilityFoundation,
       orchestrationDecision: decision,
-    }, decision);
+    }, decision, evidenceLedger);
   }
 
   return withJourneyState(buildNormalEvaluationResult({
@@ -256,7 +262,7 @@ export function executeBusinessIdeaValidation({
     content,
     analysis,
     validation,
-  }), decision);
+  }), decision, evidenceLedger);
 }
 
 function buildNormalEvaluationResult({ decision, rawInput, language, content, analysis, validation }) {
