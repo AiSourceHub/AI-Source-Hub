@@ -151,10 +151,10 @@ function selectDecisionState({
   if (blockerFindingIds.length) return SHADOW_DECISION_STATES.DO_NOT_PROCEED_YET;
   if (criticalUnknownIds.length) return SHADOW_DECISION_STATES.INSUFFICIENT_INFORMATION;
   if (structuralRevisionFindingIds.length) return SHADOW_DECISION_STATES.REVISE;
-  if (testAssumptionFindingIds.length) return SHADOW_DECISION_STATES.TEST_FIRST;
   if (Object.values(dimensionAssessments).every((assessment) => assessment.status === "supported")) {
     return SHADOW_DECISION_STATES.PROCEED;
   }
+  if (testAssumptionFindingIds.length) return SHADOW_DECISION_STATES.TEST_FIRST;
   return SHADOW_DECISION_STATES.TEST_FIRST;
 }
 
@@ -216,11 +216,15 @@ function buildDimensionAssessments({ findings, criticalUnknownIds, blockerFindin
       ? "contradicted"
       : hasWeakness
         ? "weak"
-        : hasUnknown || (dimension === "information_readiness" && criticalUnknownIds.length)
+        : dimension === "information_readiness" && criticalUnknownIds.length
           ? "uncertain"
-          : hasSupport || dimensionFindings.length
+          : hasSupport
             ? "supported"
-            : "not_assessable";
+            : hasUnknown
+              ? "uncertain"
+              : dimensionFindings.length
+                ? "supported"
+                : "not_assessable";
     return [dimension, {
       status,
       findingIds: dimensionFindings.map((finding) => finding.id),
