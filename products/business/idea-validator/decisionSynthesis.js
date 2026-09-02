@@ -265,6 +265,12 @@ function chooseLensSpecificTestFinding(findings, testAssumptionFindingIds) {
     /^finding_marketplace_/,
     /^finding_retail_/,
     /^finding_manufacturing_/,
+    /^finding_service_/,
+    /^finding_saas_/,
+    /^finding_food_/,
+    /^finding_wholesale_/,
+    /^finding_professional_/,
+    /^finding_expansion_/,
     /^finding_demand_/,
   ];
   for (const pattern of preferredPatterns) {

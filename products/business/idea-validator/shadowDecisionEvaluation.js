@@ -382,6 +382,178 @@ export function getShadowDecisionEvaluationFixturesV1() {
       ],
     },
     {
+      fixtureId: "service_repeated_paid_jobs_proceed",
+      category: "proceed",
+      evidenceLevel: "repeated_evidence",
+      expectedDecision: "proceed",
+      rawInput: {
+        businessIdea: "Mobile AC repair and maintenance service for homes and small offices.",
+        targetCustomer: "Homeowners and small offices",
+        problem: "They need quick AC repair at their location.",
+        monetization: "Customers pay per repair visit.",
+      },
+      externalEvidence: [
+        trustedEvidence("repeat_paid_jobs", "Ten repeat paid maintenance jobs were completed last month.", "external_evidence__repeat_paid_jobs"),
+        trustedEvidence("service_capacity", "Two technicians completed four visits per day during the pilot.", "external_evidence__service_capacity"),
+      ],
+      additionalFindings: stageSupportFindings(),
+    },
+    {
+      fixtureId: "saas_retained_paid_users_proceed",
+      category: "proceed",
+      evidenceLevel: "repeated_evidence",
+      expectedDecision: "proceed",
+      rawInput: {
+        businessIdea: "B2B subscription software that helps clinics reduce missed appointments.",
+        targetCustomer: "Small private clinics",
+        problem: "Patients miss appointments and staff lose time following up.",
+        monetization: "Monthly subscription paid by clinics.",
+      },
+      externalEvidence: [
+        trustedEvidence("activation", "Twenty trial accounts completed onboarding.", "external_evidence__activation"),
+        trustedEvidence("retention", "Twelve paid users renewed after the first month.", "external_evidence__retention"),
+      ],
+      additionalFindings: stageSupportFindings(),
+    },
+    {
+      fixtureId: "wholesale_repeat_orders_supplier_terms_proceed",
+      category: "proceed",
+      evidenceLevel: "repeated_evidence",
+      expectedDecision: "proceed",
+      rawInput: {
+        businessIdea: "Import and distribute cleaning supplies to small retailers.",
+        targetCustomer: "Small retail shops",
+        problem: "They need reliable stock at wholesale prices.",
+        monetization: "Sell imported supplies with distributor margin.",
+      },
+      externalEvidence: [
+        trustedEvidence("repeat_order", "Six retailers placed repeat purchase orders over two months.", "external_evidence__repeat_orders"),
+        trustedEvidence("supplier_terms", "Two suppliers provided MOQ and lead-time terms that fit the first-stage order plan.", "external_evidence__supplier_terms"),
+      ],
+      additionalFindings: stageSupportFindings(),
+    },
+    {
+      fixtureId: "professional_retainer_spare_capacity_proceed",
+      category: "proceed",
+      evidenceLevel: "repeated_evidence",
+      expectedDecision: "proceed",
+      rawInput: {
+        businessIdea: "Consulting and accounting practice for small businesses.",
+        targetCustomer: "Small business owners",
+        problem: "They need help organizing monthly accounts.",
+        monetization: "Monthly advisory retainer.",
+      },
+      classification: {
+        confirmedClassification: { primaryType: "professional_service" },
+      },
+      externalEvidence: [
+        trustedEvidence("retainer", "Four clients signed recurring monthly retainers.", "external_evidence__retainers"),
+        trustedEvidence("delivery_capacity", "The team has documented delivery capacity for six monthly clients.", "external_evidence__delivery_capacity"),
+      ],
+      additionalFindings: stageSupportFindings(),
+    },
+    {
+      fixtureId: "expansion_validated_increment_proceed",
+      category: "proceed",
+      evidenceLevel: "repeated_evidence",
+      expectedDecision: "proceed",
+      rawInput: {
+        businessIdea: "Existing metal workshop adding a new stainless display shelf product line.",
+        targetCustomer: "Restaurant and cafe operators",
+        problem: "Existing customers request custom stainless display shelves.",
+        monetization: "Sell made-to-order shelves with deposit before fabrication.",
+        stage: "expanding",
+      },
+      externalEvidence: [
+        trustedEvidence("current_customer_base", "Three existing restaurant customers requested shelf quotations.", "external_evidence__expansion_requests"),
+        trustedEvidence("spare_capacity", "The current workshop has unused fabrication capacity two days per week.", "external_evidence__spare_capacity"),
+        trustedEvidence("validated_incremental_demand", "Two customers paid deposits for the new shelf line.", "external_evidence__incremental_demand"),
+      ],
+      additionalFindings: stageSupportFindings(),
+    },
+    {
+      fixtureId: "service_travel_price_conflict",
+      category: "revise",
+      evidenceLevel: "negative_evidence",
+      expectedDecision: "revise",
+      rawInput: {
+        businessIdea: "Mobile AC repair and maintenance service for homes and small offices.",
+        targetCustomer: "Homeowners and small offices",
+        problem: "They need quick AC repair at their location.",
+        monetization: "Customers pay per repair visit.",
+      },
+      additionalFindings: [
+        adverse("finding_service_travel_price_conflict", "risk_sensitivity", "risk_exposure", "weakens", "material", "Verified travel cost makes the planned service price structurally unviable."),
+      ],
+    },
+    {
+      fixtureId: "saas_activation_retention_failure",
+      category: "blocker",
+      evidenceLevel: "negative_evidence",
+      expectedDecision: "do_not_proceed_yet",
+      rawInput: {
+        businessIdea: "B2B subscription software that helps clinics reduce missed appointments.",
+        targetCustomer: "Small private clinics",
+        problem: "Patients miss appointments and staff lose time following up.",
+        monetization: "Monthly subscription paid by clinics.",
+      },
+      additionalFindings: [
+        adverse("finding_saas_activation_retention_failure", "operational_capacity", "evidence_confidence", "contradicts", "critical", "Repeated trial users fail to activate or retain despite onboarding support."),
+      ],
+    },
+    {
+      fixtureId: "food_site_throughput_conflict",
+      category: "revise",
+      evidenceLevel: "negative_evidence",
+      expectedDecision: "revise",
+      rawInput: {
+        businessIdea: "Small takeaway restaurant serving lunch meals near offices.",
+        targetCustomer: "Office workers",
+        problem: "They need fast lunch options during short breaks.",
+        monetization: "Customers pay per meal.",
+      },
+      additionalFindings: [
+        adverse("finding_food_site_throughput_conflict", "operational_capacity", "risk_exposure", "weakens", "material", "Verified site economics require throughput beyond the kitchen capacity."),
+      ],
+    },
+    {
+      fixtureId: "professional_founder_capacity_saturated",
+      category: "blocker",
+      evidenceLevel: "negative_evidence",
+      expectedDecision: "do_not_proceed_yet",
+      rawInput: {
+        businessIdea: "Consulting and accounting practice for small businesses.",
+        targetCustomer: "Small business owners",
+        problem: "They need help organizing monthly accounts.",
+        monetization: "Monthly advisory retainer.",
+      },
+      classification: {
+        confirmedClassification: { primaryType: "professional_service" },
+      },
+      additionalFindings: [
+        adverse("finding_professional_founder_capacity_saturated", "operational_capacity", "risk_exposure", "contradicts", "critical", "Known founder capacity is already saturated and no delivery support exists."),
+      ],
+    },
+    {
+      fixtureId: "expansion_core_capacity_cannibalization",
+      category: "blocker",
+      evidenceLevel: "negative_evidence",
+      expectedDecision: "do_not_proceed_yet",
+      rawInput: {
+        businessIdea: "Existing metal workshop adding a new stainless display shelf product line.",
+        targetCustomer: "Restaurant and cafe operators",
+        problem: "Existing customers request custom stainless display shelves.",
+        monetization: "Sell made-to-order shelves with deposit before fabrication.",
+        stage: "expanding",
+      },
+      externalEvidence: [
+        trustedEvidence("current_customer_base", "The core workshop has profitable recurring restaurant work.", "external_evidence__core_business"),
+      ],
+      additionalFindings: [
+        adverse("finding_expansion_core_capacity_cannibalization", "risk_sensitivity", "risk_exposure", "contradicts", "critical", "The new activity is verified to cannibalize profitable core capacity."),
+      ],
+    },
+    {
       fixtureId: "confident_wording_no_evidence",
       category: "adversarial",
       evidenceLevel: "owner_belief_only",
@@ -551,6 +723,16 @@ function supported(id, module, dimension, evidenceId) {
     whatWouldChangeIt: "Contradictory evidence or a newly discovered blocker.",
     limitations: "Proceed means next justified commitment only, not guaranteed success.",
   };
+}
+
+function stageSupportFindings() {
+  return [
+    supported("finding_customer_paid_signal", "customer_stakeholders", "information_readiness", "external_evidence__paid_customers"),
+    supported("finding_demand_supported", "market_demand", "opportunity_attractiveness", "external_evidence__repeat_behavior"),
+    supported("finding_execution_supported", "operational_capacity", "execution_feasibility", "external_evidence__operating_capacity"),
+    supported("finding_risk_controlled", "risk_sensitivity", "risk_exposure", "external_evidence__controlled_risk"),
+    supported("finding_evidence_quality_supported", "implementation", "evidence_confidence", "external_evidence__verified_records"),
+  ];
 }
 
 function adverse(id, module, dimension, effect, severity, claim) {

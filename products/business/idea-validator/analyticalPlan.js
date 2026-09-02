@@ -64,6 +64,7 @@ const lensModulePurposeIds = {
     ["revenue_model", ["monetization"]],
     ["operating_cost", ["recurringCosts", "utilitiesNeeds"]],
     ["location", ["locationPremises", "premisesStatus"]],
+    ["operational_capacity", ["operatingCapacity", "targetCapacity"]],
     ["labor_skills", ["laborRolesSkills", "staffingPlan"]],
     ["licensing_compliance", ["licensesCompliance", "licensesDependencies"]],
     ["risk_sensitivity", ["suppliersDependencies"]],

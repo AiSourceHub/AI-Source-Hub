@@ -301,6 +301,12 @@ function buildLensAwareFindings({ context, lensSelection = {}, analyticalPlan = 
     marketplace_platform: buildMarketplaceFindings,
     retail_trading: buildRetailTradingFindings,
     manufacturing_industrial: buildManufacturingFindings,
+    service: buildServiceFindings,
+    saas_software: buildSaasSoftwareFindings,
+    food_beverage: buildFoodBeverageFindings,
+    wholesale_import_distribution: buildWholesaleDistributionFindings,
+    professional_services: buildProfessionalServicesFindings,
+    existing_business_expansion: buildExistingBusinessExpansionFindings,
   };
   const builder = builders[primaryLens];
   if (!builder) return [];
@@ -692,6 +698,507 @@ function buildManufacturingFindings({ context, hasModule }) {
       effect: "unknown",
       whatWouldChangeIt: "Equipment quotations, setup costs, raw material cost, installation cost, labor setup, utilities, and working-capital assumptions.",
       limitations: "Available capital is not treated as proof that required capital is sufficient.",
+    }));
+  }
+
+  return findings;
+}
+
+function buildServiceFindings({ context, hasModule }) {
+  const businessIdea = findItem(context, "business_idea") || findItem(context, "original_idea");
+  const revenueItem = findItem(context, "planned_revenue_mechanism");
+  const laborEvidence = findAnyItem(context, ["labor_skills_requirement", "staffing_plan"]);
+  const capacityEvidence = findAnyItem(context, ["operating_capacity_assumption", "target_operating_capacity"]);
+  const operatingEvidence = findAnyItem(context, ["confirmed_operating_approach", "confirmed_operating_approaches", "delivery_model"]);
+  const repeatEvidence = findExternalItem(context, /repeat|recurring|retention|paid job|paid visit|booking|service history/i);
+  const qualityEvidence = findExternalItem(context, /quality|complaint|rating|repeat technician|service standard/i);
+  const findings = [];
+
+  if (hasModule("operational_capacity") && businessIdea) {
+    findings.push(finding({
+      id: "finding_service_billable_utilization_dependency",
+      module: "operational_capacity",
+      dimension: "execution_feasibility",
+      claim: capacityEvidence
+        ? "Service capacity is partly stated, but billable utilization still needs operating evidence."
+        : "The service model depends on converting staff time into sufficient billable or customer-serving utilization.",
+      reason: "Service economics depend on visits, scheduling, travel or delivery time, and productive staff utilization.",
+      evidenceIds: idsOf([businessIdea, capacityEvidence]),
+      confidence: "high",
+      severity: "material",
+      effect: capacityEvidence ? "neutral" : "unknown",
+      whatWouldChangeIt: "Evidence of visit volume, schedule capacity, utilization, travel radius, response time, or paid service jobs.",
+      limitations: "This does not assume poor utilization or high travel cost.",
+    }));
+  }
+
+  if (hasModule("labor_skills") && businessIdea) {
+    findings.push(finding({
+      id: "finding_service_skill_quality_dependency",
+      module: "labor_skills",
+      dimension: "execution_feasibility",
+      claim: laborEvidence || qualityEvidence
+        ? "Service skill or quality evidence is present and remains a delivery dependency."
+        : "Labor skill and quality consistency requirements are not yet established.",
+      reason: "Direct services often rely on technician ability, service standards, and repeatable quality at the customer touchpoint.",
+      evidenceIds: idsOf([businessIdea, laborEvidence, qualityEvidence]),
+      confidence: "high",
+      severity: "material",
+      effect: laborEvidence || qualityEvidence ? "neutral" : "unknown",
+      whatWouldChangeIt: "Technician requirements, training process, quality standard, customer ratings, repeat service records, or staffing plan.",
+      limitations: "Expertise claims do not prove demand or service quality by themselves.",
+    }));
+  }
+
+  if (hasModule("risk_sensitivity") && businessIdea) {
+    findings.push(finding({
+      id: "finding_service_radius_delivery_burden",
+      module: "risk_sensitivity",
+      dimension: "risk_exposure",
+      claim: operatingEvidence
+        ? "The delivery approach is owner-stated and should be checked against travel, scheduling, or service-radius burden."
+        : "Service radius, travel burden, or delivery approach is not yet evidenced.",
+      reason: "Field or mobile service capacity can be constrained by geography, travel time, dispatching, and response expectations.",
+      evidenceIds: idsOf([businessIdea, operatingEvidence]),
+      confidence: "high",
+      severity: "material",
+      effect: "unknown",
+      whatWouldChangeIt: "Defined service area, travel time, jobs per day, dispatch process, fixed-location split, or paid customer-site evidence.",
+      limitations: "A customer-site model is not automatically high cost; it is a dependency to validate.",
+    }));
+  }
+
+  if (hasModule("market_demand") && (businessIdea || revenueItem)) {
+    findings.push(finding({
+      id: "finding_service_repeat_demand_readiness",
+      module: "market_demand",
+      dimension: "evidence_confidence",
+      claim: repeatEvidence
+        ? "Repeat service demand has some behavioral evidence and remains separate from general need."
+        : "Repeat demand or service frequency is not yet behaviorally evidenced.",
+      reason: "Service viability often depends on whether the problem recurs enough to sustain utilization and revenue.",
+      evidenceIds: idsOf([businessIdea, revenueItem, repeatEvidence]),
+      confidence: "high",
+      severity: "material",
+      effect: repeatEvidence ? "neutral" : "unknown",
+      whatWouldChangeIt: "Repeat jobs, maintenance contracts, recurring bookings, paid repair history, or customer interview evidence about frequency.",
+      limitations: "A stated service need is not proof of repeat demand.",
+    }));
+  }
+
+  return findings;
+}
+
+function buildSaasSoftwareFindings({ context, hasModule }) {
+  const businessIdea = findItem(context, "business_idea") || findItem(context, "original_idea");
+  const revenueItem = findItem(context, "planned_revenue_mechanism");
+  const adoptionEvidence = findExternalItem(context, /activation|signup|onboarding|active user|trial use|adoption/i);
+  const retentionEvidence = findExternalItem(context, /retention|renewal|repeat usage|recurring paid|subscription renewal/i);
+  const paymentEvidence = findExternalItem(context, /paid subscription|payment|invoice|subscription|transaction/i);
+  const integrationEvidence = findAnyItem(context, ["delivery_model", "equipment_requirement", "supplier_dependency"]);
+  const findings = [];
+
+  if (hasModule("operational_capacity") && businessIdea) {
+    findings.push(finding({
+      id: "finding_saas_activation_retention_readiness",
+      module: "operational_capacity",
+      dimension: "evidence_confidence",
+      claim: retentionEvidence
+        ? "Retention evidence is present and should be interpreted separately from initial adoption."
+        : adoptionEvidence
+          ? "Adoption evidence exists, but retention is not yet established."
+          : "Product existence or signup interest does not yet establish adoption or retention.",
+      reason: "Software viability depends on users activating, returning, and continuing to receive enough value to sustain the model.",
+      evidenceIds: idsOf([businessIdea, adoptionEvidence, retentionEvidence]),
+      confidence: "high",
+      severity: "material",
+      effect: retentionEvidence ? "neutral" : "unknown",
+      whatWouldChangeIt: "Activation data, retained usage, renewal behavior, cohort retention, or repeated paid use.",
+      limitations: "Signup interest and product existence are not retention evidence.",
+    }));
+  }
+
+  if (hasModule("revenue_model") && (businessIdea || revenueItem)) {
+    findings.push(finding({
+      id: "finding_saas_subscription_payment_separation",
+      module: "revenue_model",
+      dimension: "evidence_confidence",
+      claim: paymentEvidence
+        ? "Subscription payment evidence is present and remains distinct from pricing design."
+        : "Subscription pricing is stated, but willingness to pay is not yet evidenced.",
+      reason: "A SaaS subscription model records how revenue may work; it does not prove customers will pay or renew.",
+      evidenceIds: idsOf([businessIdea, revenueItem, paymentEvidence]),
+      confidence: "high",
+      severity: "material",
+      effect: paymentEvidence ? "neutral" : "unknown",
+      whatWouldChangeIt: "Paid subscriptions, renewals, invoices, conversion from trial, or retained paid usage.",
+      limitations: "No CAC, LTV, churn, or gross margin is fabricated without evidence.",
+    }));
+  }
+
+  if (hasModule("equipment_inventory") && businessIdea) {
+    findings.push(finding({
+      id: "finding_saas_switching_integration_dependency",
+      module: "equipment_inventory",
+      dimension: "risk_exposure",
+      claim: integrationEvidence
+        ? "Software delivery or integration dependency is present as case context."
+        : "Switching, integration, support, or data dependency is not yet established.",
+      reason: "B2B software can depend on workflow change, setup friction, support burden, integrations, and data/security expectations.",
+      evidenceIds: idsOf([businessIdea, integrationEvidence]),
+      confidence: "high",
+      severity: "material",
+      effect: "unknown",
+      whatWouldChangeIt: "Integration requirements, onboarding steps, support volume, data/security needs, or evidence that users switch from the current workflow.",
+      limitations: "This does not infer technical complexity without evidence.",
+    }));
+  }
+
+  return findings;
+}
+
+function buildFoodBeverageFindings({ context, hasModule }) {
+  const businessIdea = findItem(context, "business_idea") || findItem(context, "original_idea");
+  const revenueItem = findItem(context, "planned_revenue_mechanism");
+  const locationEvidence = findAnyItem(context, ["location_requirement", "location_context", "premises_status"]);
+  const laborEvidence = findAnyItem(context, ["labor_skills_requirement", "staffing_plan"]);
+  const costEvidence = findAnyItem(context, ["operating_cost_assumption", "utilities_or_infrastructure_requirement", "inventory_materials_requirement"]);
+  const throughputEvidence = findAnyItem(context, ["operating_capacity_assumption", "target_operating_capacity"]);
+  const repeatEvidence = findExternalItem(context, /repeat|returning|recurring|daily|weekly|subscription|loyalty|order/i);
+  const findings = [];
+
+  if (hasModule("location") && businessIdea) {
+    findings.push(finding({
+      id: "finding_food_location_throughput_dependency",
+      module: "location",
+      dimension: "risk_exposure",
+      claim: locationEvidence
+        ? "Location context is present and should be tested against throughput and demand."
+        : "Food and beverage location dependency is not yet established.",
+      reason: "Food businesses can be sensitive to footfall, delivery radius, kitchen location, service format, and customer convenience.",
+      evidenceIds: idsOf([businessIdea, locationEvidence]),
+      confidence: "high",
+      severity: "material",
+      effect: "unknown",
+      whatWouldChangeIt: "Site criteria, delivery radius, footfall evidence, comparable demand, or customer access data.",
+      limitations: "This does not assume the location is good or bad.",
+    }));
+  }
+
+  if (hasModule("operating_cost") && businessIdea) {
+    findings.push(finding({
+      id: "finding_food_cost_waste_readiness",
+      module: "operating_cost",
+      dimension: "execution_feasibility",
+      claim: costEvidence
+        ? "Food-cost or operating-cost context is present but still needs economic interpretation."
+        : "Ingredient, waste, utility, or food-cost readiness is not yet established.",
+      reason: "Food and beverage economics depend on input costs, spoilage/waste, labor, utilities, and repeatable preparation.",
+      evidenceIds: idsOf([businessIdea, costEvidence, revenueItem]),
+      confidence: "high",
+      severity: "material",
+      effect: "unknown",
+      whatWouldChangeIt: "Ingredient costs, menu cost assumptions, waste level, labor cost, utilities, or supplier records.",
+      limitations: "No food-cost percentage, average ticket, or delivery commission is invented.",
+    }));
+  }
+
+  if (hasModule("operational_capacity") && businessIdea) {
+    findings.push(finding({
+      id: "finding_food_throughput_capacity_readiness",
+      module: "operational_capacity",
+      dimension: "execution_feasibility",
+      claim: throughputEvidence
+        ? "Throughput capacity is owner-stated and should be compared with demand and cost assumptions."
+        : "Kitchen, order, seating, or delivery throughput is not yet established.",
+      reason: "Food operations depend on preparation flow, service speed, staff, peak demand, and capacity constraints.",
+      evidenceIds: idsOf([businessIdea, throughputEvidence]),
+      confidence: "high",
+      severity: "material",
+      effect: throughputEvidence ? "neutral" : "unknown",
+      whatWouldChangeIt: "Expected orders per hour, kitchen capacity, seating, delivery slots, staff plan, or pilot throughput evidence.",
+      limitations: "This does not calculate table turnover or capacity without inputs.",
+    }));
+  }
+
+  if (hasModule("market_demand") && businessIdea) {
+    findings.push(finding({
+      id: "finding_food_repeat_demand_readiness",
+      module: "market_demand",
+      dimension: "evidence_confidence",
+      claim: repeatEvidence
+        ? "Repeat food demand has some behavioral evidence and remains distinct from stated appetite."
+        : "Repeat demand for the food concept is not yet behaviorally evidenced.",
+      reason: "Food concepts often require frequent or repeated customer behavior, not just one-time interest.",
+      evidenceIds: idsOf([businessIdea, repeatEvidence]),
+      confidence: "high",
+      severity: "material",
+      effect: repeatEvidence ? "neutral" : "unknown",
+      whatWouldChangeIt: "Repeat purchases, recurring orders, subscriptions, pilot sales, or customer return behavior.",
+      limitations: "Stated interest in food is not proof of recurring demand.",
+    }));
+  }
+
+  if (hasModule("labor_skills") && businessIdea) {
+    findings.push(finding({
+      id: "finding_food_labor_operational_complexity",
+      module: "labor_skills",
+      dimension: "execution_feasibility",
+      claim: laborEvidence
+        ? "Labor or staffing context is present and remains operationally important."
+        : "Labor, preparation, or operational complexity is not yet established.",
+      reason: "Food service depends on preparation consistency, service timing, staffing, and operational discipline.",
+      evidenceIds: idsOf([businessIdea, laborEvidence]),
+      confidence: "high",
+      severity: "material",
+      effect: laborEvidence ? "neutral" : "unknown",
+      whatWouldChangeIt: "Staffing plan, preparation workflow, operating hours, service format, or kitchen process evidence.",
+      limitations: "This identifies operational dependency without judging quality.",
+    }));
+  }
+
+  return findings;
+}
+
+function buildWholesaleDistributionFindings({ context, hasModule }) {
+  const businessIdea = findItem(context, "business_idea") || findItem(context, "original_idea");
+  const revenueItem = findItem(context, "planned_revenue_mechanism");
+  const supplierEvidence = findAnyItem(context, ["supplier_dependency", "inventory_materials_requirement"]);
+  const logisticsEvidence = findExternalItem(context, /lead time|logistics|shipping|customs|supplier terms|moq|minimum order/i);
+  const repeatEvidence = findExternalItem(context, /repeat order|purchase order|retailer order|recurring order|invoice/i);
+  const findings = [];
+
+  if (hasModule("risk_sensitivity") && businessIdea) {
+    findings.push(finding({
+      id: "finding_wholesale_supplier_concentration_dependency",
+      module: "risk_sensitivity",
+      dimension: "risk_exposure",
+      claim: supplierEvidence || logisticsEvidence
+        ? "Supplier or logistics dependency evidence is present and should be interpreted separately from customer demand."
+        : "Supplier concentration, MOQ, or lead-time dependency is not yet established.",
+      reason: "Distribution models can depend on supplier reliability, order minimums, lead time, logistics, and channel concentration.",
+      evidenceIds: idsOf([businessIdea, supplierEvidence, logisticsEvidence]),
+      confidence: "high",
+      severity: "material",
+      effect: supplierEvidence || logisticsEvidence ? "neutral" : "unknown",
+      whatWouldChangeIt: "Supplier terms, MOQ, lead time, alternate suppliers, logistics plan, customs dependency when relevant, or purchase records.",
+      limitations: "This does not assume importing, customs exposure, or unfavorable supplier terms without evidence.",
+    }));
+  }
+
+  if (hasModule("equipment_inventory") && businessIdea) {
+    findings.push(finding({
+      id: "finding_wholesale_inventory_working_capital_dependency",
+      module: "equipment_inventory",
+      dimension: "execution_feasibility",
+      claim: "Wholesale or distribution creates inventory and working-capital dependency before validated turnover is known.",
+      reason: "Inventory must be purchased, stored, delivered, and converted into customer orders on a cycle that supports the margin.",
+      evidenceIds: idsOf([businessIdea, revenueItem, supplierEvidence]),
+      confidence: "high",
+      severity: "material",
+      effect: "neutral",
+      whatWouldChangeIt: "Inventory quantity, supplier payment terms, customer payment terms, delivery cycle, and stock turnover evidence.",
+      limitations: "No working-capital amount, customs rate, or FX exposure is calculated without inputs.",
+    }));
+  }
+
+  if (hasModule("market_demand") && businessIdea) {
+    findings.push(finding({
+      id: "finding_wholesale_customer_order_concentration",
+      module: "market_demand",
+      dimension: "evidence_confidence",
+      claim: repeatEvidence
+        ? "Repeat customer order evidence is present and should be separated from supplier readiness."
+        : "Customer order depth and concentration are not yet evidenced.",
+      reason: "Distribution demand depends on repeat buyer orders, customer concentration, and channel access.",
+      evidenceIds: idsOf([businessIdea, repeatEvidence]),
+      confidence: "high",
+      severity: "material",
+      effect: repeatEvidence ? "neutral" : "unknown",
+      whatWouldChangeIt: "Repeat purchase orders, customer list, signed supply commitments, invoices, or buyer concentration evidence.",
+      limitations: "Retailer need is not proof of recurring wholesale orders.",
+    }));
+  }
+
+  if (hasModule("revenue_model") && (businessIdea || revenueItem)) {
+    findings.push(finding({
+      id: "finding_wholesale_margin_readiness",
+      module: "revenue_model",
+      dimension: "execution_feasibility",
+      claim: "Distributor margin readiness is not yet established from the current evidence alone.",
+      reason: "Distributor economics depend on purchase cost, selling price, order volume, logistics cost, credit terms, and inventory cycle.",
+      evidenceIds: idsOf([businessIdea, revenueItem]),
+      confidence: "high",
+      severity: "material",
+      effect: "unknown",
+      whatWouldChangeIt: "Supplier price, sale price, margin, logistics cost, payment timing, MOQ, and repeat order evidence.",
+      limitations: "Planned margin is not validated gross-margin evidence.",
+    }));
+  }
+
+  return findings;
+}
+
+function buildProfessionalServicesFindings({ context, hasModule }) {
+  const businessIdea = findItem(context, "business_idea") || findItem(context, "original_idea");
+  const revenueItem = findItem(context, "planned_revenue_mechanism");
+  const laborEvidence = findAnyItem(context, ["labor_skills_requirement", "staffing_plan"]);
+  const capacityEvidence = findAnyItem(context, ["operating_capacity_assumption", "target_operating_capacity"]);
+  const repeatEvidence = findExternalItem(context, /retainer|renewal|repeat client|recurring client|referral|paid engagement/i);
+  const trustEvidence = findExternalItem(context, /credential|reputation|case study|referral|testimonial|trust/i);
+  const findings = [];
+
+  if (hasModule("labor_skills") && businessIdea) {
+    findings.push(finding({
+      id: "finding_professional_expertise_dependency",
+      module: "labor_skills",
+      dimension: "execution_feasibility",
+      claim: laborEvidence || trustEvidence
+        ? "Expertise or trust evidence is present and remains distinct from market proof."
+        : "Expertise, trust, or reputation evidence is not yet established.",
+      reason: "Professional services depend on credible expertise, buyer trust, scope control, and delivery quality.",
+      evidenceIds: idsOf([businessIdea, laborEvidence, trustEvidence]),
+      confidence: "high",
+      severity: "material",
+      effect: laborEvidence || trustEvidence ? "neutral" : "unknown",
+      whatWouldChangeIt: "Credentials, case studies, referrals, client testimonials, delivery examples, or partner expertise evidence.",
+      limitations: "Expertise claims do not prove market demand.",
+    }));
+  }
+
+  if (hasModule("operational_capacity") && businessIdea) {
+    findings.push(finding({
+      id: "finding_professional_billable_utilization_capacity",
+      module: "operational_capacity",
+      dimension: "execution_feasibility",
+      claim: capacityEvidence
+        ? "Billable capacity is partly stated and should be compared with delivery demand."
+        : "Billable utilization and delivery capacity are not yet established.",
+      reason: "Professional-service economics depend on available expert time, sales cycle, scope control, and project delivery capacity.",
+      evidenceIds: idsOf([businessIdea, capacityEvidence, revenueItem]),
+      confidence: "high",
+      severity: "material",
+      effect: capacityEvidence ? "neutral" : "unknown",
+      whatWouldChangeIt: "Billable hours, project capacity, utilization target, scope boundaries, delivery process, or client pipeline evidence.",
+      limitations: "No utilization rate or project margin is calculated without inputs.",
+    }));
+  }
+
+  if (hasModule("market_demand") && businessIdea) {
+    findings.push(finding({
+      id: "finding_professional_repeat_retainer_readiness",
+      module: "market_demand",
+      dimension: "evidence_confidence",
+      claim: repeatEvidence
+        ? "Repeat client or retainer evidence is present and should be separated from expertise evidence."
+        : "Repeat, referral, or retainer demand is not yet evidenced.",
+      reason: "Professional practices often depend on trust, referrals, repeat work, retainers, or a clear sales cycle.",
+      evidenceIds: idsOf([businessIdea, repeatEvidence]),
+      confidence: "high",
+      severity: "material",
+      effect: repeatEvidence ? "neutral" : "unknown",
+      whatWouldChangeIt: "Repeat clients, retainers, referrals, paid discovery calls, proposals accepted, or renewal evidence.",
+      limitations: "A service capability is not proof of recurring client demand.",
+    }));
+  }
+
+  if (hasModule("risk_sensitivity") && businessIdea) {
+    findings.push(finding({
+      id: "finding_professional_founder_dependency",
+      module: "risk_sensitivity",
+      dimension: "risk_exposure",
+      claim: "Founder or key-person dependency should be examined for this professional-service model.",
+      reason: "If expertise and sales are concentrated in one person, delivery capacity and growth can be constrained.",
+      evidenceIds: [businessIdea.id],
+      confidence: "high",
+      severity: "material",
+      effect: "neutral",
+      whatWouldChangeIt: "Delivery team, documented process, delegation plan, repeatable service package, or partner capacity.",
+      limitations: "This identifies dependency only; it does not assume the founder is a bottleneck.",
+    }));
+  }
+
+  return findings;
+}
+
+function buildExistingBusinessExpansionFindings({ context, hasModule }) {
+  const businessIdea = findItem(context, "business_idea") || findItem(context, "original_idea");
+  const baselineEvidence = findExternalItem(context, /current|existing|baseline|revenue|customer base|active customer|operating data|deposit history/i);
+  const incrementalEvidence = findExternalItem(context, /incremental|new product|new line|validated incremental|expansion request|additional demand/i);
+  const capacityEvidence = findExternalItem(context, /spare capacity|available capacity|unused capacity|current capacity|management capacity/i) ||
+    findAnyItem(context, ["current_customer_volume", "current_capacity_staffing", "current_bottleneck_claim"]);
+  const cannibalizationEvidence = findExternalItem(context, /cannibal|core capacity|opportunity cost|management bandwidth|threatens core/i);
+  const findings = [];
+
+  if (hasModule("implementation") && businessIdea) {
+    findings.push(finding({
+      id: "finding_expansion_baseline_increment_separation",
+      module: "implementation",
+      dimension: "information_readiness",
+      claim: baselineEvidence
+        ? "Existing-business baseline evidence is present and must be separated from the proposed increment."
+        : "Current baseline evidence is not yet established separately from the proposed expansion.",
+      reason: "Expansion analysis should preserve existing customers, revenue, assets, and operating data without treating the new activity as startup-zero.",
+      evidenceIds: idsOf([businessIdea, baselineEvidence]),
+      confidence: "high",
+      severity: "material",
+      effect: baselineEvidence ? "supports" : "unknown",
+      whatWouldChangeIt: "Current revenue, current customer base, existing assets, operating data, and a separate description of the proposed increment.",
+      limitations: "Strong baseline evidence does not automatically prove the expansion is good.",
+    }));
+  }
+
+  if (hasModule("operational_capacity") && businessIdea) {
+    findings.push(finding({
+      id: "finding_expansion_spare_capacity_dependency",
+      module: "operational_capacity",
+      dimension: "execution_feasibility",
+      claim: capacityEvidence
+        ? "Capacity evidence is present and should be compared with incremental demand."
+        : "Spare capacity and management bandwidth are not yet established for the expansion.",
+      reason: "Expansion feasibility depends on whether current assets, staff, and management can absorb the increment without harming the core business.",
+      evidenceIds: idsOf([businessIdea, capacityEvidence]),
+      confidence: "high",
+      severity: "material",
+      effect: capacityEvidence ? "neutral" : "unknown",
+      whatWouldChangeIt: "Spare capacity, staffing availability, management bandwidth, bottleneck evidence, or staged outsourcing plan.",
+      limitations: "Existing operations help only if they are reusable for the new increment.",
+    }));
+  }
+
+  if (hasModule("economic_feasibility") && businessIdea) {
+    findings.push(finding({
+      id: "finding_expansion_incremental_economics_readiness",
+      module: "economic_feasibility",
+      dimension: "execution_feasibility",
+      claim: incrementalEvidence
+        ? "Incremental demand or economics evidence is present and should be evaluated separately from baseline performance."
+        : "Incremental revenue, cost, or capex evidence is not yet established.",
+      reason: "An existing business may be healthy while a proposed expansion still has weak incremental economics.",
+      evidenceIds: idsOf([businessIdea, incrementalEvidence]),
+      confidence: "high",
+      severity: "material",
+      effect: incrementalEvidence ? "neutral" : "unknown",
+      whatWouldChangeIt: "Incremental revenue logic, incremental capex, operating cost, validated demand for the new activity, or accepted orders.",
+      limitations: "Current revenue is not proof that the proposed increment is viable.",
+    }));
+  }
+
+  if (hasModule("risk_sensitivity") && businessIdea) {
+    findings.push(finding({
+      id: "finding_expansion_cannibalization_management_risk",
+      module: "risk_sensitivity",
+      dimension: "risk_exposure",
+      claim: cannibalizationEvidence
+        ? "Cannibalization, opportunity-cost, or management-bandwidth evidence is present."
+        : "Cannibalization, opportunity cost, and management bandwidth remain untested expansion risks.",
+      reason: "Expansion can compete with the core business for staff time, capacity, customer attention, supplier allocation, or management focus.",
+      evidenceIds: idsOf([businessIdea, cannibalizationEvidence]),
+      confidence: "high",
+      severity: "material",
+      effect: cannibalizationEvidence ? "neutral" : "unknown",
+      whatWouldChangeIt: "Evidence that the expansion does or does not displace core revenue, capacity, customer service, or management time.",
+      limitations: "This does not assume cannibalization exists; it records a relevant expansion risk to examine.",
     }));
   }
 
