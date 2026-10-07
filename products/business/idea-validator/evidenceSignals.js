@@ -26,6 +26,53 @@ function countAny(value, terms = []) {
   return terms.reduce((total, term) => total + (text.includes(term.toLowerCase()) ? 1 : 0), 0);
 }
 
+const evidenceDisqualifierPattern =
+  /(?:\b(?:no|not|never|without|none|zero|untested|unvalidated|unverified|expected|projected|planned|assumed|estimated|hypothetical|potential|forecast|anticipated)\b|(?:لا يوجد|لا|ليس|ليست|لم|لن|بدون|غير|متوقع|متوقعة|مفترض|مفترضة|افتراضي|افتراضية|تقديري|تقديرية|محتمل|محتملة|مستهدف|مستهدفة))/iu;
+
+function hasWordBoundary(text, index, length) {
+  const before = text[index - 1] || "";
+  const after = text[index + length] || "";
+  return !/[\p{L}\p{N}]/u.test(before) && !/[\p{L}\p{N}]/u.test(after);
+}
+
+function localEvidencePrefix(text, index) {
+  const prefix = text.slice(0, index);
+  const parts = prefix.split(/[.!?;,\n]|\b(?:and|or|but|however)\b|(?:\sو\s|\sلكن\s|\sولكن\s)/iu);
+  return parts.at(-1) || "";
+}
+
+function isPlanningLabelUsage(text, index, term) {
+  if (term !== "revenue") return false;
+  const suffix = text.slice(index + term.length);
+  return /^\s+(?:model|mechanism|stream|strategy)\b/iu.test(suffix);
+}
+
+function countAffirmedEvidence(value, terms = []) {
+  const text = normalize(value).toLowerCase();
+
+  return terms.reduce((total, term) => {
+    const normalizedTerm = term.toLowerCase();
+    let fromIndex = 0;
+
+    while (fromIndex < text.length) {
+      const index = text.indexOf(normalizedTerm, fromIndex);
+      if (index === -1) break;
+
+      if (
+        hasWordBoundary(text, index, normalizedTerm.length) &&
+        !evidenceDisqualifierPattern.test(localEvidencePrefix(text, index)) &&
+        !isPlanningLabelUsage(text, index, normalizedTerm)
+      ) {
+        return total + 1;
+      }
+
+      fromIndex = index + normalizedTerm.length;
+    }
+
+    return total;
+  }, 0);
+}
+
 const evidenceTerms = {
   customerValidation: [
     "interviewed",
@@ -192,11 +239,11 @@ export function interpretEvidenceSignals(input = {}, language = "en") {
     .filter(Boolean)
     .join(" ");
   const signals = {
-    customerValidation: countAny(combined, evidenceTerms.customerValidation),
-    payment: countAny(paymentSource, evidenceTerms.payment),
-    usage: countAny(combined, evidenceTerms.usage),
-    operational: countAny(combined, evidenceTerms.operational),
-    institutional: countAny(combined, evidenceTerms.institutional),
+    customerValidation: countAffirmedEvidence(combined, evidenceTerms.customerValidation),
+    payment: countAffirmedEvidence(paymentSource, evidenceTerms.payment),
+    usage: countAffirmedEvidence(combined, evidenceTerms.usage),
+    operational: countAffirmedEvidence(combined, evidenceTerms.operational),
+    institutional: countAffirmedEvidence(combined, evidenceTerms.institutional),
   };
   const unsupportedClaims = {
     demand: hasAny(combined, claimTerms.demand) && signals.customerValidation === 0 && signals.payment === 0 && signals.usage === 0,
