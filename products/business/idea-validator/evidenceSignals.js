@@ -27,7 +27,7 @@ function countAny(value, terms = []) {
 }
 
 const evidenceDisqualifierPattern =
-  /(?:\b(?:no|not|never|without|none|zero|untested|unvalidated|unverified|expected|projected|planned|assumed|estimated|hypothetical|potential|forecast|anticipated)\b|(?:لا يوجد|لا|ليس|ليست|لم|لن|بدون|غير|متوقع|متوقعة|مفترض|مفترضة|افتراضي|افتراضية|تقديري|تقديرية|محتمل|محتملة|مستهدف|مستهدفة))/iu;
+  /(?:\b(?:no|not|never|without|none|zero|untested|unvalidated|unverified|expected|projected|planned|assumed|estimated|hypothetical|potential|forecast|anticipated)\b|(?<![\p{L}\p{N}])(?:و?لا(?: يوجد| توجد)?|ليس|ليست|لم|لن|بدون|غير|نتوقع|متوقع|متوقعة|مفترض|مفترضة|افتراضي|افتراضية|تقديري|تقديرية|محتمل|محتملة|مستهدف|مستهدفة)(?![\p{L}\p{N}]))/iu;
 
 function hasWordBoundary(text, index, length) {
   const before = text[index - 1] || "";
