@@ -37,7 +37,7 @@ function hasWordBoundary(text, index, length) {
 
 function localEvidencePrefix(text, index) {
   const prefix = text.slice(0, index);
-  const parts = prefix.split(/[.!?;,\n]|\b(?:and|or|but|however)\b|(?:\sو\s|\sلكن\s|\sولكن\s)/iu);
+  const parts = prefix.split(/[.!?;\n]|\b(?:but|however)\b|(?:\sلكن\s|\sولكن\s)/iu);
   return parts.at(-1) || "";
 }
 
@@ -71,6 +71,118 @@ function countAffirmedEvidence(value, terms = []) {
 
     return total;
   }, 0);
+}
+
+function parseLocalizedNumber(value = "") {
+  const normalized = String(value)
+    .replace(/[٠-٩]/g, (digit) => "٠١٢٣٤٥٦٧٨٩".indexOf(digit))
+    .replace(",", ".");
+  const parsed = Number.parseFloat(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function isAffirmedMatch(text, index) {
+  return !evidenceDisqualifierPattern.test(localEvidencePrefix(text.toLowerCase(), index));
+}
+
+function affirmedMatches(text, patterns = []) {
+  const matches = [];
+  for (const pattern of patterns) {
+    const flags = pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`;
+    const matcher = new RegExp(pattern.source, flags);
+    let match;
+    while ((match = matcher.exec(text)) !== null) {
+      if (isAffirmedMatch(text, match.index)) matches.push(match);
+      if (match[0].length === 0) matcher.lastIndex += 1;
+    }
+  }
+  return matches.sort((left, right) => left.index - right.index);
+}
+
+function hasExplicitCorrection(text, previous, current) {
+  const bridge = text.slice(previous.index + previous[0].length, current.index);
+  const correctionContext = /^actually\b/iu.test(current[0]) ? `${bridge} actually` : bridge;
+  return /(?:\b(?:but|however|actually|correction|corrected|instead|only)\b|(?:لكن|ولكن|بل|في الواقع|تصحيح|الصحيح|فعلياً|فعليًا|فقط|بعد الاسترداد))/iu.test(correctionContext);
+}
+
+function resolveNumericEvidence({ text, matches, type, readValue, buildFact }) {
+  const candidates = matches
+    .map((match) => ({ match, value: readValue(match) }))
+    .filter((candidate) => Number.isFinite(candidate.value) && candidate.value > 0);
+  if (!candidates.length) return null;
+
+  let resolved = candidates[0];
+  let ambiguous = false;
+  const values = new Set([resolved.value]);
+  for (const candidate of candidates.slice(1)) {
+    values.add(candidate.value);
+    if (candidate.value === resolved.value) {
+      resolved = candidate;
+      continue;
+    }
+    if (hasExplicitCorrection(text, resolved.match, candidate.match)) {
+      resolved = candidate;
+      ambiguous = false;
+    } else {
+      ambiguous = true;
+    }
+  }
+
+  return ambiguous
+    ? { type, ambiguous: true, values: [...values].sort((left, right) => left - right) }
+    : buildFact(resolved.match, resolved.value);
+}
+
+function extractOwnerReportedEvidence(input = {}, language = "en") {
+  const text = normalize(textOf(input));
+  const facts = [];
+  const interviewMatches = affirmedMatches(text, language === "ar"
+    ? [/(?:أنجزنا|أجرينا|اجرينا|نفذنا|أكملنا|اكملنا)\s+([0-9٠-٩]+)\s+مقابل(?:ة|ات)/u, /قابلنا\s+([0-9٠-٩]+)\s+(?:عميلاً|عميل|عملاء)/u]
+    : [/(?:completed|conducted|carried out|held)\s+(\d+)\s+(?:customer\s+)?interviews?/iu, /interviewed\s+(\d+)\s+(?:customers?|people|owners?)/iu]);
+  const interviewFact = resolveNumericEvidence({
+    text,
+    matches: interviewMatches,
+    type: "completed_customer_interviews",
+    readValue: (match) => parseLocalizedNumber(match[1]),
+    buildFact: (_match, count) => ({ type: "completed_customer_interviews", count }),
+  });
+  if (interviewFact) facts.push(interviewFact);
+
+  const paidTrialMatches = affirmedMatches(text, language === "ar"
+    ? [/(?:لدينا|أكملنا|اكملنا|نفذنا|أجرينا|اجرينا)\s+([0-9٠-٩]+|واحدة|واحد)\s+تجار?ب?\s+مدفوعة(?:\s+(لمدة\s+(?:شهر\s+واحد|شهر|1\s+شهر|١\s+شهر)))?/u, /(?:لدينا|أكملنا|اكملنا|نفذنا|أجرينا|اجرينا)\s+تجربة\s+مدفوعة\s+([0-9٠-٩]+|واحدة|واحد)(?:\s+(لمدة\s+(?:شهر\s+واحد|شهر|1\s+شهر|١\s+شهر)))?/u]
+    : [/(?:have|had|completed|ran|conducted)\s+(one|\d+)\s+paid\s+(?:(one[- ]month|month[- ]long)\s+)?trials?/iu]);
+  const paidTrialFact = resolveNumericEvidence({
+    text,
+    matches: paidTrialMatches,
+    type: "completed_paid_trial",
+    readValue: (match) => /^(?:one|واحدة|واحد)$/iu.test(match[1]) ? 1 : parseLocalizedNumber(match[1]),
+    buildFact: (match, count) => ({
+      type: "completed_paid_trial",
+      count,
+      ...(match[2] ? { durationMonths: 1 } : {}),
+    }),
+  });
+  if (paidTrialFact) facts.push(paidTrialFact);
+
+  const paymentMatches = affirmedMatches(text, language === "ar"
+    ? [/(?:استلمنا|تسلّمنا|تسلمنا|حصلنا\s+على)\s+(?:عنها\s+)?([0-9٠-٩]+(?:[.,][0-9٠-٩]+)?)\s*(?:ريال(?:اً)?|ر\.س)/u]
+    : [/(?:actually\s+)?received\s+(?:sar\s*)?(\d+(?:[.,]\d+)?)\s*(?:sar|saudi riyals?)?/iu]);
+  const paymentFact = resolveNumericEvidence({
+    text,
+    matches: paymentMatches.filter((match) => /(?:ريال|ر\.س|sar|saudi riyal)/iu.test(match[0])),
+    type: "payment_received",
+    readValue: (match) => parseLocalizedNumber(match[1]),
+    buildFact: (_match, amount) => ({ type: "payment_received", amount, currency: "SAR" }),
+  });
+  if (paymentFact) facts.push(paymentFact);
+
+  return facts.length
+    ? {
+        origin: "owner_reported",
+        independentlyVerified: false,
+        facts,
+      }
+    : null;
 }
 
 const evidenceTerms = {
@@ -235,12 +347,25 @@ function stageEvidenceConflict(input = {}, paymentSignals = 0, usageSignals = 0)
 
 export function interpretEvidenceSignals(input = {}, language = "en") {
   const combined = textOf(input);
+  const observedUsageSource = [
+    input.businessIdea,
+    input.targetCustomer,
+    input.problem,
+    input.monetization,
+    input.currentSolution,
+    input.competitiveAdvantage,
+  ].filter(Boolean).join(" ");
+  const observedUsageTerms = evidenceTerms.usage.filter(
+    (term) => !["pilot", "mvp", "تجربة تجريبية", "نموذج أولي"].includes(term)
+  );
   const paymentSource = [input.businessIdea, input.monetization, input.currentSolution, input.competitiveAdvantage]
     .filter(Boolean)
     .join(" ");
+  const reportedEvidence = extractOwnerReportedEvidence(input, language);
+  const hasReportedPayment = reportedEvidence?.facts?.some((fact) => fact.type === "payment_received");
   const signals = {
     customerValidation: countAffirmedEvidence(combined, evidenceTerms.customerValidation),
-    payment: countAffirmedEvidence(paymentSource, evidenceTerms.payment),
+    payment: Math.max(countAffirmedEvidence(paymentSource, evidenceTerms.payment), hasReportedPayment ? 1 : 0),
     usage: countAffirmedEvidence(combined, evidenceTerms.usage),
     operational: countAffirmedEvidence(combined, evidenceTerms.operational),
     institutional: countAffirmedEvidence(combined, evidenceTerms.institutional),
@@ -258,6 +383,7 @@ export function interpretEvidenceSignals(input = {}, language = "en") {
     hasAnyEvidence: evidenceCount > 0,
     hasCustomerEvidence: signals.customerValidation > 0 || signals.usage > 0 || signals.payment > 0,
     hasPaymentEvidence: signals.payment > 0,
+    hasObservedUsageEvidence: countAffirmedEvidence(observedUsageSource, observedUsageTerms) > 0,
     hasOperationalEvidence: signals.operational > 0,
     hasUnsupportedDemandClaim: unsupportedClaims.demand,
     hasUnsupportedProfitClaim: unsupportedClaims.profitability,
@@ -275,6 +401,7 @@ export function interpretEvidenceSignals(input = {}, language = "en") {
               : signals.institutional > 0
                 ? "institutional"
                 : "",
+    reportedEvidence,
     language,
   };
 }

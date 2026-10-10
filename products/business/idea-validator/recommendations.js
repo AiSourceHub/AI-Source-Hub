@@ -234,6 +234,16 @@ function buildMvpAction(key, { context, language }) {
     return buildEvidenceValidationAction(context, language, "mvp");
   }
 
+  const hasReportedTrial = context.evidenceSignals?.reportedEvidence?.facts?.some(
+    (fact) => fact.type === "completed_paid_trial" && !fact.ambiguous
+  );
+  if (hasReportedTrial && !context.evidenceSignals?.hasObservedUsageEvidence) {
+    if (language === "ar") {
+      return "تعامل مع المقابلات والتجربة المدفوعة المذكورة كدليل مبكر أفاد به المالك، لا كإثبات للاحتفاظ أو الاستخدام النشط. في التجربة المدفوعة التالية، قِس التفعيل وإكمال المهمة والعودة للاستخدام قبل افتراض طلب متكرر.";
+    }
+    return "Treat the reported interviews and paid trial as early owner-reported evidence, not proof of retention or active usage. In the next paid trial, measure activation, task completion, and repeat use before assuming recurring demand.";
+  }
+
   const actions = {
     problemClarity: {
       en: `Watch 5 MVP users from ${context.customerLabel}. Record where they hesitate while dealing with ${context.primaryProblem}, then fix only the most repeated blocker.`,
